@@ -1,9 +1,11 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import { Button, Card } from "flowbite-svelte";
+  import PlotlyChartCard from "../components/PlotlyChartCard.svelte";
   import InputPanel from "../components/InputPanel.svelte";
-  import PsychrometricChart from "../components/PsychrometricChart.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
+  import { ComfortModel } from "../models/comfortModels";
   import { UnitSystem } from "../models/units";
   import { createComfortToolState } from "../state/comfortTool.svelte";
 
@@ -17,8 +19,8 @@
     void toolState.refresh();
   }
 
-  function handleUpdateField(fieldKey, value) {
-    toolState.updateInput(fieldKey, value);
+  function handleUpdateField(caseId, fieldKey, value) {
+    toolState.updateInput(caseId, fieldKey, value);
   }
 </script>
 
@@ -30,32 +32,93 @@
   </div>
 
   <section class="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-    <div class="grid gap-6 xl:grid-cols-[24rem,minmax(0,1fr)]">
+    <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,26rem),minmax(0,1fr)]">
       <InputPanel
-        fieldOrder={toolState.fieldOrder}
-        inputs={toolState.inputs}
+        selectedModel={toolState.ui.selectedModel}
+        compareEnabled={toolState.ui.compareEnabled}
+        activeCaseId={toolState.ui.activeCaseId}
+        visibleCaseIds={toolState.getVisibleCaseIds()}
+        fieldOrder={toolState.getFieldOrder()}
+        inputsByCase={toolState.inputsByCase}
         unitSystem={toolState.ui.unitSystem}
         isLoading={toolState.ui.isLoading}
         requestCount={toolState.ui.requestCount}
+        onSelectModel={toolState.setSelectedModel}
+        onToggleCompare={toolState.setCompareEnabled}
+        onSelectActiveCase={toolState.setActiveCaseId}
+        onToggleCaseVisibility={toolState.toggleCompareCaseVisibility}
         onToggleUnits={handleToggleUnits}
         onUpdateField={handleUpdateField}
         onRefresh={handleCalculate}
       />
 
-      <div class="grid min-w-0 gap-6">
+      <div class="grid min-w-0 self-start gap-6">
         <ResultsPanel
-          result={toolState.ui.pmvResult}
+          selectedModel={toolState.ui.selectedModel}
+          activeCaseId={toolState.ui.activeCaseId}
+          visibleCaseIds={toolState.getVisibleCaseIds()}
+          pmvResults={toolState.ui.pmvResults}
+          utciResults={toolState.ui.utciResults}
           errorMessage={toolState.ui.errorMessage}
           isLoading={toolState.ui.isLoading}
           requestCount={toolState.ui.requestCount}
           lastCompletedAt={toolState.ui.lastCompletedAt}
           resultRevision={toolState.ui.resultRevision}
         />
-        <PsychrometricChart
-          chartResult={toolState.ui.chartResult}
-          isLoading={toolState.ui.isLoading}
-          resultRevision={toolState.ui.resultRevision}
-        />
+
+        {#if toolState.ui.selectedModel === ComfortModel.Pmv}
+          <Card size="none" class="w-full border border-stone-200/80 bg-white/90 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Charts</div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                color={toolState.ui.selectedPmvChart === "psychrometric" ? "dark" : "alternative"}
+                onclick={() => toolState.setSelectedPmvChart("psychrometric")}
+              >
+                Psychrometric Chart
+              </Button>
+              <Button
+                type="button"
+                color={toolState.ui.selectedPmvChart === "relativeHumidity" ? "dark" : "alternative"}
+                onclick={() => toolState.setSelectedPmvChart("relativeHumidity")}
+              >
+                Relative Humidity Chart
+              </Button>
+            </div>
+          </Card>
+
+          {#if toolState.ui.selectedPmvChart === "psychrometric"}
+            <PlotlyChartCard
+              title="Psychrometric Chart"
+              description="Comfort zones, humidity-ratio curves, and current case points."
+              chartResult={toolState.ui.psychrometricChart}
+              isLoading={toolState.ui.isLoading}
+              resultRevision={toolState.ui.resultRevision}
+              emptyMessage="No psychrometric chart yet."
+              heightClass="h-[460px]"
+            />
+          {:else}
+            <PlotlyChartCard
+              title="Relative Humidity Chart"
+              description="Relative humidity vs. dry bulb temperature comfort boundaries."
+              chartResult={toolState.ui.relativeHumidityChart}
+              isLoading={toolState.ui.isLoading}
+              resultRevision={toolState.ui.resultRevision}
+              emptyMessage="No relative humidity chart yet."
+              heightClass="h-[460px]"
+            />
+          {/if}
+        {:else}
+          <PlotlyChartCard
+            title="UTCI Stress Visualization"
+            description="Stress category bands with one to three UTCI markers."
+            chartResult={toolState.ui.utciStressChart}
+            isLoading={toolState.ui.isLoading}
+            resultRevision={toolState.ui.resultRevision}
+            emptyMessage="No UTCI stress visualization yet."
+            heightClass="h-[360px]"
+          />
+        {/if}
       </div>
     </div>
   </section>

@@ -1,6 +1,11 @@
 from fastapi import APIRouter
 
-from app.schemas.chart import PsychrometricChartRequestDto, PsychrometricChartResponseDto
+from app.schemas.chart import (
+    PlotlyChartResponseDto,
+    PmvCompareChartRequestDto,
+    PsychrometricChartRequestDto,
+    RelativeHumidityChartRequestDto,
+)
 from app.schemas.comfort import (
     ComfortZoneRequestDto,
     ComfortZoneResponseDto,
@@ -9,8 +14,15 @@ from app.schemas.comfort import (
     PmvSeriesRequestDto,
     PmvSeriesResponseDto,
 )
-from app.services.chart_service import build_psychrometric_chart
+from app.schemas.utci import UtciCompareChartRequestDto, UtciRequestDto, UtciResponseDto
+from app.services.chart_service import (
+    build_compare_psychrometric_chart,
+    build_psychrometric_chart,
+    build_relative_humidity_chart,
+    build_utci_stress_chart,
+)
 from app.services.comfort_service import calculate_comfort_zone, calculate_pmv, calculate_pmv_series
+from app.services.utci_service import calculate_utci
 
 router = APIRouter(prefix="/api")
 
@@ -35,8 +47,28 @@ def calculate_comfort_zone_route(payload: ComfortZoneRequestDto) -> ComfortZoneR
     return calculate_comfort_zone(payload)
 
 
-@router.post("/ashrae55/psychrometric-chart", response_model=PsychrometricChartResponseDto)
+@router.post("/ashrae55/psychrometric-chart", response_model=PlotlyChartResponseDto)
 def psychrometric_chart_route(
     payload: PsychrometricChartRequestDto,
-) -> PsychrometricChartResponseDto:
+) -> PlotlyChartResponseDto:
     return build_psychrometric_chart(payload)
+
+
+@router.post("/ashrae55/psychrometric-compare-chart", response_model=PlotlyChartResponseDto)
+def psychrometric_compare_chart_route(payload: PmvCompareChartRequestDto) -> PlotlyChartResponseDto:
+    return build_compare_psychrometric_chart(payload)
+
+
+@router.post("/ashrae55/relative-humidity-chart", response_model=PlotlyChartResponseDto)
+def relative_humidity_chart_route(payload: RelativeHumidityChartRequestDto) -> PlotlyChartResponseDto:
+    return build_relative_humidity_chart(payload)
+
+
+@router.post("/utci", response_model=UtciResponseDto)
+def calculate_utci_route(payload: UtciRequestDto) -> UtciResponseDto:
+    return calculate_utci(payload)
+
+
+@router.post("/utci/stress-chart", response_model=PlotlyChartResponseDto)
+def utci_stress_chart_route(payload: UtciCompareChartRequestDto) -> PlotlyChartResponseDto:
+    return build_utci_stress_chart(payload)

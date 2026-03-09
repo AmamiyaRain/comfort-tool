@@ -36,6 +36,20 @@ export interface ComfortZoneResponseDto {
   source: string;
 }
 
+export interface UtciRequestDto {
+  tdb: number;
+  tr: number;
+  v: number;
+  rh: number;
+  units: UnitSystem;
+}
+
+export interface UtciResponseDto {
+  utci: number;
+  stress_category: string;
+  source: string;
+}
+
 export interface ChartRangeDto {
   tdb_min: number;
   tdb_max: number;
@@ -49,12 +63,29 @@ export interface PsychrometricChartRequestDto extends ComfortZoneRequestDto {
   rh_curves: number[];
 }
 
+export interface PmvCompareChartRequestDto {
+  case_a: ComfortZoneRequestDto;
+  case_b: ComfortZoneRequestDto | null;
+  case_c: ComfortZoneRequestDto | null;
+  chart_range: ChartRangeDto;
+  rh_curves: number[];
+}
+
+export interface RelativeHumidityChartRequestDto extends PmvCompareChartRequestDto {}
+
+export interface UtciStressChartRequestDto {
+  case_a: UtciRequestDto;
+  case_b: UtciRequestDto | null;
+  case_c: UtciRequestDto | null;
+}
+
 export interface PlotTraceDto {
   type: "scatter";
   mode: string;
   name: string;
   x: number[];
   y: number[];
+  showlegend?: boolean | null;
   fill?: string | null;
   fillcolor?: string | null;
   line: Record<string, string | number>;
@@ -78,12 +109,14 @@ export interface PlotLayoutDto {
   margin: Record<string, number>;
   xaxis: Record<string, unknown>;
   yaxis: Record<string, unknown>;
+  shapes?: Record<string, unknown>[];
+  legend?: Record<string, unknown> | null;
+  height?: number | null;
 }
 
-export interface PsychrometricChartResponseDto {
+export interface PlotlyChartResponseDto {
   traces: PlotTraceDto[];
   layout: PlotLayoutDto;
   annotations: PlotAnnotationDto[];
-  current_point: Record<string, number>;
   source: string;
 }

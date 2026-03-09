@@ -25,9 +25,11 @@ describe("comfortApi helpers", () => {
         margin: { l: 10, r: 10, t: 10, b: 10 },
         xaxis: { title: "X" },
         yaxis: { title: "Y" },
+        shapes: [],
+        legend: null,
+        height: 320,
       },
       annotations: [{ x: 25, y: 10, text: "50%", showarrow: false, font: { size: 11 } }],
-      current_point: { tdb: 25, humidity_ratio: 10 },
       source: "backend-generated",
     });
 

@@ -3,11 +3,16 @@ import type {
   ComfortZoneResponseDto,
   PlotAnnotationDto,
   PlotLayoutDto,
+  PlotlyChartResponseDto,
   PlotTraceDto,
+  PmvCompareChartRequestDto,
   PmvRequestDto,
   PmvResponseDto,
   PsychrometricChartRequestDto,
-  PsychrometricChartResponseDto,
+  RelativeHumidityChartRequestDto,
+  UtciRequestDto,
+  UtciResponseDto,
+  UtciStressChartRequestDto,
 } from "../models/dto";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
@@ -48,11 +53,36 @@ export function requestComfortZone(
 export function requestPsychrometricChart(
   payload: PsychrometricChartRequestDto,
   signal?: AbortSignal,
-): Promise<PsychrometricChartResponseDto> {
-  return postJson<PsychrometricChartResponseDto>("/api/ashrae55/psychrometric-chart", payload, signal);
+): Promise<PlotlyChartResponseDto> {
+  return postJson<PlotlyChartResponseDto>("/api/ashrae55/psychrometric-chart", payload, signal);
 }
 
-export function toPlotlyFigure(chart: PsychrometricChartResponseDto): {
+export function requestComparePsychrometricChart(
+  payload: PmvCompareChartRequestDto,
+  signal?: AbortSignal,
+): Promise<PlotlyChartResponseDto> {
+  return postJson<PlotlyChartResponseDto>("/api/ashrae55/psychrometric-compare-chart", payload, signal);
+}
+
+export function requestRelativeHumidityChart(
+  payload: RelativeHumidityChartRequestDto,
+  signal?: AbortSignal,
+): Promise<PlotlyChartResponseDto> {
+  return postJson<PlotlyChartResponseDto>("/api/ashrae55/relative-humidity-chart", payload, signal);
+}
+
+export function requestUtci(payload: UtciRequestDto, signal?: AbortSignal): Promise<UtciResponseDto> {
+  return postJson<UtciResponseDto>("/api/utci", payload, signal);
+}
+
+export function requestUtciStressChart(
+  payload: UtciStressChartRequestDto,
+  signal?: AbortSignal,
+): Promise<PlotlyChartResponseDto> {
+  return postJson<PlotlyChartResponseDto>("/api/utci/stress-chart", payload, signal);
+}
+
+export function toPlotlyFigure(chart: PlotlyChartResponseDto): {
   data: PlotTraceDto[];
   layout: PlotLayoutDto & { annotations: PlotAnnotationDto[] };
   config: Record<string, boolean | string>;

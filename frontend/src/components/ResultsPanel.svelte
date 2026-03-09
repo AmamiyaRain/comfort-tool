@@ -1,17 +1,39 @@
 <script lang="ts">
   import { Alert, Badge, Card } from "flowbite-svelte";
 
+  import { compareCaseMetaById } from "../models/compareCases";
+  import { ComfortModel } from "../models/comfortModels";
   import { getHealthUrl } from "../services/comfortApi";
 
-  let { result, errorMessage, isLoading, requestCount, lastCompletedAt, resultRevision } = $props();
+  let {
+    selectedModel,
+    activeCaseId,
+    visibleCaseIds,
+    pmvResults,
+    utciResults,
+    errorMessage,
+    isLoading,
+    requestCount,
+    lastCompletedAt,
+    resultRevision,
+  } = $props();
 
   function formatUpdatedAt(timestamp: number) {
     return new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      fractionalSecondDigits: 3,
     }).format(timestamp);
+  }
+
+  function getResultsGridClass() {
+    if (visibleCaseIds.length === 3) {
+      return "xl:grid-cols-3";
+    }
+    if (visibleCaseIds.length === 2) {
+      return "xl:grid-cols-2";
+    }
+    return "";
   }
 </script>
 
@@ -20,15 +42,19 @@
     <div>
       <div class="flex items-center gap-2">
         <Badge color={isLoading ? "yellow" : "green"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
-        <Badge color="alternative">Run {requestCount}</Badge>
+        <Badge color="dark">Run {requestCount}</Badge>
       </div>
       <h2 class="mt-4 text-xl font-semibold text-stone-950">Results</h2>
-      <p class="mt-2 text-sm leading-6 text-stone-600">Backend-calculated PMV/PPD and acceptance status.</p>
+      <p class="mt-2 text-sm leading-6 text-stone-600">
+        {selectedModel === ComfortModel.Pmv
+          ? "PMV and PPD outputs for the visible case columns."
+          : "UTCI values and stress categories for the visible case columns."}
+      </p>
     </div>
-    {#if result}
-      <Badge large color={result.acceptable_80 ? "green" : "red"} class="self-start">
-        {result.acceptable_80 ? "Pass" : "Fail"}
-      </Badge>
+    {#if lastCompletedAt > 0}
+      <div class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+        Updated {formatUpdatedAt(lastCompletedAt)}
+      </div>
     {/if}
   </div>
 
@@ -39,35 +65,60 @@
     </Alert>
   {/if}
 
-  {#if result}
-    {#key resultRevision}
-      <div class="mt-6 grid min-w-0 gap-4 lg:grid-cols-3">
-        <div class="rounded-[1.5rem] bg-gradient-to-br from-stone-950 via-stone-900 to-teal-900 p-5 text-white shadow-lg">
-          <div class="text-xs font-semibold uppercase tracking-[0.18em] text-teal-200/80">Thermal Vote</div>
-          <div class="mt-3 text-4xl font-semibold">{result.pmv.toFixed(3)}</div>
-          <div class="mt-3 text-sm text-stone-200">ASHRAE 55 PMV result from the backend service.</div>
-        </div>
-        <div class="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
-          <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">PPD</div>
-          <div class="mt-3 text-4xl font-semibold text-stone-950">{result.ppd.toFixed(1)}%</div>
-          <div class="mt-3 text-sm text-stone-600">Predicted percentage dissatisfied.</div>
-        </div>
-        <div class="rounded-[1.5rem] border border-stone-200 bg-stone-50 p-5">
-          <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Acceptability</div>
-          <div class="mt-3 text-4xl font-semibold text-stone-950">{(100 - result.ppd).toFixed(1)}%</div>
-          <div class="mt-3 text-sm text-stone-600">
-            {#if lastCompletedAt > 0}
-              Updated at {formatUpdatedAt(lastCompletedAt)}
-            {:else}
-              No completed request yet.
+  {#key resultRevision}
+    <div class={`mt-6 grid min-w-0 gap-4 ${getResultsGridClass()}`}>
+      {#each visibleCaseIds as caseId}
+        {@const pmvResult = pmvResults[caseId]}
+        {@const utciResult = utciResults[caseId]}
+        <section
+          class={`rounded-[1.5rem] border p-5 ${
+            activeCaseId === caseId
+              ? "border-stone-900 bg-stone-50 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+              : "border-stone-200 bg-stone-50"
+          }`}
+        >
+          <div class="flex items-center justify-between gap-4">
+            <Badge color={compareCaseMetaById[caseId].badgeColor}>{compareCaseMetaById[caseId].label}</Badge>
+            {#if selectedModel === ComfortModel.Pmv && pmvResult}
+              <Badge color={pmvResult.acceptable_80 ? "green" : "red"}>
+                {pmvResult.acceptable_80 ? "Pass" : "Fail"}
+              </Badge>
             {/if}
           </div>
-        </div>
-      </div>
-    {/key}
-  {:else}
-    <div class="mt-6 rounded-[1.5rem] border border-dashed border-stone-300 bg-stone-50/70 p-6 text-sm text-stone-500">
-      {isLoading ? "Waiting for backend response..." : "Run a calculation to populate PMV and chart results."}
+
+          {#if selectedModel === ComfortModel.Pmv && pmvResult}
+            <div class="mt-4 grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-4">
+              <div class="rounded-[1.25rem] bg-gradient-to-br from-stone-950 via-stone-900 to-teal-900 p-4 text-white">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-teal-200/80">PMV</div>
+                <div class="mt-3 text-3xl font-semibold">{pmvResult.pmv.toFixed(3)}</div>
+              </div>
+              <div class="rounded-[1.25rem] border border-amber-200 bg-amber-50 p-4">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">PPD</div>
+                <div class="mt-3 text-3xl font-semibold text-stone-950">{pmvResult.ppd.toFixed(1)}%</div>
+              </div>
+              <div class="rounded-[1.25rem] border border-stone-200 bg-white p-4">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Acceptability</div>
+                <div class="mt-3 text-3xl font-semibold text-stone-950">{(100 - pmvResult.ppd).toFixed(1)}%</div>
+              </div>
+            </div>
+          {:else if selectedModel === ComfortModel.Utci && utciResult}
+            <div class="mt-4 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
+              <div class="rounded-[1.25rem] bg-gradient-to-br from-stone-950 via-stone-900 to-sky-900 p-4 text-white">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200/80">UTCI</div>
+                <div class="mt-3 text-3xl font-semibold">{utciResult.utci.toFixed(1)} C</div>
+              </div>
+              <div class="rounded-[1.25rem] border border-stone-200 bg-white p-4">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Stress Category</div>
+                <div class="mt-3 text-lg font-semibold text-stone-950">{utciResult.stress_category}</div>
+              </div>
+            </div>
+          {:else}
+            <div class="mt-4 rounded-[1.25rem] border border-dashed border-stone-300 bg-white/70 p-4 text-sm text-stone-500">
+              {isLoading ? "Waiting for result..." : "Run Calculate to populate this case."}
+            </div>
+          {/if}
+        </section>
+      {/each}
     </div>
-  {/if}
+  {/key}
 </Card>

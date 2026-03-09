@@ -17,3 +17,17 @@ def test_psychrometric_chart_endpoint() -> None:
     assert response.status_code == 200
     assert "traces" in body
     assert "layout" in body
+
+
+def test_relative_humidity_chart_endpoint() -> None:
+    response = client.post("/api/ashrae55/relative-humidity-chart", json={})
+    assert response.status_code == 200
+    assert response.json()["layout"]["title"] == "Relative humidity chart"
+
+
+def test_utci_endpoint() -> None:
+    response = client.post("/api/utci", json={})
+    body = response.json()
+    assert response.status_code == 200
+    assert "utci" in body
+    assert "stress_category" in body

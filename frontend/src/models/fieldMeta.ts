@@ -1,3 +1,4 @@
+import { ComfortModel, type ComfortModel as ComfortModelType } from "./comfortModels";
 import { FieldKey, type FieldKey as FieldKeyType } from "./fieldKeys";
 
 export interface FieldMeta {
@@ -11,16 +12,6 @@ export interface FieldMeta {
   decimals: number;
   defaultValue: number;
 }
-
-export const fieldOrder: FieldKeyType[] = [
-  FieldKey.DryBulbTemperature,
-  FieldKey.MeanRadiantTemperature,
-  FieldKey.RelativeAirSpeed,
-  FieldKey.RelativeHumidity,
-  FieldKey.MetabolicRate,
-  FieldKey.ClothingInsulation,
-  FieldKey.ExternalWork,
-];
 
 export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
   [FieldKey.DryBulbTemperature]: {
@@ -46,6 +37,14 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     step: 0.01,
     decimals: 2,
     defaultValue: 0.1,
+  },
+  [FieldKey.WindSpeed]: {
+    key: FieldKey.WindSpeed,
+    label: "Wind speed",
+    units: { SI: "m/s", IP: "ft/s" },
+    step: 0.1,
+    decimals: 1,
+    defaultValue: 1,
   },
   [FieldKey.RelativeHumidity]: {
     key: FieldKey.RelativeHumidity,
@@ -80,3 +79,32 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     defaultValue: 0,
   },
 };
+
+export const fieldOrderByModel: Record<ComfortModelType, FieldKeyType[]> = {
+  [ComfortModel.Pmv]: [
+    FieldKey.DryBulbTemperature,
+    FieldKey.MeanRadiantTemperature,
+    FieldKey.RelativeAirSpeed,
+    FieldKey.RelativeHumidity,
+    FieldKey.MetabolicRate,
+    FieldKey.ClothingInsulation,
+    FieldKey.ExternalWork,
+  ],
+  [ComfortModel.Utci]: [
+    FieldKey.DryBulbTemperature,
+    FieldKey.MeanRadiantTemperature,
+    FieldKey.WindSpeed,
+    FieldKey.RelativeHumidity,
+  ],
+};
+
+export const allFieldOrder: FieldKeyType[] = [
+  FieldKey.DryBulbTemperature,
+  FieldKey.MeanRadiantTemperature,
+  FieldKey.RelativeAirSpeed,
+  FieldKey.WindSpeed,
+  FieldKey.RelativeHumidity,
+  FieldKey.MetabolicRate,
+  FieldKey.ClothingInsulation,
+  FieldKey.ExternalWork,
+];

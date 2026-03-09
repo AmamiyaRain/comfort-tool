@@ -2,6 +2,7 @@ export const FieldKey = {
   DryBulbTemperature: "tdb",
   MeanRadiantTemperature: "tr",
   RelativeAirSpeed: "vr",
+  WindSpeed: "v",
   RelativeHumidity: "rh",
   MetabolicRate: "met",
   ClothingInsulation: "clo",
