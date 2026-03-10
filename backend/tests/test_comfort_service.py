@@ -62,6 +62,8 @@ def test_compare_psychrometric_chart_supports_three_cases_without_rh_legend() ->
 def test_relative_humidity_chart_returns_plotly_payload() -> None:
     chart = build_relative_humidity_chart(RelativeHumidityChartRequestDto())
     assert chart.layout.title == "Relative humidity chart"
+    assert chart.layout.xaxis["title"] == "Dry bulb temperature (C)"
+    assert chart.layout.yaxis["title"] == "Relative humidity (%)"
     assert any("comfort zone" in trace.name for trace in chart.traces)
 
 

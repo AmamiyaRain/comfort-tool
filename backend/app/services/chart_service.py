@@ -205,31 +205,31 @@ def build_relative_humidity_chart(
                 PlotTraceDto(
                     mode="lines",
                     name=f"Case {case_label} RH comfort zone",
-                    x=[round(point.rh, 3) for point in polygon],
-                    y=[round(point.tdb, 3) for point in polygon],
+                    x=[round(point.tdb, 3) for point in polygon],
+                    y=[round(point.rh, 3) for point in polygon],
                     showlegend=False,
                     fill="toself",
                     fillcolor=CASE_STYLES[case_label]["fill"],
                     line={"color": CASE_STYLES[case_label]["line"], "width": 1.5},
-                    hovertemplate="RH %{x:.0f}%<br>Tdb %{y:.1f} C<extra></extra>",
+                    hovertemplate="Tdb %{x:.1f} C<br>RH %{y:.0f}%<extra></extra>",
                 )
             )
         traces.append(
             PlotTraceDto(
                 mode="markers",
                 name=f"Case {case_label}",
-                x=[round(case_payload.rh, 3)],
-                y=[round(case_payload.tdb, 3)],
+                x=[round(case_payload.tdb, 3)],
+                y=[round(case_payload.rh, 3)],
                 showlegend=show_case_legend,
                 marker={"color": CASE_STYLES[case_label]["marker"], "size": 12},
                 line={},
-                hovertemplate=f"Case {case_label}<br>RH %{{x:.0f}}%<br>Tdb %{{y:.1f}} C<extra></extra>",
+                hovertemplate=f"Case {case_label}<br>Tdb %{{x:.1f}} C<br>RH %{{y:.0f}}%<extra></extra>",
             )
         )
         annotations.append(
             PlotAnnotationDto(
-                x=round(case_payload.rh, 3),
-                y=round(case_payload.tdb, 3),
+                x=round(case_payload.tdb, 3),
+                y=round(case_payload.rh, 3),
                 text=case_label,
                 showarrow=True,
                 font={"size": 11, "color": CASE_STYLES[case_label]["line"]},
@@ -242,8 +242,8 @@ def build_relative_humidity_chart(
         plot_bgcolor="#f8fafc",
         showlegend=show_case_legend,
         margin={"l": 56, "r": 24, "t": 48, "b": 56},
-        xaxis={"title": "Relative humidity (%)", "range": [0, 100], "gridcolor": "#e2e8f0"},
-        yaxis={"title": "Dry bulb temperature (C)", "range": [10, 40], "gridcolor": "#e2e8f0"},
+        xaxis={"title": "Dry bulb temperature (C)", "range": [10, 40], "gridcolor": "#e2e8f0"},
+        yaxis={"title": "Relative humidity (%)", "range": [0, 100], "gridcolor": "#e2e8f0"},
         legend={"orientation": "h", "x": 0.0, "y": 1.1},
         height=420,
     )

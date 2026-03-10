@@ -56,18 +56,7 @@
         <Badge color="dark">#{requestCount}</Badge>
       </div>
       <h2 class="mt-4 text-xl font-semibold text-stone-950">Input</h2>
-      <p class="mt-2 text-sm leading-6 text-stone-600">
-        {compareEnabled
-          ? "Compare mode keeps this panel fixed and arranges the visible cases into columns."
-          : "Edit one input set, then calculate results and charts."}
-      </p>
     </div>
-
-    {#if compareEnabled}
-      <div class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-        Active {compareCaseMetaById[activeCaseId].label}
-      </div>
-    {/if}
   </div>
 
   <div class="mt-6 grid gap-4">
@@ -110,7 +99,7 @@
         <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Input Matrix</div>
         <p class="mt-1 text-xs text-stone-500">
           {compareEnabled
-            ? "Use the input buttons to control which columns are visible. The visible columns stay aligned by row."
+            ? "Use the input buttons to control which columns are visible."
             : "Single-column editing for the current model."}
         </p>
       </div>
@@ -126,18 +115,14 @@
             type="button"
             class={`rounded-[1rem] border px-3 py-3 text-left transition ${
               isCaseVisible(caseId)
-                ? activeCaseId === caseId
-                  ? "border-stone-950 bg-stone-950 text-white"
-                  : "border-stone-300 bg-white text-stone-800 hover:border-stone-500"
+                ? "border-stone-300 bg-white text-stone-800 hover:border-stone-500"
                 : "border-dashed border-stone-300 bg-white/70 text-stone-400 hover:border-stone-400 hover:text-stone-600"
             }`}
             onclick={() => onToggleCaseVisibility(caseId)}
           >
             <span class={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${
               isCaseVisible(caseId)
-                ? activeCaseId === caseId
-                  ? "text-white/70"
-                  : compareCaseMetaById[caseId].accentClass
+                ? compareCaseMetaById[caseId].accentClass
                 : "text-stone-400"
             }`}>
               Input {getInputIndex(caseId)}
@@ -158,10 +143,12 @@
         {#each visibleCaseIds as caseId}
           <div
             class={`border-b border-l border-stone-200 px-2 py-3 text-center ${
-              activeCaseId === caseId ? "bg-stone-950 text-white" : "bg-white text-stone-700"
+              activeCaseId === caseId
+                ? "bg-white text-stone-900 ring-1 ring-inset ring-stone-300"
+                : "bg-white text-stone-700"
             }`}
           >
-            <span class={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${activeCaseId === caseId ? "text-white/70" : compareCaseMetaById[caseId].accentClass}`}>
+            <span class={`block text-[10px] font-semibold uppercase tracking-[0.16em] ${compareCaseMetaById[caseId].accentClass}`}>
               Input {getInputIndex(caseId)}
             </span>
             <span class="mt-1 block text-sm font-semibold">{compareCaseMetaById[caseId].label}</span>
@@ -176,7 +163,7 @@
           </div>
 
           {#each visibleCaseIds as caseId}
-            <div class={`border-l border-t border-stone-200 px-2 py-2 ${activeCaseId === caseId ? "bg-stone-50" : "bg-white"}`}>
+            <div class={`border-l border-t border-stone-200 px-2 py-2 ${activeCaseId === caseId ? "bg-white" : "bg-white"}`}>
               <input
                 id={`${caseId}-${fieldKey}`}
                 type="number"
@@ -185,7 +172,11 @@
                 aria-label={`${compareCaseMetaById[caseId].label} ${meta.label}`}
                 onfocus={() => onSelectActiveCase(caseId)}
                 oninput={(event) => handleFieldInput(caseId, fieldKey, event.currentTarget.value)}
-                class="w-full rounded-xl border border-stone-200 bg-white px-2 py-2 text-center text-sm font-medium text-stone-900 shadow-sm transition focus:border-stone-950 focus:outline-none"
+                class={`w-full rounded-xl bg-white px-2 py-2 text-center text-sm font-medium text-stone-900 shadow-sm transition focus:outline-none ${
+                  activeCaseId === caseId
+                    ? "border border-stone-300 focus:border-stone-500"
+                    : "border border-stone-200 focus:border-stone-400"
+                }`}
               />
             </div>
           {/each}

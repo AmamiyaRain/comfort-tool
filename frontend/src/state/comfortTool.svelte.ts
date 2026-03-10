@@ -1,4 +1,9 @@
-import { CompareCaseId, compareCaseOrder, type CompareCaseId as CompareCaseIdType } from "../models/compareCases";
+import {
+  CompareCaseId,
+  compareCaseDefaultsById,
+  compareCaseOrder,
+  type CompareCaseId as CompareCaseIdType,
+} from "../models/compareCases";
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../models/comfortModels";
 import { allFieldOrder, fieldMetaByKey, fieldOrderByModel } from "../models/fieldMeta";
 import { FieldKey, type FieldKey as FieldKeyType } from "../models/fieldKeys";
@@ -46,16 +51,16 @@ type UiState = {
   utciStressChart: PlotlyChartResponseDto | null;
 };
 
-function createCaseInputs(): CaseInputsState {
+function createCaseInputs(caseId: CompareCaseIdType): CaseInputsState {
   return allFieldOrder.reduce((accumulator, fieldKey) => {
-    accumulator[fieldKey] = fieldMetaByKey[fieldKey].defaultValue;
+    accumulator[fieldKey] = compareCaseDefaultsById[caseId][fieldKey] ?? fieldMetaByKey[fieldKey].defaultValue;
     return accumulator;
   }, {} as CaseInputsState);
 }
 
 function createInputsByCase(): InputsByCaseState {
   return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = createCaseInputs();
+    accumulator[caseId] = createCaseInputs(caseId);
     return accumulator;
   }, {} as InputsByCaseState);
 }
@@ -184,7 +189,6 @@ export function createComfortToolState() {
     }
 
     if (caseId === CompareCaseId.A) {
-      ui.activeCaseId = CompareCaseId.A;
       return;
     }
 
@@ -197,7 +201,6 @@ export function createComfortToolState() {
       ui.compareCaseIds = normalizeCompareCaseIds(compareCaseOrder.filter(
         (compareCaseId) => compareCaseId === caseId || ui.compareCaseIds.includes(compareCaseId),
       ));
-      ui.activeCaseId = caseId;
     }
 
     clearResults();
