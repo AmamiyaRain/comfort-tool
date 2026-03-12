@@ -2,6 +2,7 @@
   import { Card } from "flowbite-svelte";
   import { onMount, tick } from "svelte";
 
+  import SearchableSelect from "./SearchableSelect.svelte";
   import { toPlotlyFigure } from "../services/comfortApi";
 
   let {
@@ -12,6 +13,11 @@
     resultRevision,
     emptyMessage,
     heightClass = "h-[420px]",
+    chartOptions = [],
+    selectedChart = "",
+    onSelectChart = undefined,
+    embedded = false,
+    showPlotTitle = false,
   } = $props();
 
   let chartElement = $state<HTMLDivElement | null>(null);
@@ -21,6 +27,9 @@
   } | null>(null);
   let hasRenderedChart = $state(false);
   let chartError = $state("");
+  let chartHeightStyle = $derived(
+    chartResult?.layout?.height && chartResult.layout.height > 0 ? `height: ${chartResult.layout.height}px;` : undefined,
+  );
 
   async function loadPlotly() {
     if (plotlyModule) {
@@ -47,6 +56,15 @@
       const plotly = await loadPlotly();
       const chartPayload = JSON.parse(JSON.stringify(chartResult));
       const figure = toPlotlyFigure(chartPayload);
+      if (!showPlotTitle) {
+        figure.layout.title = undefined;
+        if (typeof figure.layout.margin?.t === "number") {
+          figure.layout.margin = {
+            ...figure.layout.margin,
+            t: Math.max(24, figure.layout.margin.t - 24),
+          };
+        }
+      }
       chartError = "";
       await plotly.react(chartElement, figure.data, figure.layout, figure.config);
       hasRenderedChart = true;
@@ -72,32 +90,64 @@
   });
 </script>
 
-<Card size="none" class="w-full min-w-0 border border-stone-200/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-  <div class="flex items-start justify-between gap-4">
-    <div>
-      <h2 class="text-xl font-semibold text-stone-950">{title}</h2>
-      <p class="mt-2 text-sm leading-6 text-stone-600">{description}</p>
+{#snippet chartBody()}
+  {#if chartOptions.length > 0 && onSelectChart}
+    <div class={`grid items-center gap-3 ${embedded ? "mt-0" : "mt-3"} md:grid-cols-[auto,minmax(0,1fr)]`}>
+      <div class="text-base font-semibold text-stone-900">Charts</div>
+      <SearchableSelect
+        class="w-full"
+        items={chartOptions}
+        value={selectedChart}
+        placeholder="Select chart"
+        searchPlaceholder="Search chart..."
+        onSelect={onSelectChart}
+      />
     </div>
-    <div class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-      {isLoading ? "Updating" : "Synced"}
-    </div>
-  </div>
+  {/if}
 
-  <div class="relative mt-6 min-w-0">
-    <div class={`plotly-panel w-full min-w-0 rounded-[1.5rem] border border-stone-200 bg-stone-50 ${heightClass}`} bind:this={chartElement}></div>
+  <div class={`relative min-w-0 ${chartOptions.length > 0 && onSelectChart ? "mt-1.5" : "mt-0"}`}>
+    <div class={`w-full overflow-hidden bg-white ${embedded ? "" : "border border-stone-300"}`}>
+      <div
+        class={`plotly-panel h-full w-full min-w-0 max-w-full ${chartHeightStyle ? "" : heightClass}`}
+        style={chartHeightStyle}
+        bind:this={chartElement}
+      ></div>
+    </div>
 
     {#if chartError}
-      <div class="absolute inset-0 flex items-center justify-center rounded-[1.5rem] bg-stone-50/92 p-6 text-sm text-red-600">
+      <div class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-red-600">
         {chartError}
       </div>
     {:else if !chartResult}
-      <div class="absolute inset-0 flex items-center justify-center rounded-[1.5rem] bg-stone-50/92 p-6 text-sm text-stone-500">
+      <div class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-stone-500">
         {isLoading ? "Waiting for chart data from the backend..." : emptyMessage}
       </div>
     {:else if isLoading && !hasRenderedChart}
-      <div class="absolute inset-0 flex items-center justify-center rounded-[1.5rem] bg-stone-50/75 p-6 text-sm text-stone-500">
+      <div class="absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-sm text-stone-500">
         Rendering chart...
       </div>
     {/if}
   </div>
-</Card>
+{/snippet}
+
+{#if embedded}
+  <div class="w-full min-w-0 bg-white pt-1.5">
+    {@render chartBody()}
+  </div>
+{:else}
+  <Card size="none" class="w-full min-w-0 border border-stone-300 bg-white shadow-sm">
+    <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
+      <div>
+        <h2 class="text-base font-semibold text-stone-900">{title}</h2>
+        {#if description}
+          <p class="mt-0.5 text-xs text-stone-500">{description}</p>
+        {/if}
+      </div>
+      <div class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">
+        {isLoading ? "Updating" : "Synced"}
+      </div>
+    </div>
+
+    {@render chartBody()}
+  </Card>
+{/if}

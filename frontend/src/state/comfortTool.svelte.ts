@@ -27,6 +27,7 @@ import {
   requestUtciStressChart,
 } from "../services/comfortApi";
 import { convertDisplayToSi } from "../services/unitConversion";
+import { PmvChartId, type PmvChartId as PmvChartIdType } from "../models/chartOptions";
 
 type CaseInputsState = Record<FieldKeyType, number>;
 type InputsByCaseState = Record<CompareCaseIdType, CaseInputsState>;
@@ -34,7 +35,7 @@ type PmvResultsByCase = Record<CompareCaseIdType, PmvResponseDto | null>;
 type UtciResultsByCase = Record<CompareCaseIdType, UtciResponseDto | null>;
 type UiState = {
   selectedModel: ComfortModelType;
-  selectedPmvChart: "psychrometric" | "relativeHumidity";
+  selectedPmvChart: PmvChartIdType;
   compareEnabled: boolean;
   compareCaseIds: CompareCaseIdType[];
   activeCaseId: CompareCaseIdType;
@@ -107,7 +108,7 @@ export function createComfortToolState() {
   const inputsByCase = $state<InputsByCaseState>(createInputsByCase());
   const ui = $state<UiState>({
     selectedModel: ComfortModel.Pmv,
-    selectedPmvChart: "psychrometric",
+    selectedPmvChart: PmvChartId.Psychrometric,
     compareEnabled: false,
     compareCaseIds: createDefaultCompareCaseIds(),
     activeCaseId: CompareCaseId.A,
@@ -154,7 +155,7 @@ export function createComfortToolState() {
   function setSelectedModel(nextModel: ComfortModelType) {
     ui.selectedModel = nextModel;
     if (nextModel === ComfortModel.Pmv) {
-      ui.selectedPmvChart = "psychrometric";
+      ui.selectedPmvChart = PmvChartId.Psychrometric;
     }
     clearResults();
   }
@@ -175,7 +176,7 @@ export function createComfortToolState() {
     clearResults();
   }
 
-  function setSelectedPmvChart(nextChart: "psychrometric" | "relativeHumidity") {
+  function setSelectedPmvChart(nextChart: PmvChartIdType) {
     ui.selectedPmvChart = nextChart;
   }
 

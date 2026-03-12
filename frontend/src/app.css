@@ -25,4 +25,17 @@
 .plotly-panel :global(.svg-container) {
   width: 100% !important;
   height: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.plotly-panel :global(.main-svg),
+.plotly-panel :global(svg) {
+  max-width: 100% !important;
+}
+
+.plotly-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }

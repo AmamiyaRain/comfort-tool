@@ -118,15 +118,6 @@ def build_compare_psychrometric_chart(
                 hovertemplate="Tdb %{x:.1f} C<br>Humidity ratio %{y:.1f} g/kg<extra></extra>",
             )
         )
-        annotations.append(
-            PlotAnnotationDto(
-                x=x_values[-1],
-                y=y_values[-1],
-                text=f"{rh_curve}%",
-                font={"size": 11, "color": "#64748b"},
-            )
-        )
-
     for case_label, case_payload in cases:
         comfort_zone = calculate_comfort_zone(case_payload)
         cool_edge = comfort_zone.cool_edge

@@ -16,6 +16,7 @@
     requestCount,
     lastCompletedAt,
     resultRevision,
+    embedded = false,
   } = $props();
 
   function formatUpdatedAt(timestamp: number) {
@@ -26,99 +27,152 @@
     }).format(timestamp);
   }
 
-  function getResultsGridClass() {
-    if (visibleCaseIds.length === 3) {
-      return "xl:grid-cols-3";
-    }
-    if (visibleCaseIds.length === 2) {
-      return "xl:grid-cols-2";
-    }
-    return "";
+  function getResultsTemplateColumns() {
+    return `repeat(${visibleCaseIds.length}, minmax(0, 1fr))`;
+  }
+
+  function formatPmvValue(value: number) {
+    return value.toFixed(2);
+  }
+
+  function formatPercentValue(value: number) {
+    return `${value.toFixed(1)}%`;
+  }
+
+  function formatUtciValue(value: number) {
+    return `${value.toFixed(1)} C`;
+  }
+
+  function getInputIndex(caseId) {
+    return visibleCaseIds.indexOf(caseId) + 1;
   }
 </script>
 
-<Card size="none" class="w-full min-w-0 border border-stone-200/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-  <div class="flex items-start justify-between gap-4">
-    <div>
+<Card size="none" class={`w-full min-w-0 bg-white ${embedded ? "border-0 p-0 shadow-none" : "border border-stone-300 shadow-sm"}`}>
+  {#if !embedded}
+    <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
+      <div>
+        <h2 class="text-base font-semibold text-stone-900">Results</h2>
+      </div>
       <div class="flex items-center gap-2">
-        <Badge color={isLoading ? "yellow" : "green"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
-        <Badge color="dark">Run {requestCount}</Badge>
+        <Badge color={isLoading ? "yellow" : "success"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
+        {#if lastCompletedAt > 0}
+          <span class="text-[11px] text-stone-500">{formatUpdatedAt(lastCompletedAt)}</span>
+        {/if}
       </div>
-      <h2 class="mt-4 text-xl font-semibold text-stone-950">Results</h2>
-      <p class="mt-2 text-sm leading-6 text-stone-600">
-        {selectedModel === ComfortModel.Pmv
-          ? "PMV and PPD outputs for the visible case columns."
-          : "UTCI values and stress categories for the visible case columns."}
-      </p>
     </div>
-    {#if lastCompletedAt > 0}
-      <div class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-        Updated {formatUpdatedAt(lastCompletedAt)}
-      </div>
-    {/if}
-  </div>
 
-  {#if errorMessage}
-    <Alert color="red" class="mt-6 rounded-2xl">
-      {errorMessage}
-      <div class="mt-2 text-xs text-stone-500">Health check: {getHealthUrl()}</div>
-    </Alert>
+    {#if errorMessage}
+      <Alert color="red" class="mt-3 rounded-md text-sm">
+        {errorMessage}
+        <div class="mt-2 text-xs text-stone-500">Health check: {getHealthUrl()}</div>
+      </Alert>
+    {/if}
   {/if}
 
   {#key resultRevision}
-    <div class={`mt-6 grid min-w-0 gap-4 ${getResultsGridClass()}`}>
-      {#each visibleCaseIds as caseId}
-        {@const pmvResult = pmvResults[caseId]}
-        {@const utciResult = utciResults[caseId]}
-        <section
-          class={`rounded-[1.5rem] border p-5 ${
-            activeCaseId === caseId
-              ? "border-stone-900 bg-stone-50 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
-              : "border-stone-200 bg-stone-50"
-          }`}
-        >
-          <div class="flex items-center justify-between gap-4">
-            <Badge color={compareCaseMetaById[caseId].badgeColor}>{compareCaseMetaById[caseId].label}</Badge>
-            {#if selectedModel === ComfortModel.Pmv && pmvResult}
-              <Badge color={pmvResult.acceptable_80 ? "green" : "red"}>
-                {pmvResult.acceptable_80 ? "Pass" : "Fail"}
-              </Badge>
-            {/if}
+    <div class={embedded ? "bg-white" : "mt-3 bg-white"}>
+      <div class="grid gap-x-4 gap-y-2 md:grid-cols-2">
+        {#if selectedModel === ComfortModel.Pmv}
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">Compliance</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const pmvResult = pmvResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if pmvResult}
+                    <span class={pmvResult.acceptable_80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600"}>
+                      {pmvResult.acceptable_80 ? "Compliant" : "Out of range"}
+                    </span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
           </div>
 
-          {#if selectedModel === ComfortModel.Pmv && pmvResult}
-            <div class="mt-4 grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-4">
-              <div class="rounded-[1.25rem] bg-gradient-to-br from-stone-950 via-stone-900 to-teal-900 p-4 text-white">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-teal-200/80">PMV</div>
-                <div class="mt-3 text-3xl font-semibold">{pmvResult.pmv.toFixed(3)}</div>
-              </div>
-              <div class="rounded-[1.25rem] border border-amber-200 bg-amber-50 p-4">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">PPD</div>
-                <div class="mt-3 text-3xl font-semibold text-stone-950">{pmvResult.ppd.toFixed(1)}%</div>
-              </div>
-              <div class="rounded-[1.25rem] border border-stone-200 bg-white p-4">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Acceptability</div>
-                <div class="mt-3 text-3xl font-semibold text-stone-950">{(100 - pmvResult.ppd).toFixed(1)}%</div>
-              </div>
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">PMV</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const pmvResult = pmvResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if pmvResult}
+                    <span class="text-base font-semibold text-stone-900">{formatPmvValue(pmvResult.pmv)}</span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
             </div>
-          {:else if selectedModel === ComfortModel.Utci && utciResult}
-            <div class="mt-4 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
-              <div class="rounded-[1.25rem] bg-gradient-to-br from-stone-950 via-stone-900 to-sky-900 p-4 text-white">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200/80">UTCI</div>
-                <div class="mt-3 text-3xl font-semibold">{utciResult.utci.toFixed(1)} C</div>
-              </div>
-              <div class="rounded-[1.25rem] border border-stone-200 bg-white p-4">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Stress Category</div>
-                <div class="mt-3 text-lg font-semibold text-stone-950">{utciResult.stress_category}</div>
-              </div>
+          </div>
+
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">PPD</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const pmvResult = pmvResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if pmvResult}
+                    <span class="text-base font-semibold text-stone-900">{formatPercentValue(pmvResult.ppd)}</span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
             </div>
-          {:else}
-            <div class="mt-4 rounded-[1.25rem] border border-dashed border-stone-300 bg-white/70 p-4 text-sm text-stone-500">
-              {isLoading ? "Waiting for result..." : "Run Calculate to populate this case."}
+          </div>
+
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">Acceptability</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const pmvResult = pmvResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if pmvResult}
+                    <span class="text-stone-700">{formatPercentValue(100 - pmvResult.ppd)}</span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
             </div>
-          {/if}
-        </section>
-      {/each}
+          </div>
+        {:else}
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">UTCI</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const utciResult = utciResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if utciResult}
+                    <span class="text-base font-semibold text-stone-900">{formatUtciValue(utciResult.utci)}</span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <div class="px-1 py-1.5">
+            <div class="text-sm font-medium text-sky-700">Stress Category</div>
+            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+              {#each visibleCaseIds as caseId}
+                {@const utciResult = utciResults[caseId]}
+                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                  {#if utciResult}
+                    <span class="font-medium text-stone-900">{utciResult.stress_category}</span>
+                  {:else}
+                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
   {/key}
 </Card>

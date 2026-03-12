@@ -35,6 +35,9 @@ describe("comfortApi helpers", () => {
 
     expect(figure.data).toHaveLength(1);
     expect(figure.layout.annotations).toHaveLength(1);
+    expect(figure.layout.title).toEqual({ text: "Psychrometric chart" });
+    expect(figure.layout.xaxis).toMatchObject({ title: { text: "X", standoff: 12 } });
+    expect(figure.layout.yaxis).toMatchObject({ title: { text: "Y", standoff: 12 } });
     expect(figure.config.responsive).toBe(true);
   });
 });
