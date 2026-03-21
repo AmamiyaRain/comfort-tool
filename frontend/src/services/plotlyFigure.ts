@@ -8,7 +8,7 @@ import type {
 export function toPlotlyFigure(chart: PlotlyChartResponseDto): {
   data: PlotTraceDto[];
   layout: PlotLayoutDto & { annotations: PlotAnnotationDto[] };
-  config: Record<string, boolean | string>;
+  config: Record<string, unknown>;
 } {
   const xaxis = { ...chart.layout.xaxis };
   const yaxis = { ...chart.layout.yaxis };
@@ -33,6 +33,7 @@ export function toPlotlyFigure(chart: PlotlyChartResponseDto): {
     config: {
       responsive: true,
       displaylogo: false,
+      displayModeBar: false,
     },
   };
 }

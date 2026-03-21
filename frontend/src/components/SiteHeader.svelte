@@ -10,7 +10,7 @@
   }
 </script>
 
-<header class="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur-sm">
+<header class="border-b border-stone-200 bg-white">
   <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
     <a href="#overview" class="flex min-w-0 items-center gap-4">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#124f7f] p-2">

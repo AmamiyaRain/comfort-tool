@@ -40,5 +40,7 @@ describe("plotlyFigure", () => {
     expect(figure.layout.xaxis).toMatchObject({ title: { text: "X", standoff: 12 } });
     expect(figure.layout.yaxis).toMatchObject({ title: { text: "Y", standoff: 12 } });
     expect(figure.config.responsive).toBe(true);
+    expect(figure.config.displaylogo).toBe(false);
+    expect(figure.config.displayModeBar).toBe(false);
   });
 });

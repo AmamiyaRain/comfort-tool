@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card } from "flowbite-svelte";
+  import { Button, Card, Dropdown, DropdownItem } from "flowbite-svelte";
   import { onMount, tick } from "svelte";
 
   import SearchableSelect from "./SearchableSelect.svelte";
@@ -21,12 +21,15 @@
   } = $props();
 
   let chartElement = $state<HTMLDivElement | null>(null);
+  let exportMenuOpen = $state(false);
   let plotlyModule = $state<{
     react: (root: HTMLDivElement, data: unknown[], layout: object, config: object) => Promise<void>;
     purge: (root: HTMLDivElement) => void;
+    downloadImage: (root: HTMLDivElement, options: Record<string, unknown>) => Promise<void>;
   } | null>(null);
   let hasRenderedChart = $state(false);
   let chartError = $state("");
+  const exportTriggerId = `plotly-export-${Math.random().toString(36).slice(2, 10)}`;
   let chartHeightStyle = $derived(
     chartResult?.layout?.height && chartResult.layout.height > 0 ? `height: ${chartResult.layout.height}px;` : undefined,
   );
@@ -38,6 +41,30 @@
     const importedModule = await import("plotly.js-dist-min");
     plotlyModule = (importedModule.default ?? importedModule) as typeof plotlyModule;
     return plotlyModule;
+  }
+
+  function getExportFilename() {
+    const titleText = chartResult?.layout?.title?.trim() || title || "cbe-thermal-comfort-chart";
+    return titleText.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "cbe-thermal-comfort-chart";
+  }
+
+  async function exportChart(format: "png" | "svg") {
+    if (!chartElement || !chartResult) {
+      return;
+    }
+
+    exportMenuOpen = false;
+
+    try {
+      const plotly = await loadPlotly();
+      await plotly.downloadImage(chartElement, {
+        format,
+        filename: getExportFilename(),
+        ...(format === "png" ? { scale: 2 } : {}),
+      });
+    } catch (error) {
+      chartError = error instanceof Error ? error.message : "Chart export failed.";
+    }
   }
 
   async function renderChart() {
@@ -102,6 +129,51 @@
         searchPlaceholder="Search chart..."
         onSelect={onSelectChart}
       />
+    </div>
+  {/if}
+
+  {#if chartResult}
+    <div class={`flex items-center justify-end ${chartOptions.length > 0 && onSelectChart ? "mt-2" : "mb-2"}`}>
+      <Button
+        id={exportTriggerId}
+        type="button"
+        size="xs"
+        color="alternative"
+        class="gap-2 rounded-lg border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus-within:ring-sky-200"
+        disabled={isLoading}
+      >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+          <path d="M10 3.5v8.25"></path>
+          <path d="m6.75 8.75 3.25 3.25 3.25-3.25"></path>
+          <path d="M4 14.5h12"></path>
+        </svg>
+        <span>Export</span>
+        <svg class="h-3 w-3 text-stone-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.12l3.71-3.89a.75.75 0 1 1 1.08 1.04l-4.25 4.46a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd"></path>
+        </svg>
+      </Button>
+
+      <Dropdown
+        bind:open={exportMenuOpen}
+        triggeredBy={`#${exportTriggerId}`}
+        placement="bottom-end"
+        arrow={false}
+        class="w-52 py-1"
+        containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
+        headerClass="border-b border-stone-100 px-4 py-2"
+      >
+        <div slot="header" class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+          Download chart
+        </div>
+        <DropdownItem class="flex items-center justify-between gap-3 text-stone-700 hover:bg-stone-50" onclick={() => void exportChart("png")}>
+          <span>Download PNG</span>
+          <span class="text-[11px] uppercase tracking-[0.12em] text-stone-400">Image</span>
+        </DropdownItem>
+        <DropdownItem class="flex items-center justify-between gap-3 text-stone-700 hover:bg-stone-50" onclick={() => void exportChart("svg")}>
+          <span>Download SVG</span>
+          <span class="text-[11px] uppercase tracking-[0.12em] text-stone-400">Vector</span>
+        </DropdownItem>
+      </Dropdown>
     </div>
   {/if}
 
