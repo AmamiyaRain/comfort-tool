@@ -70,6 +70,31 @@ function ensureFiniteValue(label: string, value: number): number {
   return value;
 }
 
+function formatSignedTemperature(value: number): string {
+  const rounded = roundValue(value, 1);
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} C`;
+}
+
+function getPaddedAxisRange(values: number[], fallback: [number, number], padding = 4): [number, number] {
+  if (values.length === 0) {
+    return fallback;
+  }
+
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const paddedMinimum = Math.max(fallback[0], Math.floor((minimum - padding) / 5) * 5);
+  const paddedMaximum = Math.min(fallback[1], Math.ceil((maximum + padding) / 5) * 5);
+
+  if (paddedMinimum === paddedMaximum) {
+    return [
+      Math.max(fallback[0], paddedMinimum - 5),
+      Math.min(fallback[1], paddedMaximum + 5),
+    ];
+  }
+
+  return [paddedMinimum, paddedMaximum];
+}
+
 function calculatePmvValues(payload: PmvRequestDto): { pmv: number; ppd: number } {
   const result = pmv_ppd(payload.tdb, payload.tr, payload.vr, payload.rh, payload.met, payload.clo, payload.wme, "ASHRAE", {
     units: payload.units,
@@ -545,6 +570,93 @@ export function buildUtciStressChart(
       })),
       legend: { orientation: "h", x: 0, y: 1.08 },
       height: 360,
+    },
+    annotations,
+    source: CalculationSource.FrontendGenerated,
+  };
+}
+
+export function buildUtciTemperatureChart(
+  payload: UtciStressChartRequestDto,
+  utciResultsByCase: UtciChartResultsByCase = {},
+): PlotlyChartResponseDto {
+  const cases = getUtciCases(payload);
+  const showCaseLegend = cases.length > 1;
+  const traces: PlotTraceDto[] = [];
+  const annotations: PlotAnnotationDto[] = [];
+  const dryBulbTemperatures = cases.map(({ payload: casePayload }) => casePayload.tdb);
+  const xRange = getPaddedAxisRange(dryBulbTemperatures, [-50, 55]);
+
+  cases.forEach(({ caseId, payload: casePayload }) => {
+    const result = getUtciResultForCase(caseId, casePayload, utciResultsByCase);
+    const caseStyle = compareCaseChartStyleById[caseId];
+    const temperatureOffset = result.utci - casePayload.tdb;
+
+    traces.push({
+      type: "scatter",
+      mode: "markers",
+      name: `Case ${caseId}`,
+      x: [roundValue(casePayload.tdb)],
+      y: [roundValue(result.utci)],
+      showlegend: showCaseLegend,
+      line: {},
+      marker: { color: caseStyle.marker, size: 13 },
+      hovertemplate: `Case ${caseId}<br>Dry bulb %{x:.1f} C<br>UTCI %{y:.1f} C<br>Offset ${formatSignedTemperature(temperatureOffset)}<br>${result.stress_category}<extra></extra>`,
+    });
+
+    annotations.push({
+      x: roundValue(casePayload.tdb),
+      y: roundValue(result.utci),
+      text: `Case ${caseId}<br>${formatSignedTemperature(temperatureOffset)}`,
+      showarrow: true,
+      font: { size: 11, color: caseStyle.line },
+    });
+  });
+
+  return {
+    traces,
+    layout: {
+      title: "UTCI vs air temperature",
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#f8fafc",
+      showlegend: showCaseLegend,
+      margin: { l: 56, r: 24, t: 48, b: 56 },
+      xaxis: {
+        title: "Dry bulb temperature (C)",
+        range: xRange,
+        gridcolor: "#e2e8f0",
+      },
+      yaxis: {
+        title: "UTCI (C)",
+        range: [-50, 55],
+        gridcolor: "#e2e8f0",
+      },
+      shapes: [
+        ...utciStressBands.map((band) => ({
+          type: "rect",
+          xref: "paper",
+          yref: "y",
+          x0: 0,
+          x1: 1,
+          y0: band.minimum,
+          y1: band.maximum,
+          fillcolor: band.color,
+          line: { width: 0 },
+          opacity: 0.12,
+        })),
+        {
+          type: "line",
+          xref: "x",
+          yref: "y",
+          x0: xRange[0],
+          x1: xRange[1],
+          y0: xRange[0],
+          y1: xRange[1],
+          line: { color: "#94a3b8", width: 1.5, dash: "dash" },
+        },
+      ],
+      legend: { orientation: "h", x: 0, y: 1.08 },
+      height: 380,
     },
     annotations,
     source: CalculationSource.FrontendGenerated,

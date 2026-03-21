@@ -22,6 +22,7 @@ import {
   buildComparePsychrometricChart,
   buildRelativeHumidityChart,
   buildUtciStressChart,
+  buildUtciTemperatureChart,
   calculateComfortZone,
   calculatePmv,
   calculateUtci,
@@ -29,7 +30,13 @@ import {
   type UtciChartResultsByCase,
 } from "../services/comfortService";
 import { convertDisplayToSi } from "../services/unitConversion";
-import { PmvChartId, type PmvChartId as PmvChartIdType } from "../models/chartOptions";
+import {
+  PmvChartId,
+  UtciChartId,
+  type PmvChartId as PmvChartIdType,
+  type UtciChartId as UtciChartIdType,
+} from "../models/chartOptions";
+import type { ShareStateSnapshot } from "../services/shareState";
 
 type CaseInputsState = Record<FieldKeyType, number>;
 type InputsByCaseState = Record<CompareCaseIdType, CaseInputsState>;
@@ -38,6 +45,7 @@ type UtciResultsByCase = Record<CompareCaseIdType, UtciResponseDto | null>;
 type UiState = {
   selectedModel: ComfortModelType;
   selectedPmvChart: PmvChartIdType;
+  selectedUtciChart: UtciChartIdType;
   compareEnabled: boolean;
   compareCaseIds: CompareCaseIdType[];
   activeCaseId: CompareCaseIdType;
@@ -52,6 +60,7 @@ type UiState = {
   psychrometricChart: PlotlyChartResponseDto | null;
   relativeHumidityChart: PlotlyChartResponseDto | null;
   utciStressChart: PlotlyChartResponseDto | null;
+  utciTemperatureChart: PlotlyChartResponseDto | null;
 };
 
 function createCaseInputs(caseId: CompareCaseIdType): CaseInputsState {
@@ -111,6 +120,7 @@ export function createComfortToolState() {
   const ui = $state<UiState>({
     selectedModel: ComfortModel.Pmv,
     selectedPmvChart: PmvChartId.Psychrometric,
+    selectedUtciChart: UtciChartId.Stress,
     compareEnabled: false,
     compareCaseIds: createDefaultCompareCaseIds(),
     activeCaseId: CompareCaseId.A,
@@ -125,6 +135,7 @@ export function createComfortToolState() {
     psychrometricChart: null,
     relativeHumidityChart: null,
     utciStressChart: null,
+    utciTemperatureChart: null,
   });
   let calculationTimerId: number | null = null;
   let latestCalculationToken = 0;
@@ -139,6 +150,7 @@ export function createComfortToolState() {
     ui.psychrometricChart = null;
     ui.relativeHumidityChart = null;
     ui.utciStressChart = null;
+    ui.utciTemperatureChart = null;
     ui.resultRevision += 1;
   }
 
@@ -157,6 +169,8 @@ export function createComfortToolState() {
     ui.selectedModel = nextModel;
     if (nextModel === ComfortModel.Pmv) {
       ui.selectedPmvChart = PmvChartId.Psychrometric;
+    } else {
+      ui.selectedUtciChart = UtciChartId.Stress;
     }
     clearResults();
     scheduleCalculation({ immediate: true });
@@ -181,6 +195,10 @@ export function createComfortToolState() {
 
   function setSelectedPmvChart(nextChart: PmvChartIdType) {
     ui.selectedPmvChart = nextChart;
+  }
+
+  function setSelectedUtciChart(nextChart: UtciChartIdType) {
+    ui.selectedUtciChart = nextChart;
   }
 
   function setActiveCaseId(nextCaseId: CompareCaseIdType) {
@@ -213,6 +231,47 @@ export function createComfortToolState() {
 
   function setUnitSystem(nextUnitSystem: UnitSystemType) {
     ui.unitSystem = nextUnitSystem;
+  }
+
+  function exportShareSnapshot(): ShareStateSnapshot {
+    return {
+      version: 1,
+      selectedModel: ui.selectedModel,
+      selectedPmvChart: ui.selectedPmvChart,
+      selectedUtciChart: ui.selectedUtciChart,
+      compareEnabled: ui.compareEnabled,
+      compareCaseIds: [...ui.compareCaseIds],
+      activeCaseId: ui.activeCaseId,
+      unitSystem: ui.unitSystem,
+      inputsByCase: compareCaseOrder.reduce((accumulator, caseId) => {
+        accumulator[caseId] = allFieldOrder.reduce((caseAccumulator, fieldKey) => {
+          caseAccumulator[fieldKey] = inputsByCase[caseId][fieldKey];
+          return caseAccumulator;
+        }, {} as Record<FieldKeyType, number>);
+        return accumulator;
+      }, {} as ShareStateSnapshot["inputsByCase"]),
+    };
+  }
+
+  function applyShareSnapshot(snapshot: ShareStateSnapshot) {
+    ui.selectedModel = snapshot.selectedModel;
+    ui.selectedPmvChart = snapshot.selectedPmvChart;
+    ui.selectedUtciChart = snapshot.selectedUtciChart;
+    ui.compareEnabled = snapshot.compareEnabled;
+    ui.compareCaseIds = normalizeCompareCaseIds(snapshot.compareCaseIds);
+    ui.activeCaseId = snapshot.compareEnabled && ui.compareCaseIds.includes(snapshot.activeCaseId)
+      ? snapshot.activeCaseId
+      : CompareCaseId.A;
+    ui.unitSystem = snapshot.unitSystem;
+
+    compareCaseOrder.forEach((caseId) => {
+      allFieldOrder.forEach((fieldKey) => {
+        inputsByCase[caseId][fieldKey] = snapshot.inputsByCase[caseId][fieldKey];
+      });
+    });
+
+    clearResults();
+    scheduleCalculation({ immediate: true });
   }
 
   function updateInput(caseId: CompareCaseIdType, fieldKey: FieldKeyType, rawValue: string) {
@@ -350,6 +409,7 @@ export function createComfortToolState() {
         ui.psychrometricChart = buildComparePsychrometricChart(compareChartRequest, comfortZonesByCase) as PlotlyChartResponseDto;
         ui.relativeHumidityChart = buildRelativeHumidityChart(compareChartRequest, comfortZonesByCase) as PlotlyChartResponseDto;
         ui.utciStressChart = null;
+        ui.utciTemperatureChart = null;
       } else {
         const utciResponses = visibleCaseIds.map((caseId) => calculateUtci(toUtciRequest(caseId)));
         const utciResultsByCase = visibleCaseIds.reduce((accumulator, caseId) => {
@@ -362,6 +422,7 @@ export function createComfortToolState() {
         ui.psychrometricChart = null;
         ui.relativeHumidityChart = null;
         ui.utciStressChart = buildUtciStressChart(toUtciStressChartRequest(), utciResultsByCase) as PlotlyChartResponseDto;
+        ui.utciTemperatureChart = buildUtciTemperatureChart(toUtciStressChartRequest(), utciResultsByCase) as PlotlyChartResponseDto;
       }
 
       if (calculationToken !== latestCalculationToken) {
@@ -391,11 +452,16 @@ export function createComfortToolState() {
     getFieldOrder,
     setSelectedModel,
     setSelectedPmvChart,
+    setSelectedUtciChart,
     setCompareEnabled,
     setActiveCaseId,
     toggleCompareCaseVisibility,
     setUnitSystem,
+    exportShareSnapshot,
+    applyShareSnapshot,
     updateInput,
     scheduleCalculation,
   };
 }
+
+export type ComfortToolState = ReturnType<typeof createComfortToolState>;

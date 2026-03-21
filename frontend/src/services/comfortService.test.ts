@@ -8,6 +8,7 @@ import {
   buildComparePsychrometricChart,
   buildRelativeHumidityChart,
   buildUtciStressChart,
+  buildUtciTemperatureChart,
   calculateComfortZone,
   calculatePmv,
   calculateUtci,
@@ -188,5 +189,31 @@ describe("comfortService", () => {
     expect(chart.traces.some((trace) => trace.name === "Case A")).toBe(true);
     expect(chart.layout.shapes).toHaveLength(10);
     expect(chart.annotations.some((annotation) => annotation.text.includes("No<br>stress"))).toBe(true);
+  });
+
+  it("builds a UTCI air-temperature comparison chart", () => {
+    const chart = buildUtciTemperatureChart({
+      case_a: {
+        tdb: 25,
+        tr: 25,
+        v: 1,
+        rh: 50,
+        units: UnitSystem.SI,
+      },
+      case_b: {
+        tdb: 34,
+        tr: 40,
+        v: 0.7,
+        rh: 60,
+        units: UnitSystem.SI,
+      },
+      case_c: null,
+    });
+
+    expect(chart.source).toBe(CalculationSource.FrontendGenerated);
+    expect(chart.layout.title).toBe("UTCI vs air temperature");
+    expect(chart.traces).toHaveLength(2);
+    expect(chart.annotations.some((annotation) => annotation.text.includes("Case A"))).toBe(true);
+    expect(chart.layout.shapes?.some((shape) => shape.type === "line")).toBe(true);
   });
 });

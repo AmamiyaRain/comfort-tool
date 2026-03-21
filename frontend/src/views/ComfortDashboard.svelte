@@ -1,21 +1,26 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { onMount } from "svelte";
-
   import PlotlyChartCard from "../components/PlotlyChartCard.svelte";
   import InputPanel from "../components/InputPanel.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
-  import { pmvChartOptions, PmvChartId } from "../models/chartOptions";
+  import {
+    pmvChartOptions,
+    PmvChartId,
+    UtciChartId,
+    utciChartOptions,
+    type PmvChartId as PmvChartIdType,
+    type UtciChartId as UtciChartIdType,
+  } from "../models/chartOptions";
   import { ComfortModel } from "../models/comfortModels";
   import { UnitSystem } from "../models/units";
-  import { createComfortToolState } from "../state/comfortTool.svelte";
+  import type { ComfortToolState } from "../state/comfortTool.svelte";
 
-  const toolState = createComfortToolState();
-
-  onMount(() => {
-    toolState.scheduleCalculation({ immediate: true });
-  });
+  let {
+    toolState,
+  }: {
+    toolState: ComfortToolState;
+  } = $props();
 
   function handleToggleUnits() {
     toolState.setUnitSystem(toolState.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI);
@@ -23,6 +28,47 @@
 
   function handleUpdateField(caseId, fieldKey, value) {
     toolState.updateInput(caseId, fieldKey, value);
+  }
+
+  const currentChartResult = $derived.by(() => {
+    if (toolState.ui.selectedModel === ComfortModel.Pmv) {
+      return toolState.ui.selectedPmvChart === PmvChartId.Psychrometric
+        ? toolState.ui.psychrometricChart
+        : toolState.ui.relativeHumidityChart;
+    }
+
+    return toolState.ui.selectedUtciChart === UtciChartId.Stress
+      ? toolState.ui.utciStressChart
+      : toolState.ui.utciTemperatureChart;
+  });
+
+  const currentChartEmptyMessage = $derived.by(() => {
+    if (toolState.ui.selectedModel === ComfortModel.Pmv) {
+      return toolState.ui.selectedPmvChart === PmvChartId.Psychrometric
+        ? "No psychrometric chart yet."
+        : "No relative humidity chart yet.";
+    }
+
+    return toolState.ui.selectedUtciChart === UtciChartId.Stress
+      ? "No UTCI stress visualization yet."
+      : "No UTCI temperature comparison yet.";
+  });
+
+  const currentChartOptions = $derived.by(() => (
+    toolState.ui.selectedModel === ComfortModel.Pmv ? pmvChartOptions : utciChartOptions
+  ));
+
+  const currentSelectedChart = $derived.by(() => (
+    toolState.ui.selectedModel === ComfortModel.Pmv ? toolState.ui.selectedPmvChart : toolState.ui.selectedUtciChart
+  ));
+
+  function handleSelectChart(nextChart: string) {
+    if (toolState.ui.selectedModel === ComfortModel.Pmv) {
+      toolState.setSelectedPmvChart(nextChart as PmvChartIdType);
+      return;
+    }
+
+    toolState.setSelectedUtciChart(nextChart as UtciChartIdType);
   }
 </script>
 
@@ -65,45 +111,24 @@
               resultRevision={toolState.ui.resultRevision}
               embedded={true}
             />
-            {#if toolState.ui.selectedModel === ComfortModel.Pmv}
-              {#if toolState.ui.selectedPmvChart === PmvChartId.Psychrometric}
-                <PlotlyChartCard
-                  description=""
-                  chartResult={toolState.ui.psychrometricChart}
-                  isLoading={toolState.ui.isLoading}
-                  resultRevision={toolState.ui.resultRevision}
-                  emptyMessage="No psychrometric chart yet."
-                  heightClass="h-[420px] xl:h-[420px]"
-                  chartOptions={pmvChartOptions}
-                  selectedChart={toolState.ui.selectedPmvChart}
-                  onSelectChart={toolState.setSelectedPmvChart}
-                  embedded={true}
-                />
-              {:else}
-                <PlotlyChartCard
-                  description=""
-                  chartResult={toolState.ui.relativeHumidityChart}
-                  isLoading={toolState.ui.isLoading}
-                  resultRevision={toolState.ui.resultRevision}
-                  emptyMessage="No relative humidity chart yet."
-                  heightClass="h-[420px] xl:h-[420px]"
-                  chartOptions={pmvChartOptions}
-                  selectedChart={toolState.ui.selectedPmvChart}
-                  onSelectChart={toolState.setSelectedPmvChart}
-                  embedded={true}
-                />
-              {/if}
-            {:else}
-              <PlotlyChartCard
-                description=""
-                chartResult={toolState.ui.utciStressChart}
-                isLoading={toolState.ui.isLoading}
-                resultRevision={toolState.ui.resultRevision}
-                emptyMessage="No UTCI stress visualization yet."
-                heightClass="h-[360px] xl:h-[360px]"
-                embedded={true}
-              />
-            {/if}
+            <PlotlyChartCard
+              description=""
+              chartResult={currentChartResult}
+              isLoading={toolState.ui.isLoading}
+              resultRevision={toolState.ui.resultRevision}
+              emptyMessage={currentChartEmptyMessage}
+              heightClass={
+                toolState.ui.selectedModel === ComfortModel.Pmv
+                  ? "h-[420px] xl:h-[420px]"
+                  : toolState.ui.selectedUtciChart === UtciChartId.Stress
+                    ? "h-[360px] xl:h-[360px]"
+                    : "h-[380px] xl:h-[380px]"
+              }
+              chartOptions={currentChartOptions}
+              selectedChart={currentSelectedChart}
+              onSelectChart={handleSelectChart}
+              embedded={true}
+            />
           </div>
         </div>
       </div>
