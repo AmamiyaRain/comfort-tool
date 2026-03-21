@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { Badge, Card, Dropdown, DropdownItem, Toggle } from "flowbite-svelte";
+  import { Badge, Card, Dropdown, DropdownItem, Modal, Toggle } from "flowbite-svelte";
 
+  import ClothingEnsembleBuilder from "./ClothingEnsembleBuilder.svelte";
+  import PresetNumericInput from "./PresetNumericInput.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import { clothingTypicalEnsembles } from "../models/clothingEnsembles";
   import { compareCaseMetaById, compareCaseOrder } from "../models/compareCases";
   import { PmvChartId } from "../models/chartOptions";
   import { ComfortModel } from "../models/comfortModels";
@@ -14,6 +17,7 @@
     PmvHumidityInputMode,
     PmvTemperatureInputMode,
   } from "../models/inputModes";
+  import { metabolicActivityOptions } from "../models/metabolicActivities";
   import { UnitSystem } from "../models/units";
   import {
     convertHumidityRatioSiToDisplay,
@@ -56,6 +60,7 @@
   let temperatureMenuOpen = $state(false);
   let airSpeedMenuOpen = $state(false);
   let humidityMenuOpen = $state(false);
+  let clothingBuilderOpen = $state(false);
 
   function getDisplayValue(caseId, fieldKey, decimals) {
     if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeAirSpeed && pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured) {
@@ -87,6 +92,13 @@
 
   function isCaseVisible(caseId) {
     return visibleCaseIds.includes(caseId);
+  }
+
+  function getCompareToggleClasses(caseId) {
+    const caseUi = compareCaseMetaById[caseId].ui;
+    return isCaseVisible(caseId)
+      ? `border-solid bg-white ${caseUi.inputToggleVisibleClass}`
+      : `border-dashed bg-stone-50 ${caseUi.inputToggleHiddenClass}`;
   }
 
   function getMatrixTemplateColumns() {
@@ -228,6 +240,49 @@
     );
   }
 
+  function showClothingBuilder(fieldKey) {
+    return selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.ClothingInsulation;
+  }
+
+  function showPresetInput(fieldKey) {
+    return (
+      selectedModel === ComfortModel.Pmv &&
+      (fieldKey === FieldKey.ClothingInsulation || fieldKey === FieldKey.MetabolicRate)
+    );
+  }
+
+  const clothingPresetOptions = clothingTypicalEnsembles.map((ensemble) => ({
+    id: ensemble.id,
+    label: ensemble.label,
+    value: ensemble.clo,
+  }));
+
+  const metabolicPresetOptions = metabolicActivityOptions.map((activity) => ({
+    id: activity.id,
+    label: activity.label,
+    value: activity.met,
+  }));
+
+  function getPresetInputOptions(fieldKey) {
+    if (fieldKey === FieldKey.ClothingInsulation) {
+      return clothingPresetOptions;
+    }
+
+    if (fieldKey === FieldKey.MetabolicRate) {
+      return metabolicPresetOptions;
+    }
+
+    return [];
+  }
+
+  function getPresetInputDecimals(fieldKey) {
+    if (fieldKey === FieldKey.ClothingInsulation) {
+      return 2;
+    }
+
+    return fieldMetaByKey[fieldKey].decimals;
+  }
+
   function getAdvancedTriggerId(fieldKey) {
     return `advanced-input-${fieldKey}`;
   }
@@ -246,6 +301,16 @@
     onSetPmvHumidityInputMode(nextMode);
     humidityMenuOpen = false;
   }
+
+  function handleApplyClothingValue(caseId, value) {
+    onSelectActiveCase(caseId);
+    onUpdateField(caseId, FieldKey.ClothingInsulation, value.toFixed(2));
+  }
+
+  function handleApplyPresetValue(caseId, fieldKey, value) {
+    onSelectActiveCase(caseId);
+    onUpdateField(caseId, fieldKey, value.toFixed(getPresetInputDecimals(fieldKey)));
+  }
 </script>
 
 <Card size="none" class="w-full border border-stone-300 bg-white shadow-sm">
@@ -253,7 +318,6 @@
     <div>
       <h2 class="text-base font-semibold text-stone-900">Inputs</h2>
     </div>
-    <Badge color="light">#{calculationCount}</Badge>
   </div>
 
   <div class="mt-3 grid gap-3">
@@ -295,14 +359,10 @@
           {#each compareCaseOrder as caseId}
             <button
               type="button"
-              class={`min-w-0 rounded-sm border px-2 py-1.5 text-left ${
-                isCaseVisible(caseId)
-                  ? "border-stone-900 border-solid bg-white"
-                  : "border-stone-400 border-dashed bg-stone-50"
-              }`}
+              class={`min-w-0 rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(caseId)}`}
               onclick={() => onToggleCaseVisibility(caseId)}
             >
-              <div class="text-sm font-semibold text-stone-900">Input {getInputIndex(caseId)}</div>
+              <div class="text-sm font-semibold">Input {getInputIndex(caseId)}</div>
             </button>
           {/each}
         </div>
@@ -463,6 +523,19 @@
                       </Dropdown>
                     {/if}
                   {/if}
+
+                  {#if showClothingBuilder(fieldKey)}
+                    <button
+                      type="button"
+                      onclick={() => {
+                        clothingBuilderOpen = true;
+                      }}
+                      class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
+                    >
+                      More
+                      <span class="text-[10px]">▼</span>
+                    </button>
+                  {/if}
                 </div>
 
                 {#if getFieldRange(fieldKey)}
@@ -474,16 +547,30 @@
               <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getMatrixTemplateColumns()};`}>
                 {#each visibleCaseIds as caseId}
                   <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 p-1" : "p-1"}>
-                    <input
-                      id={`${caseId}-${fieldKey}`}
-                      type="number"
-                      step={getFieldStep(fieldKey)}
-                      value={getDisplayValue(caseId, fieldKey, getFieldDecimals(fieldKey))}
-                      aria-label={`${compareCaseMetaById[caseId].label} ${getFieldLabel(fieldKey)}`}
-                      onfocus={() => onSelectActiveCase(caseId)}
-                      oninput={(event) => handleFieldInput(caseId, fieldKey, event.currentTarget.value)}
-                      class="w-full rounded-sm border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
-                    />
+                    {#if showPresetInput(fieldKey)}
+                      <PresetNumericInput
+                        items={getPresetInputOptions(fieldKey)}
+                        value={inputsByCase[caseId][fieldKey]}
+                        decimals={getPresetInputDecimals(fieldKey)}
+                        valueSuffix={getFieldDisplayUnits(fieldKey)}
+                        placeholder={`Enter ${getFieldDisplayUnits(fieldKey)} or search preset`}
+                        searchPlaceholder={`Search ${getFieldLabel(fieldKey).toLowerCase()} presets`}
+                        ariaLabel={`${compareCaseMetaById[caseId].label} ${getFieldLabel(fieldKey)}`}
+                        onActivate={() => onSelectActiveCase(caseId)}
+                        onCommit={(value) => handleApplyPresetValue(caseId, fieldKey, value)}
+                      />
+                    {:else}
+                      <input
+                        id={`${caseId}-${fieldKey}`}
+                        type="number"
+                        step={getFieldStep(fieldKey)}
+                        value={getDisplayValue(caseId, fieldKey, getFieldDecimals(fieldKey))}
+                        aria-label={`${compareCaseMetaById[caseId].label} ${getFieldLabel(fieldKey)}`}
+                        onfocus={() => onSelectActiveCase(caseId)}
+                        oninput={(event) => handleFieldInput(caseId, fieldKey, event.currentTarget.value)}
+                        class="w-full rounded-sm border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
+                      />
+                    {/if}
                   </div>
                 {/each}
               </div>
@@ -493,14 +580,33 @@
       </div>
     </div>
   </div>
-
-  <div class="mt-3">
-    <p class="text-xs text-stone-500">
-      {#if isLoading}
-        Updating results automatically.
-      {:else}
-        Results and charts update automatically when inputs change.
-      {/if}
-    </p>
-  </div>
 </Card>
+
+<Modal
+  bind:open={clothingBuilderOpen}
+  size="md"
+  placement="center"
+  outsideclose={true}
+  class="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-2xl shadow-stone-900/10"
+  classBackdrop="fixed inset-0 z-40 bg-stone-950/35 backdrop-blur-sm"
+  classHeader="border-b border-stone-100 px-5 py-4"
+  classBody="space-y-0 p-0"
+>
+  <svelte:fragment slot="header">
+    <div>
+      <h3 class="text-lg font-semibold text-stone-900">Clothing Tools</h3>
+      <p class="mt-1 text-sm text-stone-500">Predict clo quickly or build a garment ensemble from the CBE list.</p>
+    </div>
+  </svelte:fragment>
+
+  <ClothingEnsembleBuilder
+    activeCaseId={activeCaseId}
+    visibleCaseIds={visibleCaseIds}
+    {unitSystem}
+    onSelectCase={onSelectActiveCase}
+    onApplyClothingValue={handleApplyClothingValue}
+    onClose={() => {
+      clothingBuilderOpen = false;
+    }}
+  />
+</Modal>

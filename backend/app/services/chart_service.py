@@ -18,19 +18,19 @@ from app.schemas.utci import UtciCompareChartRequestDto
 ATM_PRESSURE_PA = 101325.0
 CASE_STYLES = {
     "A": {
-        "line": "#0f766e",
-        "fill": "rgba(15, 118, 110, 0.18)",
-        "marker": "#0f766e",
+        "line": "#1e40af",
+        "fill": "rgba(30, 64, 175, 0.12)",
+        "marker": "#1e40af",
     },
     "B": {
-        "line": "#b45309",
-        "fill": "rgba(180, 83, 9, 0.14)",
-        "marker": "#b45309",
+        "line": "#991b1b",
+        "fill": "rgba(153, 27, 27, 0.12)",
+        "marker": "#991b1b",
     },
     "C": {
-        "line": "#1d4ed8",
-        "fill": "rgba(29, 78, 216, 0.12)",
-        "marker": "#1d4ed8",
+        "line": "#047857",
+        "fill": "rgba(4, 120, 87, 0.14)",
+        "marker": "#047857",
     },
 }
 UTCI_STRESS_SHORT_LABELS = {

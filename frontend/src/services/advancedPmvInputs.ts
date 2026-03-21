@@ -1,4 +1,5 @@
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../models/units";
+import { clo_tout } from "jsthermalcomfort/lib/esm/models/clo_tout.js";
 import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
 import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
 import { t_dp } from "jsthermalcomfort/lib/esm/psychrometrics/t_dp.js";
@@ -106,6 +107,13 @@ export function deriveOperativeTemperature(
   airSpeed: number,
 ): number {
   return t_o(dryBulbTemperature, meanRadiantTemperature, airSpeed, "ASHRAE");
+}
+
+export function predictClothingInsulationFromOutdoorTemperature(
+  outdoorTemperature: number,
+  unitSystem: UnitSystemType,
+): number {
+  return clo_tout(outdoorTemperature, unitSystem);
 }
 
 export function convertHumidityRatioSiToDisplay(value: number, unitSystem: UnitSystemType): number {

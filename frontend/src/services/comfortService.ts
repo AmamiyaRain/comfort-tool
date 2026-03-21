@@ -1,4 +1,8 @@
-import { CompareCaseId, type CompareCaseId as CompareCaseIdType } from "../models/compareCases";
+import {
+  CompareCaseId,
+  compareCaseChartStyleById,
+  type CompareCaseId as CompareCaseIdType,
+} from "../models/compareCases";
 import { CalculationSource, ComfortStandard } from "../models/calculationMetadata";
 import type {
   ComfortPointDto,
@@ -30,31 +34,6 @@ import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js"
 
 const PMV_COMFORT_LIMIT = 0.5;
 const ATM_PRESSURE_PA = 101325;
-
-const compareCaseChartStyleById: Record<
-  CompareCaseIdType,
-  {
-    line: string;
-    fill: string;
-    marker: string;
-  }
-> = {
-  [CompareCaseId.A]: {
-    line: "#0f766e",
-    fill: "rgba(15, 118, 110, 0.18)",
-    marker: "#0f766e",
-  },
-  [CompareCaseId.B]: {
-    line: "#b45309",
-    fill: "rgba(180, 83, 9, 0.14)",
-    marker: "#b45309",
-  },
-  [CompareCaseId.C]: {
-    line: "#1d4ed8",
-    fill: "rgba(29, 78, 216, 0.12)",
-    marker: "#1d4ed8",
-  },
-};
 
 export type ComfortZonesByCase = Partial<Record<CompareCaseIdType, ComfortZoneResponseDto>>;
 export type UtciChartResultsByCase = Partial<Record<CompareCaseIdType, UtciResponseDto>>;

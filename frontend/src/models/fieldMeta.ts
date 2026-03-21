@@ -118,7 +118,6 @@ export const fieldOrderByModel: Record<ComfortModelType, FieldKeyType[]> = {
     FieldKey.RelativeHumidity,
     FieldKey.MetabolicRate,
     FieldKey.ClothingInsulation,
-    FieldKey.ExternalWork,
   ],
   [ComfortModel.Utci]: [
     FieldKey.DryBulbTemperature,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Alert, Badge, Card } from "flowbite-svelte";
 
+  import { compareCaseMetaById } from "../models/compareCases";
   import { ComfortModel } from "../models/comfortModels";
 
   let {
@@ -40,8 +41,10 @@
     return `${value.toFixed(1)} C`;
   }
 
-  function getInputIndex(caseId) {
-    return visibleCaseIds.indexOf(caseId) + 1;
+  function getResultCellClasses(caseId) {
+    const caseUi = compareCaseMetaById[caseId].ui;
+    const activeClasses = activeCaseId === caseId ? caseUi.resultActiveRingClass : "";
+    return `rounded-md border px-2 py-1.5 ${caseUi.resultCellClass} ${activeClasses}`.trim();
   }
 </script>
 
@@ -75,7 +78,7 @@
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const pmvResult = pmvResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if pmvResult}
                     <span class={pmvResult.acceptable_80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600"}>
                       {pmvResult.acceptable_80 ? "Compliant" : "Out of range"}
@@ -93,7 +96,7 @@
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const pmvResult = pmvResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if pmvResult}
                     <span class="text-base font-semibold text-stone-900">{formatPmvValue(pmvResult.pmv)}</span>
                   {:else}
@@ -109,7 +112,7 @@
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const pmvResult = pmvResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if pmvResult}
                     <span class="text-base font-semibold text-stone-900">{formatPercentValue(pmvResult.ppd)}</span>
                   {:else}
@@ -121,13 +124,13 @@
           </div>
 
           <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">Acceptability</div>
+            <div class="text-sm font-semibold text-sky-800">Acceptability</div>
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const pmvResult = pmvResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if pmvResult}
-                    <span class="text-stone-700">{formatPercentValue(100 - pmvResult.ppd)}</span>
+                    <span class="text-base font-semibold text-stone-900">{formatPercentValue(100 - pmvResult.ppd)}</span>
                   {:else}
                     <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
                   {/if}
@@ -141,7 +144,7 @@
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const utciResult = utciResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if utciResult}
                     <span class="text-base font-semibold text-stone-900">{formatUtciValue(utciResult.utci)}</span>
                   {:else}
@@ -157,7 +160,7 @@
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
                 {@const utciResult = utciResults[caseId]}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 px-2 py-1.5" : "px-2 py-1.5"}>
+                <div class={getResultCellClasses(caseId)}>
                   {#if utciResult}
                     <span class="font-medium text-stone-900">{utciResult.stress_category}</span>
                   {:else}

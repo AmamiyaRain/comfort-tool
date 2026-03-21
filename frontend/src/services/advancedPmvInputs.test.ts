@@ -16,6 +16,7 @@ import {
   deriveRelativeHumidityFromWetBulb,
   deriveVaporPressureFromRelativeHumidity,
   deriveWetBulbFromRelativeHumidity,
+  predictClothingInsulationFromOutdoorTemperature,
 } from "./advancedPmvInputs";
 import { UnitSystem } from "../models/units";
 
@@ -38,6 +39,12 @@ describe("advancedPmvInputs", () => {
 
   it("derives operative temperature using the ASHRAE method", () => {
     expect(deriveOperativeTemperature(26, 24, 0.1)).toBeCloseTo(25, 6);
+  });
+
+  it("predicts clothing insulation from outdoor temperature", () => {
+    expect(predictClothingInsulationFromOutdoorTemperature(20, UnitSystem.SI)).toBeCloseTo(0.51, 6);
+    expect(predictClothingInsulationFromOutdoorTemperature(68, UnitSystem.IP)).toBeCloseTo(0.51, 6);
+    expect(predictClothingInsulationFromOutdoorTemperature(-10, UnitSystem.SI)).toBeCloseTo(1.0, 6);
   });
 
   it("round-trips humidity ratio and relative humidity", () => {
