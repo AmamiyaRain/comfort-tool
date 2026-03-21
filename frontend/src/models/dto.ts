@@ -1,3 +1,5 @@
+import type { CalculationSource, ComfortStandard } from "./calculationMetadata";
+import type { UtciStressCategory } from "./utciStress";
 import type { UnitSystem } from "./units";
 
 export interface PmvRequestDto {
@@ -15,8 +17,8 @@ export interface PmvResponseDto {
   pmv: number;
   ppd: number;
   acceptable_80: boolean;
-  standard: string;
-  source: string;
+  standard: ComfortStandard;
+  source: CalculationSource;
 }
 
 export interface ComfortPointDto {
@@ -33,7 +35,7 @@ export interface ComfortZoneRequestDto extends PmvRequestDto {
 export interface ComfortZoneResponseDto {
   cool_edge: ComfortPointDto[];
   warm_edge: ComfortPointDto[];
-  source: string;
+  source: CalculationSource;
 }
 
 export interface UtciRequestDto {
@@ -46,8 +48,8 @@ export interface UtciRequestDto {
 
 export interface UtciResponseDto {
   utci: number;
-  stress_category: string;
-  source: string;
+  stress_category: UtciStressCategory;
+  source: CalculationSource;
 }
 
 export interface ChartRangeDto {
@@ -118,5 +120,5 @@ export interface PlotlyChartResponseDto {
   traces: PlotTraceDto[];
   layout: PlotLayoutDto;
   annotations: PlotAnnotationDto[];
-  source: string;
+  source: CalculationSource;
 }

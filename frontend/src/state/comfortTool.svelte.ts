@@ -19,13 +19,15 @@ import type {
 } from "../models/dto";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../models/units";
 import {
-  getHealthUrl,
-  requestComparePsychrometricChart,
-  requestPmv,
-  requestRelativeHumidityChart,
-  requestUtci,
-  requestUtciStressChart,
-} from "../services/comfortApi";
+  buildComparePsychrometricChart,
+  buildRelativeHumidityChart,
+  buildUtciStressChart,
+  calculateComfortZone,
+  calculatePmv,
+  calculateUtci,
+  type ComfortZonesByCase,
+  type UtciChartResultsByCase,
+} from "../services/comfortService";
 import { convertDisplayToSi } from "../services/unitConversion";
 import { PmvChartId, type PmvChartId as PmvChartIdType } from "../models/chartOptions";
 
@@ -42,7 +44,7 @@ type UiState = {
   unitSystem: UnitSystemType;
   isLoading: boolean;
   errorMessage: string;
-  requestCount: number;
+  calculationCount: number;
   lastCompletedAt: number;
   resultRevision: number;
   pmvResults: PmvResultsByCase;
@@ -115,7 +117,7 @@ export function createComfortToolState() {
     unitSystem: UnitSystem.SI,
     isLoading: false,
     errorMessage: "",
-    requestCount: 0,
+    calculationCount: 0,
     lastCompletedAt: 0,
     resultRevision: 0,
     pmvResults: createEmptyPmvResults(),
@@ -124,9 +126,6 @@ export function createComfortToolState() {
     relativeHumidityChart: null,
     utciStressChart: null,
   });
-
-  let activeController = $state<AbortController | null>(null);
-  let requestToken = $state(0);
 
   function clearResults(options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
@@ -279,81 +278,61 @@ export function createComfortToolState() {
     };
   }
 
-  async function refresh() {
-    if (activeController) {
-      activeController.abort();
+  async function yieldToNextFrame() {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      await Promise.resolve();
+      return;
     }
 
-    const controller = new AbortController();
-    activeController = controller;
-    const token = ++requestToken;
-    const timeoutId = window.setTimeout(() => controller.abort("timeout"), 8000);
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
 
+  async function calculate() {
     ui.isLoading = true;
     ui.errorMessage = "";
-    ui.requestCount += 1;
+    ui.calculationCount += 1;
+
+    await yieldToNextFrame();
 
     try {
       const visibleCaseIds = getVisibleCaseIds();
 
       if (ui.selectedModel === ComfortModel.Pmv) {
         const compareChartRequest = toPmvCompareChartRequest();
-        const [pmvResponses, psychrometricChart, relativeHumidityChart] = await Promise.all([
-          Promise.all(visibleCaseIds.map((caseId) => requestPmv(toPmvRequest(caseId), controller.signal))),
-          requestComparePsychrometricChart(compareChartRequest, controller.signal),
-          requestRelativeHumidityChart(compareChartRequest, controller.signal),
-        ]);
-
-        if (token !== requestToken || activeController !== controller) {
-          return;
-        }
+        const pmvResponses = visibleCaseIds.map((caseId) => calculatePmv(toPmvRequest(caseId)));
+        const comfortZonesByCase = visibleCaseIds.reduce((accumulator, caseId) => {
+          accumulator[caseId] = calculateComfortZone(toComfortZoneRequest(caseId));
+          return accumulator;
+        }, {} as ComfortZonesByCase);
 
         ui.pmvResults = mapCaseResponses<PmvResponseDto>(visibleCaseIds, pmvResponses);
         ui.utciResults = createEmptyUtciResults();
-        ui.psychrometricChart = psychrometricChart as PlotlyChartResponseDto;
-        ui.relativeHumidityChart = relativeHumidityChart as PlotlyChartResponseDto;
+        ui.psychrometricChart = buildComparePsychrometricChart(compareChartRequest, comfortZonesByCase) as PlotlyChartResponseDto;
+        ui.relativeHumidityChart = buildRelativeHumidityChart(compareChartRequest, comfortZonesByCase) as PlotlyChartResponseDto;
         ui.utciStressChart = null;
       } else {
-        const [utciResponses, utciStressChart] = await Promise.all([
-          Promise.all(visibleCaseIds.map((caseId) => requestUtci(toUtciRequest(caseId), controller.signal))),
-          requestUtciStressChart(toUtciStressChartRequest(), controller.signal),
-        ]);
-
-        if (token !== requestToken || activeController !== controller) {
-          return;
-        }
+        const utciResponses = visibleCaseIds.map((caseId) => calculateUtci(toUtciRequest(caseId)));
+        const utciResultsByCase = visibleCaseIds.reduce((accumulator, caseId) => {
+          accumulator[caseId] = utciResponses[visibleCaseIds.indexOf(caseId)] ?? null;
+          return accumulator;
+        }, {} as UtciChartResultsByCase);
 
         ui.utciResults = mapCaseResponses<UtciResponseDto>(visibleCaseIds, utciResponses);
         ui.pmvResults = createEmptyPmvResults();
         ui.psychrometricChart = null;
         ui.relativeHumidityChart = null;
-        ui.utciStressChart = utciStressChart as PlotlyChartResponseDto;
+        ui.utciStressChart = buildUtciStressChart(toUtciStressChartRequest(), utciResultsByCase) as PlotlyChartResponseDto;
       }
 
       ui.lastCompletedAt = Date.now();
       ui.resultRevision += 1;
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        const isTimeout = controller.signal.aborted && controller.signal.reason === "timeout";
-        if (isTimeout && token === requestToken && activeController === controller) {
-          ui.errorMessage = `Request timed out. Check backend status at ${getHealthUrl()}.`;
-          clearResults({ keepErrorMessage: true });
-        }
-        return;
-      }
-
-      if (token !== requestToken || activeController !== controller) {
-        return;
-      }
-
       clearResults({ keepErrorMessage: true });
-      ui.errorMessage = error instanceof Error ? error.message : "Backend request failed.";
+      ui.errorMessage = error instanceof Error ? error.message : "Calculation failed.";
     } finally {
-      clearTimeout(timeoutId);
-      if (token === requestToken && activeController === controller) {
-        activeController = null;
-        ui.isLoading = false;
-      }
+      ui.isLoading = false;
     }
   }
 
@@ -369,6 +348,6 @@ export function createComfortToolState() {
     toggleCompareCaseVisibility,
     setUnitSystem,
     updateInput,
-    refresh,
+    calculate,
   };
 }

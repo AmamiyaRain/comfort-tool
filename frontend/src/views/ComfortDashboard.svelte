@@ -16,7 +16,7 @@
   }
 
   function handleCalculate() {
-    void toolState.refresh();
+    void toolState.calculate();
   }
 
   function handleUpdateField(caseId, fieldKey, value) {
@@ -37,14 +37,14 @@
           inputsByCase={toolState.inputsByCase}
           unitSystem={toolState.ui.unitSystem}
           isLoading={toolState.ui.isLoading}
-          requestCount={toolState.ui.requestCount}
+          calculationCount={toolState.ui.calculationCount}
           onSelectModel={toolState.setSelectedModel}
           onToggleCompare={toolState.setCompareEnabled}
           onSelectActiveCase={toolState.setActiveCaseId}
           onToggleCaseVisibility={toolState.toggleCompareCaseVisibility}
           onToggleUnits={handleToggleUnits}
           onUpdateField={handleUpdateField}
-          onRefresh={handleCalculate}
+          onCalculate={handleCalculate}
         />
       </div>
 
@@ -60,7 +60,6 @@
               utciResults={toolState.ui.utciResults}
               errorMessage={toolState.ui.errorMessage}
               isLoading={toolState.ui.isLoading}
-              requestCount={toolState.ui.requestCount}
               lastCompletedAt={toolState.ui.lastCompletedAt}
               resultRevision={toolState.ui.resultRevision}
               embedded={true}

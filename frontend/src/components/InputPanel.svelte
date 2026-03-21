@@ -18,14 +18,14 @@
     inputsByCase,
     unitSystem,
     isLoading,
-    requestCount,
+    calculationCount,
     onSelectModel,
     onToggleCompare,
     onSelectActiveCase,
     onToggleCaseVisibility,
     onToggleUnits,
     onUpdateField,
-    onRefresh,
+    onCalculate,
   } = $props();
 
   function getDisplayValue(caseId, fieldKey, decimals) {
@@ -67,7 +67,7 @@
     <div>
       <h2 class="text-base font-semibold text-stone-900">Inputs</h2>
     </div>
-    <Badge color="light">#{requestCount}</Badge>
+    <Badge color="light">#{calculationCount}</Badge>
   </div>
 
   <div class="mt-3 grid gap-3">
@@ -155,12 +155,12 @@
   <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <p class="text-xs text-stone-500">
       {#if isLoading}
-        Running model calculations.
+        Running local model calculations.
       {:else}
-        Calculate updates the visible inputs, results, and chart.
+        Calculate updates the visible inputs, results, and charts locally.
       {/if}
     </p>
-    <Button type="button" size="sm" color="dark" onclick={onRefresh} disabled={isLoading} class="shrink-0">
+    <Button type="button" size="sm" color="dark" onclick={onCalculate} disabled={isLoading} class="shrink-0">
       {isLoading ? "Calculating..." : "Calculate"}
     </Button>
   </div>

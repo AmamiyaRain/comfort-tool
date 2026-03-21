@@ -1,9 +1,7 @@
 <script lang="ts">
   import { Alert, Badge, Card } from "flowbite-svelte";
 
-  import { compareCaseMetaById } from "../models/compareCases";
   import { ComfortModel } from "../models/comfortModels";
-  import { getHealthUrl } from "../services/comfortApi";
 
   let {
     selectedModel,
@@ -13,7 +11,6 @@
     utciResults,
     errorMessage,
     isLoading,
-    requestCount,
     lastCompletedAt,
     resultRevision,
     embedded = false,
@@ -65,7 +62,6 @@
     {#if errorMessage}
       <Alert color="red" class="mt-3 rounded-md text-sm">
         {errorMessage}
-        <div class="mt-2 text-xs text-stone-500">Health check: {getHealthUrl()}</div>
       </Alert>
     {/if}
   {/if}

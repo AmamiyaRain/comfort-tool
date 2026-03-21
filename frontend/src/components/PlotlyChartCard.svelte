@@ -3,7 +3,7 @@
   import { onMount, tick } from "svelte";
 
   import SearchableSelect from "./SearchableSelect.svelte";
-  import { toPlotlyFigure } from "../services/comfortApi";
+  import { toPlotlyFigure } from "../services/plotlyFigure";
 
   let {
     title,
@@ -120,7 +120,7 @@
       </div>
     {:else if !chartResult}
       <div class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-stone-500">
-        {isLoading ? "Waiting for chart data from the backend..." : emptyMessage}
+        {isLoading ? "Calculating chart..." : emptyMessage}
       </div>
     {:else if isLoading && !hasRenderedChart}
       <div class="absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-sm text-stone-500">
@@ -144,7 +144,7 @@
         {/if}
       </div>
       <div class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">
-        {isLoading ? "Updating" : "Synced"}
+        {isLoading ? "Calculating" : "Ready"}
       </div>
     </div>
 

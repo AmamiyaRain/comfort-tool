@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { toPlotlyFigure } from "./comfortApi";
+import { CalculationSource } from "../models/calculationMetadata";
+import { toPlotlyFigure } from "./plotlyFigure";
 
-describe("comfortApi helpers", () => {
-  it("maps backend chart responses into Plotly figure objects", () => {
+describe("plotlyFigure", () => {
+  it("maps chart DTOs into Plotly figure objects", () => {
     const figure = toPlotlyFigure({
       traces: [
         {
@@ -30,7 +31,7 @@ describe("comfortApi helpers", () => {
         height: 320,
       },
       annotations: [{ x: 25, y: 10, text: "50%", showarrow: false, font: { size: 11 } }],
-      source: "backend-generated",
+      source: CalculationSource.FrontendGenerated,
     });
 
     expect(figure.data).toHaveLength(1);
