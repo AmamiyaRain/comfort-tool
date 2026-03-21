@@ -43,6 +43,7 @@
   let query = $state("");
   let highlightedIndex = $state(-1);
   const listboxId = `numeric-preset-listbox-${Math.random().toString(36).slice(2, 10)}`;
+  const dropdownPanelStyle = "width: min(max(100%, 24rem), calc(100vw - 2rem));";
 
   const selectedPreset = $derived.by(() => (
     items.find((item) => Math.abs(item.value - value) < 0.001) ?? null
@@ -286,7 +287,12 @@
   </div>
 
   {#if isOpen}
-    <div id={listboxId} role="listbox" class="absolute z-20 mt-1 w-full rounded-lg border border-stone-300 bg-white p-2 shadow-lg">
+    <div
+      id={listboxId}
+      role="listbox"
+      class="absolute left-0 z-20 mt-1 rounded-lg border border-stone-300 bg-white p-2 shadow-lg"
+      style={dropdownPanelStyle}
+    >
       <div class="flex items-center justify-between gap-3 px-1 pb-2">
         <div class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
           {searchPlaceholder}

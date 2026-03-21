@@ -16,11 +16,11 @@
   } = $props();
 </script>
 
-<div class="min-h-screen bg-white text-stone-950">
+<div class="min-h-screen bg-stone-950 text-stone-950">
   <div class="flex min-h-screen flex-col">
     <SiteHeader {toolState} />
 
-    <main class="flex-1">
+    <main class="flex-1 bg-white">
       {@render children?.()}
     </main>
 
