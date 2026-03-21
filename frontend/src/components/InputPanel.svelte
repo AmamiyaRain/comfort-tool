@@ -1,33 +1,83 @@
 <script lang="ts">
-  import { Badge, Card, Toggle } from "flowbite-svelte";
+  import { Badge, Card, Dropdown, DropdownItem, Toggle } from "flowbite-svelte";
 
   import SearchableSelect from "./SearchableSelect.svelte";
   import { compareCaseMetaById, compareCaseOrder } from "../models/compareCases";
+  import { PmvChartId } from "../models/chartOptions";
+  import { ComfortModel } from "../models/comfortModels";
   import { comfortModelMetaById, comfortModelOrder } from "../models/comfortModels";
   import { fieldMetaByKey } from "../models/fieldMeta";
   import { FieldKey } from "../models/fieldKeys";
+  import {
+    PmvAirSpeedControlMode,
+    PmvAirSpeedInputMode,
+    PmvHumidityInputMode,
+    PmvTemperatureInputMode,
+  } from "../models/inputModes";
   import { UnitSystem } from "../models/units";
+  import {
+    convertHumidityRatioSiToDisplay,
+    convertVaporPressureSiToDisplay,
+  } from "../services/advancedPmvInputs";
   import { convertSiToDisplay, formatDisplayValue } from "../services/unitConversion";
 
   let {
     selectedModel,
+    selectedPmvChart,
     compareEnabled,
     activeCaseId,
     visibleCaseIds,
     fieldOrder,
     inputsByCase,
+    measuredAirSpeedByCase,
+    dewPointByCase,
+    humidityRatioByCase,
+    wetBulbByCase,
+    vaporPressureByCase,
     unitSystem,
     isLoading,
     calculationCount,
+    pmvTemperatureInputMode,
+    pmvAirSpeedControlMode,
+    pmvAirSpeedInputMode,
+    pmvHumidityInputMode,
     onSelectModel,
     onToggleCompare,
     onSelectActiveCase,
     onToggleCaseVisibility,
     onToggleUnits,
+    onSetPmvTemperatureInputMode,
+    onSetPmvAirSpeedControlMode,
+    onSetPmvAirSpeedInputMode,
+    onSetPmvHumidityInputMode,
     onUpdateField,
   } = $props();
 
+  let temperatureMenuOpen = $state(false);
+  let airSpeedMenuOpen = $state(false);
+  let humidityMenuOpen = $state(false);
+
   function getDisplayValue(caseId, fieldKey, decimals) {
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeAirSpeed && pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured) {
+      return formatDisplayValue(convertSiToDisplay(FieldKey.RelativeAirSpeed, measuredAirSpeedByCase[caseId], unitSystem), decimals);
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      return formatDisplayValue(convertSiToDisplay(FieldKey.DryBulbTemperature, dewPointByCase[caseId], unitSystem), decimals);
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      return formatDisplayValue(convertHumidityRatioSiToDisplay(humidityRatioByCase[caseId], unitSystem), decimals);
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      return formatDisplayValue(convertSiToDisplay(FieldKey.DryBulbTemperature, wetBulbByCase[caseId], unitSystem), decimals);
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      return formatDisplayValue(convertVaporPressureSiToDisplay(vaporPressureByCase[caseId], unitSystem), decimals);
+    }
+
     return formatDisplayValue(convertSiToDisplay(fieldKey, inputsByCase[caseId][fieldKey], unitSystem), decimals);
   }
 
@@ -53,11 +103,148 @@
     value: modelId,
   }));
 
+  function shouldHideField(fieldKey) {
+    return (
+      selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.MeanRadiantTemperature &&
+      pmvTemperatureInputMode === PmvTemperatureInputMode.Operative
+    );
+  }
+
+  function getFieldLabel(fieldKey) {
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.DryBulbTemperature && pmvTemperatureInputMode === PmvTemperatureInputMode.Operative) {
+      return "Operative temperature";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeAirSpeed && pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured) {
+      return "Air speed";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      return "Dew point";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      return "Humidity ratio";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      return "Wet-bulb temperature";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      return "Vapor pressure";
+    }
+
+    return fieldMetaByKey[fieldKey].label;
+  }
+
+  function getFieldDisplayUnits(fieldKey) {
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      return unitSystem === UnitSystem.IP ? "gr/lb" : "g/kg";
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      return unitSystem === UnitSystem.IP ? "inHg" : "kPa";
+    }
+
+    return fieldMetaByKey[fieldKey].displayUnits[unitSystem];
+  }
+
+  function getFieldStep(fieldKey) {
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].step;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      return unitSystem === UnitSystem.IP ? 1 : 0.1;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].step;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      return 0.01;
+    }
+
+    return fieldMetaByKey[fieldKey].step;
+  }
+
+  function getFieldDecimals(fieldKey) {
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].decimals;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      return unitSystem === UnitSystem.IP ? 0 : 1;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      return fieldMetaByKey[FieldKey.DryBulbTemperature].decimals;
+    }
+
+    if (selectedModel === ComfortModel.Pmv && fieldKey === FieldKey.RelativeHumidity && pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      return 2;
+    }
+
+    return fieldMetaByKey[fieldKey].decimals;
+  }
+
   function getFieldRange(fieldKey) {
     const meta = fieldMetaByKey[fieldKey];
+    if (
+      selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeHumidity &&
+      pmvHumidityInputMode !== PmvHumidityInputMode.RelativeHumidity
+    ) {
+      return "";
+    }
     const min = formatDisplayValue(convertSiToDisplay(fieldKey, meta.minValue, unitSystem), meta.decimals);
     const max = formatDisplayValue(convertSiToDisplay(fieldKey, meta.maxValue, unitSystem), meta.decimals);
     return `From ${min} to ${max}`;
+  }
+
+  function showTemperatureModeControl(fieldKey) {
+    return (
+      selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.DryBulbTemperature &&
+      (selectedPmvChart === PmvChartId.Psychrometric || pmvTemperatureInputMode === PmvTemperatureInputMode.Operative)
+    );
+  }
+
+  function showAdvancedFieldMenu(fieldKey) {
+    return (
+      selectedModel === ComfortModel.Pmv &&
+      (fieldKey === FieldKey.RelativeAirSpeed || fieldKey === FieldKey.RelativeHumidity)
+    );
+  }
+
+  function getAdvancedTriggerId(fieldKey) {
+    return `advanced-input-${fieldKey}`;
+  }
+
+  function handleSelectTemperatureMode(nextMode) {
+    onSetPmvTemperatureInputMode(nextMode);
+    temperatureMenuOpen = false;
+  }
+
+  function handleSelectAirSpeedControlMode(nextMode) {
+    onSetPmvAirSpeedControlMode(nextMode);
+    airSpeedMenuOpen = false;
+  }
+
+  function handleSelectHumidityMode(nextMode) {
+    onSetPmvHumidityInputMode(nextMode);
+    humidityMenuOpen = false;
   }
 </script>
 
@@ -123,29 +310,185 @@
 
       <div class="grid gap-1">
         {#each fieldOrder as fieldKey}
-          {@const meta = fieldMetaByKey[fieldKey]}
-          <div class="px-1 py-0.5">
-            <div class="flex items-baseline justify-between gap-3">
-              <div class="text-sm font-medium text-sky-700">{meta.label} ({meta.displayUnits[unitSystem]})</div>
-              <div class="text-[11px] text-stone-500">{getFieldRange(fieldKey).replace("From ", "").replace(" to ", " ~ ")}</div>
-            </div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getMatrixTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 p-1" : "p-1"}>
-                  <input
-                    id={`${caseId}-${fieldKey}`}
-                    type="number"
-                    step={meta.step}
-                    value={getDisplayValue(caseId, fieldKey, meta.decimals)}
-                    aria-label={`${compareCaseMetaById[caseId].label} ${meta.label}`}
-                    onfocus={() => onSelectActiveCase(caseId)}
-                    oninput={(event) => handleFieldInput(caseId, fieldKey, event.currentTarget.value)}
-                    class="w-full rounded-sm border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
-                  />
+          {#if !shouldHideField(fieldKey)}
+            <div class="px-1 py-0.5">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <div class="text-sm font-medium text-sky-700">{getFieldLabel(fieldKey)} ({getFieldDisplayUnits(fieldKey)})</div>
+
+                  {#if showTemperatureModeControl(fieldKey)}
+                    <button
+                      id={getAdvancedTriggerId(`${fieldKey}-temperature`)}
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
+                    >
+                      More
+                      <span class="text-[10px]">▼</span>
+                    </button>
+
+                    <Dropdown
+                      bind:open={temperatureMenuOpen}
+                      triggeredBy={`#${getAdvancedTriggerId(`${fieldKey}-temperature`)}`}
+                      placement="bottom-start"
+                      arrow={false}
+                      class="w-72 py-1"
+                      containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
+                      headerClass="border-b border-stone-100 px-4 py-2"
+                    >
+                      <svelte:fragment slot="header">
+                        <div class="text-[11px] uppercase tracking-[0.16em] text-stone-500">Temperature input</div>
+                      </svelte:fragment>
+                      <DropdownItem
+                        class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                        onclick={() => handleSelectTemperatureMode(PmvTemperatureInputMode.Air)}
+                      >
+                        <span class={pmvTemperatureInputMode === PmvTemperatureInputMode.Air ? "font-semibold text-stone-900" : ""}>
+                          Air temperature
+                        </span>
+                        <span class="text-xs text-stone-500">Use dry-bulb air temperature and keep radiant temperature separate.</span>
+                      </DropdownItem>
+                      <DropdownItem
+                        class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                        onclick={() => handleSelectTemperatureMode(PmvTemperatureInputMode.Operative)}
+                      >
+                        <span class={pmvTemperatureInputMode === PmvTemperatureInputMode.Operative ? "font-semibold text-stone-900" : ""}>
+                          Operative temp
+                        </span>
+                        <span class="text-xs text-stone-500">Treat operative temperature as the single temperature input.</span>
+                      </DropdownItem>
+                    </Dropdown>
+                  {/if}
+
+                  {#if showAdvancedFieldMenu(fieldKey)}
+                    <button
+                      id={getAdvancedTriggerId(fieldKey)}
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
+                    >
+                      More
+                      <span class="text-[10px]">▼</span>
+                    </button>
+
+                    {#if fieldKey === FieldKey.RelativeAirSpeed}
+                      <Dropdown
+                        bind:open={airSpeedMenuOpen}
+                        triggeredBy={`#${getAdvancedTriggerId(fieldKey)}`}
+                        placement="bottom-start"
+                        arrow={false}
+                        class="w-72 py-1"
+                        containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
+                        headerClass="border-b border-stone-100 px-4 py-2"
+                      >
+                        <svelte:fragment slot="header">
+                          <div class="text-[11px] uppercase tracking-[0.16em] text-stone-500">Air speed input</div>
+                        </svelte:fragment>
+
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectAirSpeedControlMode(PmvAirSpeedControlMode.NoLocalControl)}
+                        >
+                          <span class={pmvAirSpeedControlMode === PmvAirSpeedControlMode.NoLocalControl ? "font-semibold text-stone-900" : ""}>
+                            No local control
+                          </span>
+                          <span class="text-xs text-stone-500">Assume occupants do not have local control over elevated air speed.</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectAirSpeedControlMode(PmvAirSpeedControlMode.WithLocalControl)}
+                        >
+                          <span class={pmvAirSpeedControlMode === PmvAirSpeedControlMode.WithLocalControl ? "font-semibold text-stone-900" : ""}>
+                            With local control
+                          </span>
+                          <span class="text-xs text-stone-500">Assume occupants can locally control elevated air speed.</span>
+                        </DropdownItem>
+                      </Dropdown>
+                    {:else if fieldKey === FieldKey.RelativeHumidity}
+                      <Dropdown
+                        bind:open={humidityMenuOpen}
+                        triggeredBy={`#${getAdvancedTriggerId(fieldKey)}`}
+                        placement="bottom-start"
+                        arrow={false}
+                        class="w-72 py-1"
+                        containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
+                        headerClass="border-b border-stone-100 px-4 py-2"
+                      >
+                        <svelte:fragment slot="header">
+                          <div class="text-[11px] uppercase tracking-[0.16em] text-stone-500">Humidity input</div>
+                        </svelte:fragment>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectHumidityMode(PmvHumidityInputMode.RelativeHumidity)}
+                        >
+                          <span class={pmvHumidityInputMode === PmvHumidityInputMode.RelativeHumidity ? "font-semibold text-stone-900" : ""}>
+                            Relative humidity
+                          </span>
+                          <span class="text-xs text-stone-500">Input relative humidity as a percentage.</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectHumidityMode(PmvHumidityInputMode.HumidityRatio)}
+                        >
+                          <span class={pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio ? "font-semibold text-stone-900" : ""}>
+                            Humidity ratio
+                          </span>
+                          <span class="text-xs text-stone-500">Hold absolute moisture content constant.</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectHumidityMode(PmvHumidityInputMode.DewPoint)}
+                        >
+                          <span class={pmvHumidityInputMode === PmvHumidityInputMode.DewPoint ? "font-semibold text-stone-900" : ""}>
+                            Dew point
+                          </span>
+                          <span class="text-xs text-stone-500">Keep dew point fixed and derive relative humidity from dry-bulb temperature.</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectHumidityMode(PmvHumidityInputMode.WetBulb)}
+                        >
+                          <span class={pmvHumidityInputMode === PmvHumidityInputMode.WetBulb ? "font-semibold text-stone-900" : ""}>
+                            Wet bulb
+                          </span>
+                          <span class="text-xs text-stone-500">Input wet-bulb temperature instead of relative humidity.</span>
+                        </DropdownItem>
+                        <DropdownItem
+                          class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                          onclick={() => handleSelectHumidityMode(PmvHumidityInputMode.VaporPressure)}
+                        >
+                          <span class={pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure ? "font-semibold text-stone-900" : ""}>
+                            Vapor pressure
+                          </span>
+                          <span class="text-xs text-stone-500">Input vapor pressure directly.</span>
+                        </DropdownItem>
+                      </Dropdown>
+                    {/if}
+                  {/if}
                 </div>
-              {/each}
+
+                {#if getFieldRange(fieldKey)}
+                  <div class="shrink-0 text-[11px] text-stone-500">
+                    {getFieldRange(fieldKey).replace("From ", "").replace(" to ", " ~ ")}
+                  </div>
+                {/if}
+              </div>
+              <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getMatrixTemplateColumns()};`}>
+                {#each visibleCaseIds as caseId}
+                  <div class={activeCaseId === caseId ? "rounded-sm bg-sky-50/50 p-1" : "p-1"}>
+                    <input
+                      id={`${caseId}-${fieldKey}`}
+                      type="number"
+                      step={getFieldStep(fieldKey)}
+                      value={getDisplayValue(caseId, fieldKey, getFieldDecimals(fieldKey))}
+                      aria-label={`${compareCaseMetaById[caseId].label} ${getFieldLabel(fieldKey)}`}
+                      onfocus={() => onSelectActiveCase(caseId)}
+                      oninput={(event) => handleFieldInput(caseId, fieldKey, event.currentTarget.value)}
+                      class="w-full rounded-sm border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
+                    />
+                  </div>
+                {/each}
+              </div>
             </div>
-          </div>
+          {/if}
         {/each}
       </div>
     </div>

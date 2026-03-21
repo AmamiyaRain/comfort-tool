@@ -78,19 +78,33 @@
       <div id="inputs-panel" class="scroll-mt-32">
         <InputPanel
           selectedModel={toolState.ui.selectedModel}
+          selectedPmvChart={toolState.ui.selectedPmvChart}
           compareEnabled={toolState.ui.compareEnabled}
           activeCaseId={toolState.ui.activeCaseId}
           visibleCaseIds={toolState.getVisibleCaseIds()}
           fieldOrder={toolState.getFieldOrder()}
           inputsByCase={toolState.inputsByCase}
+          measuredAirSpeedByCase={toolState.measuredAirSpeedByCase}
+          dewPointByCase={toolState.dewPointByCase}
+          humidityRatioByCase={toolState.humidityRatioByCase}
+          wetBulbByCase={toolState.wetBulbByCase}
+          vaporPressureByCase={toolState.vaporPressureByCase}
           unitSystem={toolState.ui.unitSystem}
           isLoading={toolState.ui.isLoading}
           calculationCount={toolState.ui.calculationCount}
+          pmvTemperatureInputMode={toolState.ui.pmvTemperatureInputMode}
+          pmvAirSpeedControlMode={toolState.ui.pmvAirSpeedControlMode}
+          pmvAirSpeedInputMode={toolState.ui.pmvAirSpeedInputMode}
+          pmvHumidityInputMode={toolState.ui.pmvHumidityInputMode}
           onSelectModel={toolState.setSelectedModel}
           onToggleCompare={toolState.setCompareEnabled}
           onSelectActiveCase={toolState.setActiveCaseId}
           onToggleCaseVisibility={toolState.toggleCompareCaseVisibility}
           onToggleUnits={handleToggleUnits}
+          onSetPmvTemperatureInputMode={toolState.setPmvTemperatureInputMode}
+          onSetPmvAirSpeedControlMode={toolState.setPmvAirSpeedControlMode}
+          onSetPmvAirSpeedInputMode={toolState.setPmvAirSpeedInputMode}
+          onSetPmvHumidityInputMode={toolState.setPmvHumidityInputMode}
           onUpdateField={handleUpdateField}
         />
       </div>

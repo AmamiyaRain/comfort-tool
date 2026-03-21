@@ -7,6 +7,16 @@ import {
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../models/comfortModels";
 import { allFieldOrder, fieldMetaByKey, fieldOrderByModel } from "../models/fieldMeta";
 import { FieldKey, type FieldKey as FieldKeyType } from "../models/fieldKeys";
+import {
+  PmvAirSpeedControlMode,
+  PmvAirSpeedInputMode,
+  PmvHumidityInputMode,
+  PmvTemperatureInputMode,
+  type PmvAirSpeedControlMode as PmvAirSpeedControlModeType,
+  type PmvAirSpeedInputMode as PmvAirSpeedInputModeType,
+  type PmvHumidityInputMode as PmvHumidityInputModeType,
+  type PmvTemperatureInputMode as PmvTemperatureInputModeType,
+} from "../models/inputModes";
 import type {
   ComfortZoneRequestDto,
   PlotlyChartResponseDto,
@@ -37,15 +47,35 @@ import {
   type UtciChartId as UtciChartIdType,
 } from "../models/chartOptions";
 import type { ShareStateSnapshot } from "../services/shareState";
+import {
+  convertHumidityRatioDisplayToSi,
+  deriveDewPointFromRelativeHumidity,
+  deriveHumidityRatioFromRelativeHumidity,
+  deriveMeasuredAirSpeedFromRelative,
+  deriveOperativeTemperature,
+  deriveRelativeAirSpeedFromMeasured,
+  deriveRelativeHumidityFromDewPoint,
+  deriveRelativeHumidityFromHumidityRatio,
+  deriveRelativeHumidityFromVaporPressure,
+  deriveRelativeHumidityFromWetBulb,
+  convertVaporPressureDisplayToSi,
+  deriveVaporPressureFromRelativeHumidity,
+  deriveWetBulbFromRelativeHumidity,
+} from "../services/advancedPmvInputs";
 
 type CaseInputsState = Record<FieldKeyType, number>;
 type InputsByCaseState = Record<CompareCaseIdType, CaseInputsState>;
 type PmvResultsByCase = Record<CompareCaseIdType, PmvResponseDto | null>;
 type UtciResultsByCase = Record<CompareCaseIdType, UtciResponseDto | null>;
+type NumericByCaseState = Record<CompareCaseIdType, number>;
 type UiState = {
   selectedModel: ComfortModelType;
   selectedPmvChart: PmvChartIdType;
   selectedUtciChart: UtciChartIdType;
+  pmvTemperatureInputMode: PmvTemperatureInputModeType;
+  pmvAirSpeedControlMode: PmvAirSpeedControlModeType;
+  pmvAirSpeedInputMode: PmvAirSpeedInputModeType;
+  pmvHumidityInputMode: PmvHumidityInputModeType;
   compareEnabled: boolean;
   compareCaseIds: CompareCaseIdType[];
   activeCaseId: CompareCaseIdType;
@@ -91,6 +121,56 @@ function createEmptyUtciResults(): UtciResultsByCase {
   }, {} as UtciResultsByCase);
 }
 
+function createMeasuredAirSpeedByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
+    accumulator[caseId] = deriveMeasuredAirSpeedFromRelative(
+      inputsByCase[caseId][FieldKey.RelativeAirSpeed],
+      inputsByCase[caseId][FieldKey.MetabolicRate],
+    );
+    return accumulator;
+  }, {} as NumericByCaseState);
+}
+
+function createDewPointByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
+    accumulator[caseId] = deriveDewPointFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    return accumulator;
+  }, {} as NumericByCaseState);
+}
+
+function createHumidityRatioByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
+    accumulator[caseId] = deriveHumidityRatioFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    return accumulator;
+  }, {} as NumericByCaseState);
+}
+
+function createWetBulbByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
+    accumulator[caseId] = deriveWetBulbFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    return accumulator;
+  }, {} as NumericByCaseState);
+}
+
+function createVaporPressureByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
+    accumulator[caseId] = deriveVaporPressureFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    return accumulator;
+  }, {} as NumericByCaseState);
+}
+
 function createDefaultCompareCaseIds(): CompareCaseIdType[] {
   return [CompareCaseId.A, CompareCaseId.B];
 }
@@ -116,11 +196,21 @@ function mapCaseResponses<T>(
 }
 
 export function createComfortToolState() {
-  const inputsByCase = $state<InputsByCaseState>(createInputsByCase());
+  const initialInputsByCase = createInputsByCase();
+  const inputsByCase = $state<InputsByCaseState>(initialInputsByCase);
+  const measuredAirSpeedByCase = $state<NumericByCaseState>(createMeasuredAirSpeedByCase(initialInputsByCase));
+  const dewPointByCase = $state<NumericByCaseState>(createDewPointByCase(initialInputsByCase));
+  const humidityRatioByCase = $state<NumericByCaseState>(createHumidityRatioByCase(initialInputsByCase));
+  const wetBulbByCase = $state<NumericByCaseState>(createWetBulbByCase(initialInputsByCase));
+  const vaporPressureByCase = $state<NumericByCaseState>(createVaporPressureByCase(initialInputsByCase));
   const ui = $state<UiState>({
     selectedModel: ComfortModel.Pmv,
     selectedPmvChart: PmvChartId.Psychrometric,
     selectedUtciChart: UtciChartId.Stress,
+    pmvTemperatureInputMode: PmvTemperatureInputMode.Air,
+    pmvAirSpeedControlMode: PmvAirSpeedControlMode.WithLocalControl,
+    pmvAirSpeedInputMode: PmvAirSpeedInputMode.Relative,
+    pmvHumidityInputMode: PmvHumidityInputMode.RelativeHumidity,
     compareEnabled: false,
     compareCaseIds: createDefaultCompareCaseIds(),
     activeCaseId: CompareCaseId.A,
@@ -233,12 +323,161 @@ export function createComfortToolState() {
     ui.unitSystem = nextUnitSystem;
   }
 
+  function refreshHumidityDerivedValues(caseId: CompareCaseIdType) {
+    dewPointByCase[caseId] = deriveDewPointFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    humidityRatioByCase[caseId] = deriveHumidityRatioFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    wetBulbByCase[caseId] = deriveWetBulbFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+    vaporPressureByCase[caseId] = deriveVaporPressureFromRelativeHumidity(
+      inputsByCase[caseId][FieldKey.DryBulbTemperature],
+      inputsByCase[caseId][FieldKey.RelativeHumidity],
+    );
+  }
+
+  function syncDerivedPmvInputs(caseId: CompareCaseIdType) {
+    if (ui.pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured) {
+      inputsByCase[caseId][FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
+        measuredAirSpeedByCase[caseId],
+        inputsByCase[caseId][FieldKey.MetabolicRate],
+      );
+    }
+
+    if (ui.pmvHumidityInputMode === PmvHumidityInputMode.DewPoint) {
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        dewPointByCase[caseId],
+      );
+    } else if (ui.pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio) {
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        humidityRatioByCase[caseId],
+      );
+    } else if (ui.pmvHumidityInputMode === PmvHumidityInputMode.WetBulb) {
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        wetBulbByCase[caseId],
+      );
+    } else if (ui.pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure) {
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        vaporPressureByCase[caseId],
+      );
+    }
+
+    refreshHumidityDerivedValues(caseId);
+  }
+
+  function setPmvTemperatureInputMode(nextMode: PmvTemperatureInputModeType) {
+    if (ui.pmvTemperatureInputMode === nextMode) {
+      return;
+    }
+
+    ui.pmvTemperatureInputMode = nextMode;
+
+    if (nextMode === PmvTemperatureInputMode.Operative) {
+      compareCaseOrder.forEach((caseId) => {
+        const operativeTemperature = deriveOperativeTemperature(
+          inputsByCase[caseId][FieldKey.DryBulbTemperature],
+          inputsByCase[caseId][FieldKey.MeanRadiantTemperature],
+          ui.pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured
+            ? measuredAirSpeedByCase[caseId]
+            : inputsByCase[caseId][FieldKey.RelativeAirSpeed],
+        );
+        inputsByCase[caseId][FieldKey.DryBulbTemperature] = operativeTemperature;
+        inputsByCase[caseId][FieldKey.MeanRadiantTemperature] = operativeTemperature;
+        syncDerivedPmvInputs(caseId);
+      });
+    }
+
+    scheduleCalculation({ immediate: true });
+  }
+
+  function setPmvAirSpeedInputMode(nextMode: PmvAirSpeedInputModeType) {
+    if (ui.pmvAirSpeedInputMode === nextMode) {
+      return;
+    }
+
+    ui.pmvAirSpeedInputMode = nextMode;
+
+    if (nextMode === PmvAirSpeedInputMode.Measured) {
+      compareCaseOrder.forEach((caseId) => {
+        measuredAirSpeedByCase[caseId] = deriveMeasuredAirSpeedFromRelative(
+          inputsByCase[caseId][FieldKey.RelativeAirSpeed],
+          inputsByCase[caseId][FieldKey.MetabolicRate],
+        );
+      });
+    }
+
+    scheduleCalculation({ immediate: true });
+  }
+
+  function setPmvAirSpeedControlMode(nextMode: PmvAirSpeedControlModeType) {
+    if (ui.pmvAirSpeedControlMode === nextMode) {
+      return;
+    }
+
+    ui.pmvAirSpeedControlMode = nextMode;
+    scheduleCalculation({ immediate: true });
+  }
+
+  function setPmvHumidityInputMode(nextMode: PmvHumidityInputModeType) {
+    if (ui.pmvHumidityInputMode === nextMode) {
+      return;
+    }
+
+    ui.pmvHumidityInputMode = nextMode;
+
+    if (nextMode === PmvHumidityInputMode.DewPoint) {
+      compareCaseOrder.forEach((caseId) => {
+        dewPointByCase[caseId] = deriveDewPointFromRelativeHumidity(
+          inputsByCase[caseId][FieldKey.DryBulbTemperature],
+          inputsByCase[caseId][FieldKey.RelativeHumidity],
+        );
+      });
+    } else if (nextMode === PmvHumidityInputMode.HumidityRatio) {
+      compareCaseOrder.forEach((caseId) => {
+        humidityRatioByCase[caseId] = deriveHumidityRatioFromRelativeHumidity(
+          inputsByCase[caseId][FieldKey.DryBulbTemperature],
+          inputsByCase[caseId][FieldKey.RelativeHumidity],
+        );
+      });
+    } else if (nextMode === PmvHumidityInputMode.WetBulb) {
+      compareCaseOrder.forEach((caseId) => {
+        wetBulbByCase[caseId] = deriveWetBulbFromRelativeHumidity(
+          inputsByCase[caseId][FieldKey.DryBulbTemperature],
+          inputsByCase[caseId][FieldKey.RelativeHumidity],
+        );
+      });
+    } else if (nextMode === PmvHumidityInputMode.VaporPressure) {
+      compareCaseOrder.forEach((caseId) => {
+        vaporPressureByCase[caseId] = deriveVaporPressureFromRelativeHumidity(
+          inputsByCase[caseId][FieldKey.DryBulbTemperature],
+          inputsByCase[caseId][FieldKey.RelativeHumidity],
+        );
+      });
+    }
+
+    scheduleCalculation({ immediate: true });
+  }
+
   function exportShareSnapshot(): ShareStateSnapshot {
     return {
       version: 1,
       selectedModel: ui.selectedModel,
       selectedPmvChart: ui.selectedPmvChart,
       selectedUtciChart: ui.selectedUtciChart,
+      pmvTemperatureInputMode: ui.pmvTemperatureInputMode,
+      pmvAirSpeedControlMode: ui.pmvAirSpeedControlMode,
+      pmvAirSpeedInputMode: ui.pmvAirSpeedInputMode,
+      pmvHumidityInputMode: ui.pmvHumidityInputMode,
       compareEnabled: ui.compareEnabled,
       compareCaseIds: [...ui.compareCaseIds],
       activeCaseId: ui.activeCaseId,
@@ -250,6 +489,14 @@ export function createComfortToolState() {
         }, {} as Record<FieldKeyType, number>);
         return accumulator;
       }, {} as ShareStateSnapshot["inputsByCase"]),
+      measuredAirSpeedByCase: compareCaseOrder.reduce((accumulator, caseId) => {
+        accumulator[caseId] = measuredAirSpeedByCase[caseId];
+        return accumulator;
+      }, {} as NumericByCaseState),
+      dewPointByCase: compareCaseOrder.reduce((accumulator, caseId) => {
+        accumulator[caseId] = dewPointByCase[caseId];
+        return accumulator;
+      }, {} as NumericByCaseState),
     };
   }
 
@@ -257,6 +504,10 @@ export function createComfortToolState() {
     ui.selectedModel = snapshot.selectedModel;
     ui.selectedPmvChart = snapshot.selectedPmvChart;
     ui.selectedUtciChart = snapshot.selectedUtciChart;
+    ui.pmvTemperatureInputMode = snapshot.pmvTemperatureInputMode;
+    ui.pmvAirSpeedControlMode = snapshot.pmvAirSpeedControlMode ?? PmvAirSpeedControlMode.WithLocalControl;
+    ui.pmvAirSpeedInputMode = snapshot.pmvAirSpeedInputMode;
+    ui.pmvHumidityInputMode = snapshot.pmvHumidityInputMode;
     ui.compareEnabled = snapshot.compareEnabled;
     ui.compareCaseIds = normalizeCompareCaseIds(snapshot.compareCaseIds);
     ui.activeCaseId = snapshot.compareEnabled && ui.compareCaseIds.includes(snapshot.activeCaseId)
@@ -268,6 +519,8 @@ export function createComfortToolState() {
       allFieldOrder.forEach((fieldKey) => {
         inputsByCase[caseId][fieldKey] = snapshot.inputsByCase[caseId][fieldKey];
       });
+      measuredAirSpeedByCase[caseId] = snapshot.measuredAirSpeedByCase[caseId];
+      dewPointByCase[caseId] = snapshot.dewPointByCase[caseId];
     });
 
     clearResults();
@@ -279,7 +532,112 @@ export function createComfortToolState() {
     if (Number.isNaN(nextValue)) {
       return;
     }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.DryBulbTemperature &&
+      ui.pmvTemperatureInputMode === PmvTemperatureInputMode.Operative
+    ) {
+      const operativeTemperature = convertDisplayToSi(FieldKey.DryBulbTemperature, nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.DryBulbTemperature] = operativeTemperature;
+      inputsByCase[caseId][FieldKey.MeanRadiantTemperature] = operativeTemperature;
+      syncDerivedPmvInputs(caseId);
+      scheduleCalculation();
+      return;
+    }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeAirSpeed &&
+      ui.pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured
+    ) {
+      measuredAirSpeedByCase[caseId] = convertDisplayToSi(FieldKey.RelativeAirSpeed, nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
+        measuredAirSpeedByCase[caseId],
+        inputsByCase[caseId][FieldKey.MetabolicRate],
+      );
+      scheduleCalculation();
+      return;
+    }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeHumidity &&
+      ui.pmvHumidityInputMode === PmvHumidityInputMode.DewPoint
+    ) {
+      dewPointByCase[caseId] = convertDisplayToSi(FieldKey.DryBulbTemperature, nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        dewPointByCase[caseId],
+      );
+      scheduleCalculation();
+      return;
+    }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeHumidity &&
+      ui.pmvHumidityInputMode === PmvHumidityInputMode.HumidityRatio
+    ) {
+      humidityRatioByCase[caseId] = convertHumidityRatioDisplayToSi(nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        humidityRatioByCase[caseId],
+      );
+      refreshHumidityDerivedValues(caseId);
+      scheduleCalculation();
+      return;
+    }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeHumidity &&
+      ui.pmvHumidityInputMode === PmvHumidityInputMode.WetBulb
+    ) {
+      wetBulbByCase[caseId] = convertDisplayToSi(FieldKey.DryBulbTemperature, nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        wetBulbByCase[caseId],
+      );
+      refreshHumidityDerivedValues(caseId);
+      scheduleCalculation();
+      return;
+    }
+
+    if (
+      ui.selectedModel === ComfortModel.Pmv &&
+      fieldKey === FieldKey.RelativeHumidity &&
+      ui.pmvHumidityInputMode === PmvHumidityInputMode.VaporPressure
+    ) {
+      vaporPressureByCase[caseId] = convertVaporPressureDisplayToSi(nextValue, ui.unitSystem);
+      inputsByCase[caseId][FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
+        inputsByCase[caseId][FieldKey.DryBulbTemperature],
+        vaporPressureByCase[caseId],
+      );
+      refreshHumidityDerivedValues(caseId);
+      scheduleCalculation();
+      return;
+    }
+
     inputsByCase[caseId][fieldKey] = convertDisplayToSi(fieldKey, nextValue, ui.unitSystem);
+
+    if (ui.selectedModel === ComfortModel.Pmv) {
+      if (fieldKey === FieldKey.DryBulbTemperature || fieldKey === FieldKey.RelativeHumidity) {
+        refreshHumidityDerivedValues(caseId);
+      }
+
+      if (fieldKey === FieldKey.MetabolicRate && ui.pmvAirSpeedInputMode === PmvAirSpeedInputMode.Measured) {
+        inputsByCase[caseId][FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
+          measuredAirSpeedByCase[caseId],
+          inputsByCase[caseId][FieldKey.MetabolicRate],
+        );
+      }
+
+      if (fieldKey === FieldKey.DryBulbTemperature && ui.pmvHumidityInputMode !== PmvHumidityInputMode.RelativeHumidity) {
+        syncDerivedPmvInputs(caseId);
+      }
+    }
+
     scheduleCalculation();
   }
 
@@ -447,12 +805,21 @@ export function createComfortToolState() {
 
   return {
     inputsByCase,
+    measuredAirSpeedByCase,
+    dewPointByCase,
+    humidityRatioByCase,
+    wetBulbByCase,
+    vaporPressureByCase,
     ui,
     getVisibleCaseIds,
     getFieldOrder,
     setSelectedModel,
     setSelectedPmvChart,
     setSelectedUtciChart,
+    setPmvTemperatureInputMode,
+    setPmvAirSpeedControlMode,
+    setPmvAirSpeedInputMode,
+    setPmvHumidityInputMode,
     setCompareEnabled,
     setActiveCaseId,
     toggleCompareCaseVisibility,
