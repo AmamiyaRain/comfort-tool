@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Badge, Button, Card, Toggle } from "flowbite-svelte";
+  import { Badge, Card, Toggle } from "flowbite-svelte";
 
   import SearchableSelect from "./SearchableSelect.svelte";
   import { compareCaseMetaById, compareCaseOrder } from "../models/compareCases";
@@ -25,7 +25,6 @@
     onToggleCaseVisibility,
     onToggleUnits,
     onUpdateField,
-    onCalculate,
   } = $props();
 
   function getDisplayValue(caseId, fieldKey, decimals) {
@@ -152,16 +151,13 @@
     </div>
   </div>
 
-  <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  <div class="mt-3">
     <p class="text-xs text-stone-500">
       {#if isLoading}
-        Running local model calculations.
+        Updating results automatically.
       {:else}
-        Calculate updates the visible inputs, results, and charts locally.
+        Results and charts update automatically when inputs change.
       {/if}
     </p>
-    <Button type="button" size="sm" color="dark" onclick={onCalculate} disabled={isLoading} class="shrink-0">
-      {isLoading ? "Calculating..." : "Calculate"}
-    </Button>
   </div>
 </Card>

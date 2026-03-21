@@ -54,6 +54,27 @@ describe("comfortService", () => {
     expect(zone.cool_edge[0].tdb).toBeLessThan(zone.warm_edge[0].tdb);
   });
 
+  it("uses raw PMV values when solving comfort-zone boundaries", () => {
+    const zone = calculateComfortZone({
+      tdb: 25,
+      tr: 25,
+      vr: 0.1,
+      rh: 50,
+      met: 1.2,
+      clo: 0.5,
+      wme: 0,
+      units: UnitSystem.SI,
+      rh_min: 0,
+      rh_max: 100,
+      rh_points: 31,
+    });
+
+    expect(zone.warm_edge[4]?.rh).toBeCloseTo(13.3333333333, 6);
+    expect(zone.warm_edge[4]?.tdb).toBeCloseTo(29.76806640625, 6);
+    expect(zone.warm_edge[10]?.tdb).toBeCloseTo(28.544921875, 6);
+    expect(zone.warm_edge[24]?.tdb).toBeCloseTo(26.201171875, 6);
+  });
+
   it("builds a psychrometric chart with RH curves and case overlays", () => {
     const chart = buildComparePsychrometricChart({
       case_a: {

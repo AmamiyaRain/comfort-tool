@@ -126,6 +126,8 @@ export function createComfortToolState() {
     relativeHumidityChart: null,
     utciStressChart: null,
   });
+  let calculationTimerId: number | null = null;
+  let latestCalculationToken = 0;
 
   function clearResults(options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
@@ -157,6 +159,7 @@ export function createComfortToolState() {
       ui.selectedPmvChart = PmvChartId.Psychrometric;
     }
     clearResults();
+    scheduleCalculation({ immediate: true });
   }
 
   function setCompareEnabled(enabled: boolean) {
@@ -173,6 +176,7 @@ export function createComfortToolState() {
       ui.activeCaseId = CompareCaseId.A;
     }
     clearResults();
+    scheduleCalculation({ immediate: true });
   }
 
   function setSelectedPmvChart(nextChart: PmvChartIdType) {
@@ -204,6 +208,7 @@ export function createComfortToolState() {
     }
 
     clearResults();
+    scheduleCalculation({ immediate: true });
   }
 
   function setUnitSystem(nextUnitSystem: UnitSystemType) {
@@ -216,6 +221,7 @@ export function createComfortToolState() {
       return;
     }
     inputsByCase[caseId][fieldKey] = convertDisplayToSi(fieldKey, nextValue, ui.unitSystem);
+    scheduleCalculation();
   }
 
   function toPmvRequest(caseId: CompareCaseIdType): PmvRequestDto {
@@ -289,12 +295,44 @@ export function createComfortToolState() {
     });
   }
 
-  async function calculate() {
+  function clearScheduledCalculation() {
+    if (calculationTimerId !== null && typeof window !== "undefined") {
+      window.clearTimeout(calculationTimerId);
+      calculationTimerId = null;
+    }
+  }
+
+  function scheduleCalculation(options?: { immediate?: boolean }) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const runCalculation = () => {
+      calculationTimerId = null;
+      latestCalculationToken += 1;
+      void calculate(latestCalculationToken);
+    };
+
+    clearScheduledCalculation();
+
+    if (options?.immediate) {
+      runCalculation();
+      return;
+    }
+
+    calculationTimerId = window.setTimeout(runCalculation, 180);
+  }
+
+  async function calculate(calculationToken: number) {
     ui.isLoading = true;
     ui.errorMessage = "";
     ui.calculationCount += 1;
 
     await yieldToNextFrame();
+
+    if (calculationToken !== latestCalculationToken) {
+      return;
+    }
 
     try {
       const visibleCaseIds = getVisibleCaseIds();
@@ -326,13 +364,23 @@ export function createComfortToolState() {
         ui.utciStressChart = buildUtciStressChart(toUtciStressChartRequest(), utciResultsByCase) as PlotlyChartResponseDto;
       }
 
+      if (calculationToken !== latestCalculationToken) {
+        return;
+      }
+
       ui.lastCompletedAt = Date.now();
       ui.resultRevision += 1;
     } catch (error) {
+      if (calculationToken !== latestCalculationToken) {
+        return;
+      }
+
       clearResults({ keepErrorMessage: true });
       ui.errorMessage = error instanceof Error ? error.message : "Calculation failed.";
     } finally {
-      ui.isLoading = false;
+      if (calculationToken === latestCalculationToken) {
+        ui.isLoading = false;
+      }
     }
   }
 
@@ -348,6 +396,6 @@ export function createComfortToolState() {
     toggleCompareCaseVisibility,
     setUnitSystem,
     updateInput,
-    calculate,
+    scheduleCalculation,
   };
 }

@@ -23,7 +23,8 @@ import {
   utciStressShortLabelByCategory,
   type UtciStressCategory as UtciStressCategoryType,
 } from "../models/utciStress";
-import { pmv_ppd } from "jsthermalcomfort/lib/esm/models/pmv_ppd.js";
+import { cooling_effect } from "jsthermalcomfort/lib/esm/models/cooling_effect.js";
+import { pmv_calculation, pmv_ppd } from "jsthermalcomfort/lib/esm/models/pmv_ppd.js";
 import { utci } from "jsthermalcomfort/lib/esm/models/utci.js";
 import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
 
@@ -82,6 +83,29 @@ function calculatePmvValues(payload: PmvRequestDto): { pmv: number; ppd: number 
   };
 }
 
+function calculateRawPmvValue(payload: PmvRequestDto): number {
+  const coolingEffect = payload.vr > 0.1
+    ? cooling_effect(payload.tdb, payload.tr, payload.vr, payload.rh, payload.met, payload.clo, payload.wme, payload.units)
+    : 0;
+
+  const adjustedDryBulbTemperature = payload.tdb - coolingEffect;
+  const adjustedMeanRadiantTemperature = payload.tr - coolingEffect;
+  const adjustedRelativeAirSpeed = coolingEffect > 0 ? 0.1 : payload.vr;
+
+  return ensureFiniteValue(
+    "PMV",
+    pmv_calculation(
+      adjustedDryBulbTemperature,
+      adjustedMeanRadiantTemperature,
+      adjustedRelativeAirSpeed,
+      payload.rh,
+      payload.met,
+      payload.clo,
+      payload.wme,
+    ),
+  );
+}
+
 function clonePmvPayload(payload: PmvRequestDto, overrides: Partial<PmvRequestDto>): PmvRequestDto {
   return {
     ...payload,
@@ -93,19 +117,19 @@ function solveDryBulbForTargetPmv(targetPmv: number, rh: number, payload: Comfor
   let low = 10;
   let high = 40;
 
-  const lowResult = calculatePmvValues(clonePmvPayload(payload, { tdb: low, rh }));
-  const highResult = calculatePmvValues(clonePmvPayload(payload, { tdb: high, rh }));
+  const lowPmv = calculateRawPmvValue(clonePmvPayload(payload, { tdb: low, rh }));
+  const highPmv = calculateRawPmvValue(clonePmvPayload(payload, { tdb: high, rh }));
 
-  let lowDelta = lowResult.pmv - targetPmv;
-  const highDelta = highResult.pmv - targetPmv;
+  let lowDelta = lowPmv - targetPmv;
+  const highDelta = highPmv - targetPmv;
   if (lowDelta * highDelta > 0) {
     return null;
   }
 
   for (let index = 0; index < 45; index += 1) {
     const middle = (low + high) / 2;
-    const middleResult = calculatePmvValues(clonePmvPayload(payload, { tdb: middle, rh }));
-    const middleDelta = middleResult.pmv - targetPmv;
+    const middlePmv = calculateRawPmvValue(clonePmvPayload(payload, { tdb: middle, rh }));
+    const middleDelta = middlePmv - targetPmv;
 
     if (Math.abs(middleDelta) < 5e-4) {
       return middle;

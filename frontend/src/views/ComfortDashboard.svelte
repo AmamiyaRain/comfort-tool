@@ -1,6 +1,8 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import { onMount } from "svelte";
+
   import PlotlyChartCard from "../components/PlotlyChartCard.svelte";
   import InputPanel from "../components/InputPanel.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
@@ -11,12 +13,12 @@
 
   const toolState = createComfortToolState();
 
+  onMount(() => {
+    toolState.scheduleCalculation({ immediate: true });
+  });
+
   function handleToggleUnits() {
     toolState.setUnitSystem(toolState.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI);
-  }
-
-  function handleCalculate() {
-    void toolState.calculate();
   }
 
   function handleUpdateField(caseId, fieldKey, value) {
@@ -44,7 +46,6 @@
           onToggleCaseVisibility={toolState.toggleCompareCaseVisibility}
           onToggleUnits={handleToggleUnits}
           onUpdateField={handleUpdateField}
-          onCalculate={handleCalculate}
         />
       </div>
 
