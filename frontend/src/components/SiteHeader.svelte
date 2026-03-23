@@ -66,7 +66,7 @@
 
   async function handleExportLink() {
     try {
-      const shareUrl = buildShareUrl(toolState.exportShareSnapshot(), window.location.href);
+      const shareUrl = buildShareUrl(toolState.actions.exportShareSnapshot(), window.location.href);
       await copyTextToClipboard(shareUrl);
       exportStatus = "copied";
     } catch {

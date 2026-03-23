@@ -1,9 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { Button, Input } from "flowbite-svelte";
-
-  import { CompareCaseId, compareCaseMetaById, type CompareCaseId as CompareCaseIdType } from "../models/compareCases";
+  import { compareCaseMetaById, CompareCaseId, type CompareCaseId as CompareCaseIdType } from "../models/compareCases";
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/fieldMeta";
   import { clothingGarmentOptions } from "../models/clothingEnsembles";
@@ -13,6 +11,8 @@
     filterClothingGarments,
     sumSelectedGarmentClo,
   } from "../services/clothingEnsembles";
+  import ClothingPredictor from "./input-panel/ClothingPredictor.svelte";
+  import GarmentBuilder from "./input-panel/GarmentBuilder.svelte";
 
   let {
     activeCaseId,
@@ -158,7 +158,7 @@
         >
           {toolMode.label}
         </button>
-    {/each}
+      {/each}
     </div>
 
     {#if visibleCaseIds.length > 1}
@@ -183,94 +183,34 @@
   </div>
 
   {#if activeToolMode === ClothingToolMode.Predict}
-    <div class="grid gap-4">
-      <div class="grid gap-2">
-        <label for={predictiveTemperatureInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
-          Outdoor air temperature at 6 a.m. ({temperatureDisplayUnits})
-        </label>
-        <Input
-          id={predictiveTemperatureInputId}
-          bind:value={predictiveOutdoorTemperature}
-          type="number"
-          size="sm"
-          step={temperatureStep}
-          placeholder={`Enter temperature in ${temperatureDisplayUnits}`}
-          class="bg-white"
-        />
-      </div>
-
-      <div class="rounded-2xl bg-stone-50 px-4 py-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="min-w-0">
-            <div class="text-sm font-medium text-stone-900">Estimated Clothing</div>
-            <div class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{predictedClothingDisplayValue} clo</div>
-
-            {#if predictedClothingValue !== null && predictedClothingValue > maxClothingValue}
-              <p class="mt-2 text-xs leading-5 text-amber-700">
-                This exceeds the current PMV input range used in this interface ({maxClothingValue.toFixed(1)} clo).
-              </p>
-            {/if}
-          </div>
-
-          <div class="flex shrink-0 items-center gap-2">
-            <Button color="blue" size="sm" onclick={applyPredictedClothingValue} disabled={predictedClothingValue === null}>Apply</Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ClothingPredictor
+      {predictiveTemperatureInputId}
+      {predictiveOutdoorTemperature}
+      {temperatureStep}
+      {temperatureDisplayUnits}
+      {predictedClothingValue}
+      {predictedClothingDisplayValue}
+      {maxClothingValue}
+      onTemperatureInput={(value) => {
+        predictiveOutdoorTemperature = value;
+      }}
+      onApply={applyPredictedClothingValue}
+    />
   {:else}
-    <div class="grid gap-4">
-      <div class="grid gap-2">
-        <label for={garmentSearchInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">Search garments</label>
-        <Input
-          id={garmentSearchInputId}
-          bind:value={searchQuery}
-          size="sm"
-          placeholder="Search the original CBE garment list"
-          class="bg-white"
-        />
-      </div>
-
-      <div class="max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white">
-        {#if filteredGarments.length === 0}
-          <div class="px-4 py-8 text-sm text-stone-500">No garments match this search.</div>
-        {:else}
-          {#each filteredGarments as garment}
-            <label class="grid cursor-pointer grid-cols-[auto,minmax(0,1fr),auto] items-start gap-3 border-b border-stone-100 px-4 py-3 last:border-b-0 hover:bg-stone-50">
-              <input
-                type="checkbox"
-                checked={selectedGarmentIds.includes(garment.id)}
-                onchange={(event) => handleToggleGarment(garment.id, event.currentTarget.checked)}
-                class="mt-0.5 h-4 w-4 rounded border-stone-300 text-sky-600 focus:ring-sky-500"
-              />
-              <span class="min-w-0 text-sm text-stone-800">{garment.article}</span>
-              <span class="shrink-0 text-xs font-semibold text-stone-500">{garment.clo.toFixed(2)} clo</span>
-            </label>
-          {/each}
-        {/if}
-      </div>
-
-      <div class="rounded-2xl bg-stone-50 px-4 py-4">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="min-w-0">
-            <div class="text-sm font-medium text-stone-900">{selectionSummaryLabel}</div>
-            <div class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{customClothingValue.toFixed(2)} clo</div>
-
-            {#if customClothingValue > maxClothingValue}
-              <p class="mt-2 text-xs leading-5 text-amber-700">
-                This exceeds the current PMV input range used in this interface ({maxClothingValue.toFixed(1)} clo).
-              </p>
-            {/if}
-          </div>
-
-          <div class="flex shrink-0 items-center gap-2">
-            <Button color="light" size="sm" onclick={clearSelection}>Clear</Button>
-            <Button color="blue" size="sm" onclick={() => applyClothingValue(customClothingValue)} disabled={selectedGarmentIds.length === 0}>
-              Apply
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <GarmentBuilder
+      {garmentSearchInputId}
+      {searchQuery}
+      {filteredGarments}
+      {selectedGarmentIds}
+      {selectionSummaryLabel}
+      {customClothingValue}
+      {maxClothingValue}
+      onSearchInput={(value) => {
+        searchQuery = value;
+      }}
+      onToggleGarment={handleToggleGarment}
+      onClear={clearSelection}
+      onApply={() => applyClothingValue(customClothingValue)}
+    />
   {/if}
 </div>

@@ -1,123 +1,65 @@
-# CBE Thermal Comfort Tool Prototype
+# CBE Thermal Comfort Tool
 
-This repository now contains a minimal prototype for the next iteration architecture:
+This repository is currently maintained as a Svelte 5 frontend application for thermal-comfort exploration.
 
-- `frontend/`: Svelte 5 (Runes) demo UI.
-- `backend/`: FastAPI service with a minimal ASHRAE 55 PMV/PPD endpoint.
+## Current Status
 
-## What is implemented
+- Active app: `frontend/`
+- Current calculation engine: frontend-local `jsthermalcomfort` wrappers in `frontend/src/services/comfort/`
+- Shared controller: `frontend/src/state/comfortTool/`
+- Legacy reference only: `backend/`
 
-- UI layout: inputs on the left, results on the right.
-- Centralized frontend state in SI units.
-- SI/IP display toggle (conversion only at UI layer).
-- Update-on-commit behavior (input change/keyup enter), backend-driven results.
-- Realtime psychrometric (air temperature) chart.
-- Tailwind + Flowbite Svelte base setup.
-- FastAPI + Pydantic request/response models.
-- `POST /api/ashrae55/pmv` endpoint.
-- `POST /api/ashrae55/pmv-series` endpoint.
-- `POST /api/ashrae55/comfort-zone` endpoint.
-- PMV/PPD source:
-  - Uses `pythermalcomfort` only.
+The backend remains in the repo as deprecated reference code and is not required for normal frontend development.
 
-## Run backend
+## Frontend Commands
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-Health check:
-
-```bash
-curl http://localhost:8000/api/health
-```
-
-## Run frontend
+Install dependencies:
 
 ```bash
 cd frontend
 npm install
+```
+
+Start the dev server:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-Default API base URL is `http://localhost:8000`.
-You can override it with:
+Run tests:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8000 npm run dev
+cd frontend
+npm test
 ```
 
-## Minimal API contract
+Create a production build:
 
-`POST /api/ashrae55/pmv`
-
-Request body:
-
-```json
-{
-  "tdb": 25.0,
-  "tr": 25.0,
-  "vr": 0.1,
-  "rh": 50.0,
-  "met": 1.2,
-  "clo": 0.5,
-  "wme": 0.0,
-  "units": "SI"
-}
+```bash
+cd frontend
+npm run build
 ```
 
-Response body:
+## Architecture Summary
 
-```json
-{
-  "pmv": 0.08,
-  "ppd": 5.2,
-  "acceptable_80": true,
-  "standard": "ASHRAE 55 (PMV/PPD)",
-  "source": "pythermalcomfort"
-}
-```
+The frontend is organized around a single comfort-tool controller:
 
-`POST /api/ashrae55/pmv-series`
+- `frontend/src/models/`: domain constants, field metadata, DTOs
+- `frontend/src/services/comfort/`: PMV, UTCI, comfort-zone, psychrometric, and chart builders
+- `frontend/src/state/comfortTool/`: controller composition, selectors, request builders, input mutations
+- `frontend/src/components/input-panel/`: input workflow UI
+- `frontend/src/components/chart/`: chart rendering and export UI
+- `frontend/src/views/ComfortDashboard.svelte`: page composition only
 
-Request body:
+Important runtime rules:
 
-```json
-{
-  "tdb": 25.0,
-  "tr": 25.0,
-  "vr": 0.1,
-  "rh": 50.0,
-  "met": 1.2,
-  "clo": 0.5,
-  "wme": 0.0,
-  "units": "SI",
-  "tdb_min": 20.0,
-  "tdb_max": 30.0,
-  "points": 25
-}
-```
+- canonical state is SI
+- calculations live in `services/comfort/`
+- components should not implement formulas
+- Flowbite + Tailwind are preferred for UI composition
 
-`POST /api/ashrae55/comfort-zone`
+## Documentation
 
-Request body:
-
-```json
-{
-  "tdb": 25.0,
-  "tr": 25.0,
-  "vr": 0.1,
-  "rh": 50.0,
-  "met": 1.2,
-  "clo": 0.5,
-  "wme": 0.0,
-  "units": "SI",
-  "rh_min": 20.0,
-  "rh_max": 80.0,
-  "rh_points": 13
-}
-```
+- Collaboration rules: `AGENTS.md`
+- Frontend architecture notes: `frontend/FRONTEND_ARCHITECTURE.md`

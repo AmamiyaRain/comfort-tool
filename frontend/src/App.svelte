@@ -11,11 +11,11 @@
   onMount(() => {
     const sharedSnapshot = readShareStateFromUrl(window.location.href);
     if (sharedSnapshot) {
-      toolState.applyShareSnapshot(sharedSnapshot);
+      toolState.actions.applyShareSnapshot(sharedSnapshot);
       return;
     }
 
-    toolState.scheduleCalculation({ immediate: true });
+    toolState.actions.scheduleCalculation({ immediate: true });
   });
 </script>
 

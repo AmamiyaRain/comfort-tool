@@ -5,13 +5,22 @@ import type {
   PlotTraceDto,
 } from "../models/dto";
 
+type PlotlyAxisTitle = string | { text: string; standoff?: number };
+
+type PlotlyFigureLayout = Omit<PlotLayoutDto, "title" | "xaxis" | "yaxis"> & {
+  title?: string | { text: string };
+  xaxis: Record<string, unknown> & { title?: PlotlyAxisTitle };
+  yaxis: Record<string, unknown> & { title?: PlotlyAxisTitle };
+  annotations: PlotAnnotationDto[];
+};
+
 export function toPlotlyFigure(chart: PlotlyChartResponseDto): {
   data: PlotTraceDto[];
-  layout: PlotLayoutDto & { annotations: PlotAnnotationDto[] };
+  layout: PlotlyFigureLayout;
   config: Record<string, unknown>;
 } {
-  const xaxis = { ...chart.layout.xaxis };
-  const yaxis = { ...chart.layout.yaxis };
+  const xaxis: PlotlyFigureLayout["xaxis"] = { ...chart.layout.xaxis };
+  const yaxis: PlotlyFigureLayout["yaxis"] = { ...chart.layout.yaxis };
 
   if (typeof xaxis.title === "string") {
     xaxis.title = { text: xaxis.title, standoff: 12 };
