@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: #0f172a;
+  }
+}
+
+.plotly-panel :global(.js-plotly-plot),
+.plotly-panel :global(.plot-container),
+.plotly-panel :global(.svg-container) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.plotly-panel :global(.main-svg),
+.plotly-panel :global(svg) {
+  max-width: 100% !important;
+}
+
+.plotly-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
