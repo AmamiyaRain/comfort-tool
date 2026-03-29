@@ -1,26 +1,19 @@
 import { CompareCaseId } from "../../models/compareCases";
-import { PmvChartId, UtciChartId } from "../../models/chartOptions";
+import { chartMetaById } from "../../models/chartOptions";
 import { ComfortModel } from "../../models/comfortModels";
-import {
-  PmvAirSpeedControlMode,
-  PmvAirSpeedInputMode,
-  PmvHumidityInputMode,
-  PmvTemperatureInputMode,
-} from "../../models/inputModes";
 import { UnitSystem } from "../../models/units";
 import { createCalculationRunner } from "./calculationRunner";
 import { createComfortToolInputActions } from "./inputMutations";
+import { comfortModelConfigs } from "./modelConfigs";
 import { createComfortToolSelectors } from "./selectors";
 import {
+  createChartResultsByModel,
   createDefaultCompareCaseIds,
-  createDewPointByCase,
-  createEmptyPmvResults,
-  createEmptyUtciResults,
-  createHumidityRatioByCase,
+  createDerivedByCase,
   createInputsByCase,
-  createMeasuredAirSpeedByCase,
-  createVaporPressureByCase,
-  createWetBulbByCase,
+  createModelOptionsByModel,
+  createResultsByModel,
+  createSelectedChartByModel,
   normalizeCompareCaseIds,
 } from "./stateFactories";
 import { applyShareSnapshot, exportShareSnapshot } from "./shareSnapshot";
@@ -29,19 +22,11 @@ import type { ComfortToolController, ComfortToolStateSlice } from "./types";
 export function createComfortToolState(): ComfortToolController {
   const initialInputsByCase = createInputsByCase();
   const inputsByCase = $state(initialInputsByCase);
-  const measuredAirSpeedByCase = $state(createMeasuredAirSpeedByCase(initialInputsByCase));
-  const dewPointByCase = $state(createDewPointByCase(initialInputsByCase));
-  const humidityRatioByCase = $state(createHumidityRatioByCase(initialInputsByCase));
-  const wetBulbByCase = $state(createWetBulbByCase(initialInputsByCase));
-  const vaporPressureByCase = $state(createVaporPressureByCase(initialInputsByCase));
+  const derivedByCase = $state(createDerivedByCase());
   const ui = $state({
     selectedModel: ComfortModel.Pmv,
-    selectedPmvChart: PmvChartId.Psychrometric,
-    selectedUtciChart: UtciChartId.Stress,
-    pmvTemperatureInputMode: PmvTemperatureInputMode.Air,
-    pmvAirSpeedControlMode: PmvAirSpeedControlMode.WithLocalControl,
-    pmvAirSpeedInputMode: PmvAirSpeedInputMode.Relative,
-    pmvHumidityInputMode: PmvHumidityInputMode.RelativeHumidity,
+    selectedChartByModel: createSelectedChartByModel(),
+    modelOptionsByModel: createModelOptionsByModel(),
     compareEnabled: false,
     compareCaseIds: createDefaultCompareCaseIds(),
     activeCaseId: CompareCaseId.A,
@@ -51,34 +36,27 @@ export function createComfortToolState(): ComfortToolController {
     calculationCount: 0,
     lastCompletedAt: 0,
     resultRevision: 0,
-    pmvResults: createEmptyPmvResults(),
-    utciResults: createEmptyUtciResults(),
-    psychrometricChart: null,
-    relativeHumidityChart: null,
-    utciStressChart: null,
-    utciTemperatureChart: null,
+    resultsByModel: createResultsByModel(),
+    chartResultsByModel: createChartResultsByModel(),
   });
+
   const state: ComfortToolStateSlice = {
     inputsByCase,
-    measuredAirSpeedByCase,
-    dewPointByCase,
-    humidityRatioByCase,
-    wetBulbByCase,
-    vaporPressureByCase,
+    derivedByCase,
     ui,
   };
+
+  Object.values(comfortModelConfigs).forEach((config) => {
+    config.syncDerivedState(state);
+  });
 
   function clearResults(options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
       state.ui.errorMessage = "";
     }
     state.ui.lastCompletedAt = 0;
-    state.ui.pmvResults = createEmptyPmvResults();
-    state.ui.utciResults = createEmptyUtciResults();
-    state.ui.psychrometricChart = null;
-    state.ui.relativeHumidityChart = null;
-    state.ui.utciStressChart = null;
-    state.ui.utciTemperatureChart = null;
+    state.ui.resultsByModel = createResultsByModel();
+    state.ui.chartResultsByModel = createChartResultsByModel();
     state.ui.resultRevision += 1;
   }
 
@@ -92,13 +70,16 @@ export function createComfortToolState(): ComfortToolController {
 
   function setSelectedModel(nextModel) {
     state.ui.selectedModel = nextModel;
-    if (nextModel === ComfortModel.Pmv) {
-      state.ui.selectedPmvChart = PmvChartId.Psychrometric;
-    } else {
-      state.ui.selectedUtciChart = UtciChartId.Stress;
-    }
     clearResults();
     calculationRunner.scheduleCalculation({ immediate: true });
+  }
+
+  function setSelectedChart(nextChart) {
+    if (chartMetaById[nextChart]?.model !== state.ui.selectedModel) {
+      return;
+    }
+
+    state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
   }
 
   function setCompareEnabled(enabled: boolean) {
@@ -116,14 +97,6 @@ export function createComfortToolState(): ComfortToolController {
     }
     clearResults();
     calculationRunner.scheduleCalculation({ immediate: true });
-  }
-
-  function setSelectedPmvChart(nextChart) {
-    state.ui.selectedPmvChart = nextChart;
-  }
-
-  function setSelectedUtciChart(nextChart) {
-    state.ui.selectedUtciChart = nextChart;
   }
 
   function setActiveCaseId(nextCaseId) {
@@ -161,8 +134,7 @@ export function createComfortToolState(): ComfortToolController {
 
   const actions = {
     setSelectedModel,
-    setSelectedPmvChart,
-    setSelectedUtciChart,
+    setSelectedChart,
     ...inputActions,
     setCompareEnabled,
     setActiveCaseId,

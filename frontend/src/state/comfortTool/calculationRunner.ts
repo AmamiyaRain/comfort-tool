@@ -1,29 +1,5 @@
-import { ComfortModel } from "../../models/comfortModels";
 import type { CompareCaseId as CompareCaseIdType } from "../../models/compareCases";
-import type {
-  PlotlyChartResponseDto,
-  PmvResponseDto,
-  UtciResponseDto,
-} from "../../models/dto";
-import {
-  buildComparePsychrometricChart,
-  buildRelativeHumidityChart,
-  buildUtciStressChart,
-  buildUtciTemperatureChart,
-  calculateComfortZone,
-  calculatePmv,
-  calculateUtci,
-  type ComfortZonesByCase,
-  type UtciChartResultsByCase,
-} from "../../services/comfortService";
-import { mapCaseResponses, createEmptyPmvResults, createEmptyUtciResults } from "./stateFactories";
-import {
-  toComfortZoneRequest,
-  toPmvCompareChartRequest,
-  toPmvRequest,
-  toUtciRequest,
-  toUtciStressChartRequest,
-} from "./requestBuilders";
+import { getComfortModelConfig } from "./modelConfigs";
 import type { ComfortToolStateSlice } from "./types";
 
 type CreateCalculationRunnerOptions = {
@@ -56,6 +32,7 @@ export function createCalculationRunner(options: CreateCalculationRunnerOptions)
 
   async function calculate(calculationToken: number) {
     const { state } = options;
+    const selectedModel = state.ui.selectedModel;
 
     state.ui.isLoading = true;
     state.ui.errorMessage = "";
@@ -69,47 +46,14 @@ export function createCalculationRunner(options: CreateCalculationRunnerOptions)
 
     try {
       const visibleCaseIds = options.getVisibleCaseIds();
+      const modelConfig = getComfortModelConfig(selectedModel);
+      const calculationOutputs = modelConfig.calculate(state, visibleCaseIds);
 
-      if (state.ui.selectedModel === ComfortModel.Pmv) {
-        const compareChartRequest = toPmvCompareChartRequest(state, visibleCaseIds);
-        const pmvResponses = visibleCaseIds.map((caseId) => calculatePmv(toPmvRequest(state, caseId)));
-        const comfortZonesByCase = visibleCaseIds.reduce((accumulator, caseId) => {
-          accumulator[caseId] = calculateComfortZone(toComfortZoneRequest(state, caseId));
-          return accumulator;
-        }, {} as ComfortZonesByCase);
-
-        state.ui.pmvResults = mapCaseResponses<PmvResponseDto>(visibleCaseIds, pmvResponses);
-        state.ui.utciResults = createEmptyUtciResults();
-        state.ui.psychrometricChart = buildComparePsychrometricChart(
-          compareChartRequest,
-          comfortZonesByCase,
-        ) as PlotlyChartResponseDto;
-        state.ui.relativeHumidityChart = buildRelativeHumidityChart(
-          compareChartRequest,
-          comfortZonesByCase,
-        ) as PlotlyChartResponseDto;
-        state.ui.utciStressChart = null;
-        state.ui.utciTemperatureChart = null;
-      } else {
-        const utciResponses = visibleCaseIds.map((caseId) => calculateUtci(toUtciRequest(state, caseId)));
-        const utciResultsByCase = visibleCaseIds.reduce((accumulator, caseId) => {
-          accumulator[caseId] = utciResponses[visibleCaseIds.indexOf(caseId)] ?? null;
-          return accumulator;
-        }, {} as UtciChartResultsByCase);
-
-        state.ui.utciResults = mapCaseResponses<UtciResponseDto>(visibleCaseIds, utciResponses);
-        state.ui.pmvResults = createEmptyPmvResults();
-        state.ui.psychrometricChart = null;
-        state.ui.relativeHumidityChart = null;
-        state.ui.utciStressChart = buildUtciStressChart(
-          toUtciStressChartRequest(state, visibleCaseIds),
-          utciResultsByCase,
-        ) as PlotlyChartResponseDto;
-        state.ui.utciTemperatureChart = buildUtciTemperatureChart(
-          toUtciStressChartRequest(state, visibleCaseIds),
-          utciResultsByCase,
-        ) as PlotlyChartResponseDto;
-      }
+      state.ui.resultsByModel[selectedModel] = calculationOutputs.resultsByCase as typeof state.ui.resultsByModel[typeof selectedModel];
+      state.ui.chartResultsByModel[selectedModel] = {
+        ...state.ui.chartResultsByModel[selectedModel],
+        ...calculationOutputs.chartResults,
+      };
 
       if (calculationToken !== latestCalculationToken) {
         return;

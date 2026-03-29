@@ -2,14 +2,11 @@
   import { Alert, Badge, Card } from "flowbite-svelte";
 
   import { compareCaseMetaById } from "../models/compareCases";
-  import { ComfortModel } from "../models/comfortModels";
 
   let {
-    selectedModel,
     activeCaseId,
     visibleCaseIds,
-    pmvResults,
-    utciResults,
+    resultSections,
     errorMessage,
     isLoading,
     lastCompletedAt,
@@ -27,18 +24,6 @@
 
   function getResultsTemplateColumns() {
     return `repeat(${visibleCaseIds.length}, minmax(0, 1fr))`;
-  }
-
-  function formatPmvValue(value: number) {
-    return value.toFixed(2);
-  }
-
-  function formatPercentValue(value: number) {
-    return `${value.toFixed(1)}%`;
-  }
-
-  function formatUtciValue(value: number) {
-    return `${value.toFixed(1)} C`;
   }
 
   function getResultCellClasses(caseId) {
@@ -72,17 +57,15 @@
   {#key resultRevision}
     <div class={embedded ? "bg-white" : "mt-3 bg-white"}>
       <div class="grid gap-x-4 gap-y-2 md:grid-cols-2">
-        {#if selectedModel === ComfortModel.Pmv}
+        {#each resultSections as section}
           <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">Compliance</div>
+            <div class="text-sm font-medium text-sky-700">{section.title}</div>
             <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
               {#each visibleCaseIds as caseId}
-                {@const pmvResult = pmvResults[caseId]}
+                {@const resultCell = section.valuesByCase[caseId]}
                 <div class={getResultCellClasses(caseId)}>
-                  {#if pmvResult}
-                    <span class={pmvResult.acceptable_80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600"}>
-                      {pmvResult.acceptable_80 ? "Compliant" : "Out of range"}
-                    </span>
+                  {#if resultCell}
+                    <span class={resultCell.toneClass ?? "text-base font-semibold text-stone-900"}>{resultCell.text}</span>
                   {:else}
                     <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
                   {/if}
@@ -90,87 +73,7 @@
               {/each}
             </div>
           </div>
-
-          <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">PMV</div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                {@const pmvResult = pmvResults[caseId]}
-                <div class={getResultCellClasses(caseId)}>
-                  {#if pmvResult}
-                    <span class="text-base font-semibold text-stone-900">{formatPmvValue(pmvResult.pmv)}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">PPD</div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                {@const pmvResult = pmvResults[caseId]}
-                <div class={getResultCellClasses(caseId)}>
-                  {#if pmvResult}
-                    <span class="text-base font-semibold text-stone-900">{formatPercentValue(pmvResult.ppd)}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <div class="px-1 py-1.5">
-            <div class="text-sm font-semibold text-sky-800">Acceptability</div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                {@const pmvResult = pmvResults[caseId]}
-                <div class={getResultCellClasses(caseId)}>
-                  {#if pmvResult}
-                    <span class="text-base font-semibold text-stone-900">{formatPercentValue(100 - pmvResult.ppd)}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-        {:else}
-          <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">UTCI</div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                {@const utciResult = utciResults[caseId]}
-                <div class={getResultCellClasses(caseId)}>
-                  {#if utciResult}
-                    <span class="text-base font-semibold text-stone-900">{formatUtciValue(utciResult.utci)}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <div class="px-1 py-1.5">
-            <div class="text-sm font-medium text-sky-700">Stress Category</div>
-            <div class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleCaseIds as caseId}
-                {@const utciResult = utciResults[caseId]}
-                <div class={getResultCellClasses(caseId)}>
-                  {#if utciResult}
-                    <span class="font-medium text-stone-900">{utciResult.stress_category}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
+        {/each}
       </div>
     </div>
   {/key}

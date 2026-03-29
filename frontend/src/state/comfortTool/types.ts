@@ -1,40 +1,35 @@
 import type { CompareCaseId as CompareCaseIdType } from "../../models/compareCases";
-import type {
-  PlotlyChartResponseDto,
-  PmvResponseDto,
-  UtciResponseDto,
-} from "../../models/dto";
+import type { ComfortModel as ComfortModelType } from "../../models/comfortModels";
+import type { DerivedFieldKey as DerivedFieldKeyType } from "../../models/derivedFieldKeys";
+import type { PlotlyChartResponseDto, PmvResponseDto, UtciResponseDto } from "../../models/dto";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
-import type {
-  PmvAirSpeedControlMode as PmvAirSpeedControlModeType,
-  PmvAirSpeedInputMode as PmvAirSpeedInputModeType,
-  PmvHumidityInputMode as PmvHumidityInputModeType,
-  PmvTemperatureInputMode as PmvTemperatureInputModeType,
-} from "../../models/inputModes";
-import type {
-  ComfortModel as ComfortModelType,
-} from "../../models/comfortModels";
-import type {
-  PmvChartId as PmvChartIdType,
-  UtciChartId as UtciChartIdType,
-} from "../../models/chartOptions";
+import type { ChartId as ChartIdType } from "../../models/chartOptions";
+import type { ModelOptionKey as ModelOptionKeyType } from "../../models/modelOptions";
 import type { UnitSystem as UnitSystemType } from "../../models/units";
 import type { ShareStateSnapshot } from "../../services/shareState";
 
 export type CaseInputsState = Record<FieldKeyType, number>;
 export type InputsByCaseState = Record<CompareCaseIdType, CaseInputsState>;
-export type PmvResultsByCase = Record<CompareCaseIdType, PmvResponseDto | null>;
-export type UtciResultsByCase = Record<CompareCaseIdType, UtciResponseDto | null>;
-export type NumericByCaseState = Record<CompareCaseIdType, number>;
+export type DerivedCaseState = Partial<Record<DerivedFieldKeyType, number>>;
+export type DerivedByCaseState = Record<CompareCaseIdType, DerivedCaseState>;
+export type ModelOptionsState = Partial<Record<ModelOptionKeyType, string>>;
+export type ModelOptionsByModelState = Record<ComfortModelType, ModelOptionsState>;
+export type SelectedChartByModelState = Record<ComfortModelType, ChartIdType>;
+
+export type ResultsByModelState = {
+  PMV: Record<CompareCaseIdType, PmvResponseDto | null>;
+  UTCI: Record<CompareCaseIdType, UtciResponseDto | null>;
+};
+
+export type ChartResultsByModelState = Record<
+  ComfortModelType,
+  Partial<Record<ChartIdType, PlotlyChartResponseDto | null>>
+>;
 
 export type UiState = {
   selectedModel: ComfortModelType;
-  selectedPmvChart: PmvChartIdType;
-  selectedUtciChart: UtciChartIdType;
-  pmvTemperatureInputMode: PmvTemperatureInputModeType;
-  pmvAirSpeedControlMode: PmvAirSpeedControlModeType;
-  pmvAirSpeedInputMode: PmvAirSpeedInputModeType;
-  pmvHumidityInputMode: PmvHumidityInputModeType;
+  selectedChartByModel: SelectedChartByModelState;
+  modelOptionsByModel: ModelOptionsByModelState;
   compareEnabled: boolean;
   compareCaseIds: CompareCaseIdType[];
   activeCaseId: CompareCaseIdType;
@@ -44,32 +39,62 @@ export type UiState = {
   calculationCount: number;
   lastCompletedAt: number;
   resultRevision: number;
-  pmvResults: PmvResultsByCase;
-  utciResults: UtciResultsByCase;
-  psychrometricChart: PlotlyChartResponseDto | null;
-  relativeHumidityChart: PlotlyChartResponseDto | null;
-  utciStressChart: PlotlyChartResponseDto | null;
-  utciTemperatureChart: PlotlyChartResponseDto | null;
+  resultsByModel: ResultsByModelState;
+  chartResultsByModel: ChartResultsByModelState;
 };
 
 export type ComfortToolStateSlice = {
   inputsByCase: InputsByCaseState;
-  measuredAirSpeedByCase: NumericByCaseState;
-  dewPointByCase: NumericByCaseState;
-  humidityRatioByCase: NumericByCaseState;
-  wetBulbByCase: NumericByCaseState;
-  vaporPressureByCase: NumericByCaseState;
+  derivedByCase: DerivedByCaseState;
   ui: UiState;
+};
+
+export type PresetInputOption = {
+  id: string;
+  label: string;
+  value: number;
+};
+
+export type FieldPresentation = {
+  label: string;
+  displayUnits: string;
+  step: number;
+  decimals: number;
+  rangeText: string;
+  hidden: boolean;
+  showClothingBuilder: boolean;
+  showPresetInput: boolean;
+  presetOptions: PresetInputOption[];
+  presetDecimals: number;
+};
+
+export type AdvancedOptionItem = {
+  label: string;
+  description: string;
+  optionKey: ModelOptionKeyType;
+  value: string;
+  active: boolean;
+};
+
+export type AdvancedOptionMenu = {
+  title: string;
+  items: AdvancedOptionItem[];
+} | null;
+
+export type ResultCellPresentation = {
+  text: string;
+  toneClass?: string;
+};
+
+export type ResultSection = {
+  title: string;
+  valuesByCase: Partial<Record<CompareCaseIdType, ResultCellPresentation | null>>;
 };
 
 export type ComfortToolActions = {
   setSelectedModel: (nextModel: ComfortModelType) => void;
-  setSelectedPmvChart: (nextChart: PmvChartIdType) => void;
-  setSelectedUtciChart: (nextChart: UtciChartIdType) => void;
-  setPmvTemperatureInputMode: (nextMode: PmvTemperatureInputModeType) => void;
-  setPmvAirSpeedControlMode: (nextMode: PmvAirSpeedControlModeType) => void;
-  setPmvAirSpeedInputMode: (nextMode: PmvAirSpeedInputModeType) => void;
-  setPmvHumidityInputMode: (nextMode: PmvHumidityInputModeType) => void;
+  setSelectedChart: (nextChart: ChartIdType) => void;
+  setModelOption: (optionKey: ModelOptionKeyType, nextValue: string) => void;
   setCompareEnabled: (enabled: boolean) => void;
   setActiveCaseId: (nextCaseId: CompareCaseIdType) => void;
   toggleCompareCaseVisibility: (caseId: CompareCaseIdType) => void;
@@ -84,6 +109,10 @@ export type ComfortToolActions = {
 export type ComfortToolSelectors = {
   getVisibleCaseIds: () => CompareCaseIdType[];
   getFieldOrder: () => FieldKeyType[];
+  getFieldPresentation: (fieldKey: FieldKeyType) => FieldPresentation;
+  getFieldDisplayValue: (caseId: CompareCaseIdType, fieldKey: FieldKeyType) => string;
+  getAdvancedOptionMenu: (fieldKey: FieldKeyType) => AdvancedOptionMenu;
+  getResultSections: () => ResultSection[];
   getCurrentChartResult: () => PlotlyChartResponseDto | null;
   getCurrentChartEmptyMessage: () => string;
   getCurrentChartOptions: () => Array<{ name: string; value: string }>;

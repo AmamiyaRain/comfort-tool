@@ -6,7 +6,7 @@
   import { fieldMetaByKey } from "../models/fieldMeta";
   import { clothingGarmentOptions } from "../models/clothingEnsembles";
   import type { UnitSystem as UnitSystemType } from "../models/units";
-  import { predictClothingInsulationFromOutdoorTemperature } from "../services/advancedPmvInputs";
+  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort";
   import {
     filterClothingGarments,
     sumSelectedGarmentClo,

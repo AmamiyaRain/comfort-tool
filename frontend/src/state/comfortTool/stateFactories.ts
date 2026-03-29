@@ -4,21 +4,19 @@ import {
   compareCaseOrder,
   type CompareCaseId as CompareCaseIdType,
 } from "../../models/compareCases";
+import { defaultChartByModel, chartIdsByModel } from "../../models/chartOptions";
+import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
 import { fieldMetaByKey, allFieldOrder } from "../../models/fieldMeta";
-import { FieldKey } from "../../models/fieldKeys";
-import {
-  deriveDewPointFromRelativeHumidity,
-  deriveHumidityRatioFromRelativeHumidity,
-  deriveMeasuredAirSpeedFromRelative,
-  deriveVaporPressureFromRelativeHumidity,
-  deriveWetBulbFromRelativeHumidity,
-} from "../../services/advancedPmvInputs";
+import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
+import { createEmptyDerivedByCase } from "./derivedState";
+import { comfortModelConfigs } from "./modelConfigs";
 import type {
   CaseInputsState,
+  ChartResultsByModelState,
   InputsByCaseState,
-  NumericByCaseState,
-  PmvResultsByCase,
-  UtciResultsByCase,
+  ModelOptionsByModelState,
+  ResultsByModelState,
+  SelectedChartByModelState,
 } from "./types";
 
 export function createCaseInputs(caseId: CompareCaseIdType): CaseInputsState {
@@ -35,68 +33,8 @@ export function createInputsByCase(): InputsByCaseState {
   }, {} as InputsByCaseState);
 }
 
-export function createEmptyPmvResults(): PmvResultsByCase {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = null;
-    return accumulator;
-  }, {} as PmvResultsByCase);
-}
-
-export function createEmptyUtciResults(): UtciResultsByCase {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = null;
-    return accumulator;
-  }, {} as UtciResultsByCase);
-}
-
-export function createMeasuredAirSpeedByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = deriveMeasuredAirSpeedFromRelative(
-      inputsByCase[caseId][FieldKey.RelativeAirSpeed],
-      inputsByCase[caseId][FieldKey.MetabolicRate],
-    );
-    return accumulator;
-  }, {} as NumericByCaseState);
-}
-
-export function createDewPointByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = deriveDewPointFromRelativeHumidity(
-      inputsByCase[caseId][FieldKey.DryBulbTemperature],
-      inputsByCase[caseId][FieldKey.RelativeHumidity],
-    );
-    return accumulator;
-  }, {} as NumericByCaseState);
-}
-
-export function createHumidityRatioByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = deriveHumidityRatioFromRelativeHumidity(
-      inputsByCase[caseId][FieldKey.DryBulbTemperature],
-      inputsByCase[caseId][FieldKey.RelativeHumidity],
-    );
-    return accumulator;
-  }, {} as NumericByCaseState);
-}
-
-export function createWetBulbByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = deriveWetBulbFromRelativeHumidity(
-      inputsByCase[caseId][FieldKey.DryBulbTemperature],
-      inputsByCase[caseId][FieldKey.RelativeHumidity],
-    );
-    return accumulator;
-  }, {} as NumericByCaseState);
-}
-
-export function createVaporPressureByCase(inputsByCase: InputsByCaseState): NumericByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = deriveVaporPressureFromRelativeHumidity(
-      inputsByCase[caseId][FieldKey.DryBulbTemperature],
-      inputsByCase[caseId][FieldKey.RelativeHumidity],
-    );
-    return accumulator;
-  }, {} as NumericByCaseState);
+export function createDerivedByCase() {
+  return createEmptyDerivedByCase();
 }
 
 export function createDefaultCompareCaseIds(): CompareCaseIdType[] {
@@ -107,18 +45,40 @@ export function normalizeCompareCaseIds(caseIds: CompareCaseIdType[]): CompareCa
   return compareCaseOrder.filter((caseId) => caseId === CompareCaseId.A || caseIds.includes(caseId));
 }
 
-export function mapCaseResponses<T>(
-  visibleCaseIds: CompareCaseIdType[],
-  responses: T[],
-): Record<CompareCaseIdType, T | null> {
-  const mappedResults = compareCaseOrder.reduce((accumulator, caseId) => {
+export function createSelectedChartByModel(): SelectedChartByModelState {
+  return comfortModelOrder.reduce((accumulator, modelId) => {
+    accumulator[modelId] = defaultChartByModel[modelId];
+    return accumulator;
+  }, {} as SelectedChartByModelState);
+}
+
+export function createModelOptionsByModel(): ModelOptionsByModelState {
+  return comfortModelOrder.reduce((accumulator, modelId) => {
+    accumulator[modelId] = { ...comfortModelConfigs[modelId].defaultOptions };
+    return accumulator;
+  }, {} as ModelOptionsByModelState);
+}
+
+function createEmptyCaseResultRecord<T>(): Record<CompareCaseIdType, T | null> {
+  return compareCaseOrder.reduce((accumulator, caseId) => {
     accumulator[caseId] = null;
     return accumulator;
   }, {} as Record<CompareCaseIdType, T | null>);
+}
 
-  visibleCaseIds.forEach((caseId, index) => {
-    mappedResults[caseId] = responses[index] ?? null;
-  });
+export function createResultsByModel(): ResultsByModelState {
+  return {
+    [ComfortModel.Pmv]: createEmptyCaseResultRecord(),
+    [ComfortModel.Utci]: createEmptyCaseResultRecord(),
+  };
+}
 
-  return mappedResults;
+export function createChartResultsByModel(): ChartResultsByModelState {
+  return comfortModelOrder.reduce((accumulator, modelId) => {
+    accumulator[modelId] = chartIdsByModel[modelId].reduce((chartAccumulator, chartId) => {
+      chartAccumulator[chartId] = null;
+      return chartAccumulator;
+    }, {} as ChartResultsByModelState[ComfortModelType]);
+    return accumulator;
+  }, {} as ChartResultsByModelState);
 }

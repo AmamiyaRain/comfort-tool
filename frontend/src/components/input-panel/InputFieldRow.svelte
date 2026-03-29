@@ -5,11 +5,9 @@
   import AdvancedInputMenu from "./AdvancedInputMenu.svelte";
   import {
     getDisplayValue,
-    getFieldDecimals,
     getFieldDisplayUnits,
     getFieldLabel,
     getFieldRange,
-    getFieldStep,
     getPresetInputDecimals,
     getPresetInputOptions,
     showClothingBuilder,
@@ -43,7 +41,7 @@
 
   function handleApplyPresetValue(caseId, value) {
     toolState.actions.setActiveCaseId(caseId);
-    toolState.actions.updateInput(caseId, fieldKey, value.toFixed(getPresetInputDecimals(fieldKey)));
+    toolState.actions.updateInput(caseId, fieldKey, value.toFixed(getPresetInputDecimals(toolState, fieldKey)));
   }
 </script>
 
@@ -79,9 +77,9 @@
       <div class={toolState.state.ui.activeCaseId === caseId ? "rounded-sm bg-sky-50/50 p-1" : "p-1"}>
         {#if showPresetInput(toolState, fieldKey)}
           <PresetNumericInput
-            items={getPresetInputOptions(fieldKey)}
+            items={getPresetInputOptions(toolState, fieldKey)}
             value={toolState.state.inputsByCase[caseId][fieldKey]}
-            decimals={getPresetInputDecimals(fieldKey)}
+            decimals={getPresetInputDecimals(toolState, fieldKey)}
             valueSuffix={getFieldDisplayUnits(toolState, fieldKey)}
             placeholder={`Enter ${getFieldDisplayUnits(toolState, fieldKey)} or search preset`}
             searchPlaceholder={`Search ${getFieldLabel(toolState, fieldKey).toLowerCase()} presets`}
@@ -93,8 +91,8 @@
           <input
             id={`${caseId}-${fieldKey}`}
             type="number"
-            step={getFieldStep(toolState, fieldKey)}
-            value={getDisplayValue(toolState, caseId, fieldKey, getFieldDecimals(toolState, fieldKey))}
+            step={toolState.selectors.getFieldPresentation(fieldKey).step}
+            value={getDisplayValue(toolState, caseId, fieldKey)}
             aria-label={`${compareCaseMetaById[caseId].label} ${getFieldLabel(toolState, fieldKey)}`}
             onfocus={() => toolState.actions.setActiveCaseId(caseId)}
             oninput={(event) => handleFieldInput(caseId, event.currentTarget.value)}

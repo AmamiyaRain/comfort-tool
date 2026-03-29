@@ -3,7 +3,6 @@
 <script lang="ts">
   import PlotlyChartCard from "./PlotlyChartCard.svelte";
   import ResultsPanel from "./ResultsPanel.svelte";
-  import { ComfortModel } from "../models/comfortModels";
   import type { ComfortToolState } from "../state/comfortTool.svelte";
 
   let {
@@ -13,12 +12,7 @@
   } = $props();
 
   function handleSelectChart(nextChart: string) {
-    if (toolState.state.ui.selectedModel === ComfortModel.Pmv) {
-      toolState.actions.setSelectedPmvChart(nextChart);
-      return;
-    }
-
-    toolState.actions.setSelectedUtciChart(nextChart);
+    toolState.actions.setSelectedChart(nextChart);
   }
 </script>
 
@@ -26,11 +20,9 @@
   <div class="w-full min-w-0 border border-stone-300 bg-white p-3 shadow-sm">
     <div class="text-base font-semibold text-stone-900">Results</div>
     <ResultsPanel
-      selectedModel={toolState.state.ui.selectedModel}
       activeCaseId={toolState.state.ui.activeCaseId}
       visibleCaseIds={toolState.selectors.getVisibleCaseIds()}
-      pmvResults={toolState.state.ui.pmvResults}
-      utciResults={toolState.state.ui.utciResults}
+      resultSections={toolState.selectors.getResultSections()}
       errorMessage={toolState.state.ui.errorMessage}
       isLoading={toolState.state.ui.isLoading}
       lastCompletedAt={toolState.state.ui.lastCompletedAt}
