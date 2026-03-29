@@ -2,18 +2,18 @@
 
 ## Scope
 
-This repository contains the active product frontend in `frontend/`, which should be treated as the frontend root for work in this scope.
+This repository contains the active product frontend at the repository root, which should be treated as the frontend root for work in this scope.
 
-- Product code lives in `frontend/src/`.
+- Product code lives in `src/`.
 - Do not introduce new backend dependencies or server assumptions unless a task explicitly requires that.
-- Never commit generated artifacts such as `frontend/dist/`, `frontend/node_modules/`, coverage output, or cache directories.
+- Never commit generated artifacts such as `dist/`, `node_modules/`, coverage output, or cache directories.
 
 ## Source Tree
 
 Primary source layout:
 
 ```text
-frontend/src/
+src/
   components/
     chart/                 chart rendering and export UI
     input-panel/           comfort-tool input subcomponents
@@ -29,10 +29,10 @@ frontend/src/
 Key entrypoints:
 
 ```text
-frontend/src/App.svelte
-frontend/src/views/ComfortDashboard.svelte
-frontend/src/state/comfortTool/createComfortToolState.svelte.ts
-frontend/src/state/comfortTool/types.ts
+src/App.svelte
+src/views/ComfortDashboard.svelte
+src/state/comfortTool/createComfortToolState.svelte.ts
+src/state/comfortTool/types.ts
 ```
 
 ## Architecture Priorities
@@ -50,27 +50,27 @@ frontend/src/state/comfortTool/types.ts
 
 ## Calculation Ownership
 
-Thermal-comfort and psychrometric logic belongs in `frontend/src/services/comfort/**`.
+Thermal-comfort and psychrometric logic belongs in `src/services/comfort/**`.
 
-- All PMV / PPD computation belongs in `frontend/src/services/comfort/**`.
-- All UTCI computation belongs in `frontend/src/services/comfort/**`.
-- All comfort-zone solving belongs in `frontend/src/services/comfort/**`.
-- All psychrometric and stress-band derivation belongs in `frontend/src/services/comfort/**`.
-- All chart-building logic belongs in `frontend/src/services/comfort/**`.
+- All PMV / PPD computation belongs in `src/services/comfort/**`.
+- All UTCI computation belongs in `src/services/comfort/**`.
+- All comfort-zone solving belongs in `src/services/comfort/**`.
+- All psychrometric and stress-band derivation belongs in `src/services/comfort/**`.
+- All chart-building logic belongs in `src/services/comfort/**`.
 - State and components must stay free of raw formula implementations.
 
-Use `jsthermalcomfort` where it cleanly covers the need. If a helper is missing upstream, keep a thin local adapter and place it in `frontend/src/services/comfort/**`.
+Use `jsthermalcomfort` where it cleanly covers the need. If a helper is missing upstream, keep a thin local adapter and place it in `src/services/comfort/**`.
 
-All direct `jsthermalcomfort` imports must stay inside `frontend/src/services/comfort/**`.
+All direct `jsthermalcomfort` imports must stay inside `src/services/comfort/**`.
 
-- Do not add new `jsthermalcomfort` imports in `frontend/src/state/**`, `frontend/src/components/**`, or top-level `frontend/src/services/*.ts`.
-- `frontend/src/services/advancedPmvInputs.ts` is a legacy exception today, not a pattern to extend.
-- When touching legacy wrappers, prefer moving them under `frontend/src/services/comfort/**` rather than adding more service code beside the boundary.
+- Do not add new `jsthermalcomfort` imports in `src/state/**`, `src/components/**`, or top-level `src/services/*.ts`.
+- `src/services/advancedPmvInputs.ts` is a legacy exception today, not a pattern to extend.
+- When touching legacy wrappers, prefer moving them under `src/services/comfort/**` rather than adding more service code beside the boundary.
 
 ## Conversion Ownership
 
 - Canonical state remains SI.
-- All unit conversion should live in one conversion module family under `frontend/src/services/`.
+- All unit conversion should live in one conversion module family under `src/services/`.
 - Do not scatter new temperature, speed, humidity-ratio, or vapor-pressure conversions across components or state helpers.
 - Components may format values for display, but conversion rules should come from centralized helpers and metadata.
 
@@ -95,7 +95,7 @@ Preferred direction for refactors and new model work:
 - `chartResultsByModel: Record<ModelId, Record<ChartId, ChartResult | null>>`
 - shared UI flags for loading, errors, compare settings, and unit system
 
-When touching `frontend/src/state/comfortTool/types.ts`, `frontend/src/state/comfortTool/createComfortToolState.svelte.ts`, `frontend/src/state/comfortTool/shareState.ts`, or `frontend/src/state/comfortTool/modelConfigs/**`, prefer extracting keyed records and generic helpers instead of copying another PMV/UTCI-specific property or branch.
+When touching `src/state/comfortTool/types.ts`, `src/state/comfortTool/createComfortToolState.svelte.ts`, `src/state/comfortTool/shareState.ts`, or `src/state/comfortTool/modelConfigs/**`, prefer extracting keyed records and generic helpers instead of copying another PMV/UTCI-specific property or branch.
 
 ## Model Extension Strategy
 
@@ -111,7 +111,7 @@ A model definition should own:
 - calculation execution
 - chart list and chart builders
 
-Use centralized constants and typed metadata from `frontend/src/models/` for:
+Use centralized constants and typed metadata from `src/models/` for:
 
 - model identifiers
 - field identifiers
@@ -124,8 +124,8 @@ Do not introduce new raw domain strings for those concepts.
 
 There is already repeated PMV mode branching pressure in places like:
 
-- `frontend/src/state/comfortTool/modelConfigs/pmv.ts`
-- `frontend/src/components/input-panel/InputFieldRow.svelte`
+- `src/state/comfortTool/modelConfigs/pmv.ts`
+- `src/components/input-panel/InputFieldRow.svelte`
 - share/import-export synchronization paths
 
 Do not add more repeated `if/else` chains per mode if a config table, model descriptor, or shared helper can express the rule once.
@@ -168,7 +168,7 @@ A change in this frontend is done when:
 - production build passes
 - SI remains the canonical shared state
 - no new raw domain strings were introduced
-- no new `jsthermalcomfort` imports were added outside `frontend/src/services/comfort/**`
+- no new `jsthermalcomfort` imports were added outside `src/services/comfort/**`
 - no new scattered conversion helpers were added outside the chosen conversion module family
 - model or chart additions do not expand the controller with more hardcoded parallel properties unless explicitly approved
 - module boundaries remain clear
