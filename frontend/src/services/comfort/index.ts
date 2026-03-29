@@ -9,8 +9,8 @@ export {
 } from "./charts/utciCharts";
 export { calculateComfortZone } from "./comfortZone";
 export {
-  type ComfortZonesByCase,
-  type UtciChartResultsByCase,
+  type ComfortZonesByInput,
+  type UtciChartResultsByInput,
 } from "./helpers";
 export {
   deriveDewPointFromRelativeHumidity,

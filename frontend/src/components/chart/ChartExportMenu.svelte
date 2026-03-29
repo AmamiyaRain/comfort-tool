@@ -12,7 +12,7 @@
   const exportTriggerId = `plotly-export-${Math.random().toString(36).slice(2, 10)}`;
 </script>
 
-<div class="flex items-center justify-end">
+<section class="flex items-center justify-end">
   <Button
     id={exportTriggerId}
     type="button"
@@ -41,9 +41,9 @@
     containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
     headerClass="border-b border-stone-100 px-4 py-2"
   >
-    <div slot="header" class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+    <p slot="header" class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
       Download chart
-    </div>
+    </p>
     <DropdownItem
       class="flex items-center justify-between gap-3 text-stone-700 hover:bg-stone-50"
       onclick={() => {
@@ -65,4 +65,4 @@
       <span class="text-[11px] uppercase tracking-[0.12em] text-stone-400">Vector</span>
     </DropdownItem>
   </Dropdown>
-</div>
+</section>

@@ -5,25 +5,25 @@
 
   import SiteFooter from "./SiteFooter.svelte";
   import SiteHeader from "./SiteHeader.svelte";
-  import type { ComfortToolState } from "../state/comfortTool.svelte";
+  import type { ComfortToolController } from "../state/comfortTool/types";
 
   let {
     toolState,
     children,
   }: {
-    toolState: ComfortToolState;
+    toolState: ComfortToolController;
     children: Snippet;
   } = $props();
 </script>
 
-<div class="min-h-screen bg-stone-950 text-stone-950">
-  <div class="flex min-h-screen flex-col">
+<section class="min-h-screen bg-stone-950 text-stone-950">
+  <article class="flex min-h-screen flex-col">
     <SiteHeader {toolState} />
 
-    <main class="flex-1 bg-white">
+    <main class="flex-1 bg-stone-50">
       {@render children?.()}
     </main>
 
     <SiteFooter />
-  </div>
-</div>
+  </article>
+</section>

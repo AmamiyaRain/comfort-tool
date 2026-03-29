@@ -1,4 +1,3 @@
-import { ComfortModel, type ComfortModel as ComfortModelType } from "./comfortModels";
 import { FieldKey, type FieldKey as FieldKeyType } from "./fieldKeys";
 
 export interface FieldMeta {
@@ -108,23 +107,6 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     minValue: 0,
     maxValue: 2,
   },
-};
-
-export const fieldOrderByModel: Record<ComfortModelType, FieldKeyType[]> = {
-  [ComfortModel.Pmv]: [
-    FieldKey.DryBulbTemperature,
-    FieldKey.MeanRadiantTemperature,
-    FieldKey.RelativeAirSpeed,
-    FieldKey.RelativeHumidity,
-    FieldKey.MetabolicRate,
-    FieldKey.ClothingInsulation,
-  ],
-  [ComfortModel.Utci]: [
-    FieldKey.DryBulbTemperature,
-    FieldKey.MeanRadiantTemperature,
-    FieldKey.WindSpeed,
-    FieldKey.RelativeHumidity,
-  ],
 };
 
 export const allFieldOrder: FieldKeyType[] = [

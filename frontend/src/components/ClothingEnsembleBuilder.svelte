@@ -1,7 +1,9 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { compareCaseMetaById, CompareCaseId, type CompareCaseId as CompareCaseIdType } from "../models/compareCases";
+  import { Button, Input } from "flowbite-svelte";
+
+  import { inputMetaById, InputId, type InputId as InputIdType } from "../models/inputSlots";
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/fieldMeta";
   import { clothingGarmentOptions } from "../models/clothingEnsembles";
@@ -11,22 +13,20 @@
     filterClothingGarments,
     sumSelectedGarmentClo,
   } from "../services/clothingEnsembles";
-  import ClothingPredictor from "./input-panel/ClothingPredictor.svelte";
-  import GarmentBuilder from "./input-panel/GarmentBuilder.svelte";
 
   let {
-    activeCaseId,
-    visibleCaseIds,
+    activeInputId,
+    visibleInputIds,
     unitSystem,
-    onSelectCase,
+    onSelectInput,
     onApplyClothingValue,
     onClose,
   }: {
-    activeCaseId: CompareCaseIdType;
-    visibleCaseIds: CompareCaseIdType[];
+    activeInputId: InputIdType;
+    visibleInputIds: InputIdType[];
     unitSystem: UnitSystemType;
-    onSelectCase: (caseId: CompareCaseIdType) => void;
-    onApplyClothingValue: (caseId: CompareCaseIdType, value: number) => void;
+    onSelectInput: (inputId: InputIdType) => void;
+    onApplyClothingValue: (inputId: InputIdType, value: number) => void;
     onClose: () => void;
   } = $props();
 
@@ -49,7 +49,7 @@
   ] as const;
 
   let activeToolMode = $state<ClothingToolMode>(ClothingToolMode.Predict);
-  let targetCaseId = $state<CompareCaseIdType>(CompareCaseId.A);
+  let targetInputId = $state<InputIdType>(InputId.Input1);
   let searchQuery = $state("");
   let selectedGarmentIds = $state<string[]>([]);
   let predictiveOutdoorTemperature = $state<string | number>("");
@@ -61,13 +61,13 @@
   const temperatureDisplayUnits = $derived(fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]);
 
   $effect(() => {
-    if (visibleCaseIds.includes(activeCaseId)) {
-      targetCaseId = activeCaseId;
+    if (visibleInputIds.includes(activeInputId)) {
+      targetInputId = activeInputId;
       return;
     }
 
-    if (!visibleCaseIds.includes(targetCaseId)) {
-      targetCaseId = visibleCaseIds[0] ?? CompareCaseId.A;
+    if (!visibleInputIds.includes(targetInputId)) {
+      targetInputId = visibleInputIds[0] ?? InputId.Input1;
     }
   });
 
@@ -100,14 +100,14 @@
     predictedClothingValue === null ? "0.00" : predictedClothingValue.toFixed(2)
   ));
 
-  function handleSelectTargetCase(caseId: CompareCaseIdType) {
-    targetCaseId = caseId;
-    onSelectCase(caseId);
+  function handleSelectTargetInput(inputId: InputIdType) {
+    targetInputId = inputId;
+    onSelectInput(inputId);
   }
 
-  function getCaseButtonClasses(caseId: CompareCaseIdType): string {
-    const caseUi = compareCaseMetaById[caseId].ui;
-    return caseId === targetCaseId ? caseUi.clothingTargetActiveClass : caseUi.clothingTargetInactiveClass;
+  function getInputButtonClasses(inputId: InputIdType): string {
+    const inputUi = inputMetaById[inputId].ui;
+    return inputId === targetInputId ? inputUi.clothingTargetActiveClass : inputUi.clothingTargetInactiveClass;
   }
 
   function handleToggleGarment(garmentId: string, checked: boolean) {
@@ -122,8 +122,8 @@
   }
 
   function applyClothingValue(value: number) {
-    onSelectCase(targetCaseId);
-    onApplyClothingValue(targetCaseId, value);
+    onSelectInput(targetInputId);
+    onApplyClothingValue(targetInputId, value);
     onClose();
   }
 
@@ -141,9 +141,9 @@
   }
 </script>
 
-<div class="grid gap-5 p-5">
-  <div class="flex flex-wrap items-center gap-3">
-    <div class="inline-flex gap-2 rounded-full bg-stone-100 p-1">
+<section class="grid gap-5 p-5">
+  <header class="flex flex-wrap items-center gap-3">
+    <nav class="inline-flex gap-2 rounded-full bg-stone-100 p-1" aria-label="Clothing tool modes">
       {#each clothingToolModes as toolMode}
         <button
           type="button"
@@ -159,58 +159,130 @@
           {toolMode.label}
         </button>
       {/each}
-    </div>
+    </nav>
 
-    {#if visibleCaseIds.length > 1}
-      <div class="sm:ml-auto flex flex-wrap items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/90 px-2.5 py-2">
-        <span class="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-600">Apply to</span>
+    {#if visibleInputIds.length > 1}
+      <aside class="sm:ml-auto flex flex-wrap items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/90 px-2.5 py-2">
+        <p class="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-600">Apply to</p>
 
-        <div class="inline-flex rounded-xl bg-white/90 p-1 ring-1 ring-inset ring-stone-200">
-          {#each visibleCaseIds as caseId}
-            <button
-              type="button"
-              class={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${getCaseButtonClasses(caseId)}`}
-              aria-label={compareCaseMetaById[caseId].label}
-              title={compareCaseMetaById[caseId].label}
-              onclick={() => handleSelectTargetCase(caseId)}
-            >
-              {compareCaseMetaById[caseId].shortLabel}
-            </button>
+        <ul class="inline-flex rounded-xl bg-white/90 p-1 ring-1 ring-inset ring-stone-200">
+          {#each visibleInputIds as inputId}
+            <li>
+              <button
+                type="button"
+                class={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${getInputButtonClasses(inputId)}`}
+                aria-label={inputMetaById[inputId].label}
+                title={inputMetaById[inputId].label}
+                onclick={() => handleSelectTargetInput(inputId)}
+              >
+                {inputMetaById[inputId].shortLabel}
+              </button>
+            </li>
           {/each}
-        </div>
-      </div>
+        </ul>
+      </aside>
     {/if}
-  </div>
+  </header>
 
   {#if activeToolMode === ClothingToolMode.Predict}
-    <ClothingPredictor
-      {predictiveTemperatureInputId}
-      {predictiveOutdoorTemperature}
-      {temperatureStep}
-      {temperatureDisplayUnits}
-      {predictedClothingValue}
-      {predictedClothingDisplayValue}
-      {maxClothingValue}
-      onTemperatureInput={(value) => {
-        predictiveOutdoorTemperature = value;
-      }}
-      onApply={applyPredictedClothingValue}
-    />
+    <section class="grid gap-4">
+      <section class="grid gap-2">
+        <label for={predictiveTemperatureInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+          Outdoor air temperature at 6 a.m. ({temperatureDisplayUnits})
+        </label>
+        <Input
+          id={predictiveTemperatureInputId}
+          value={predictiveOutdoorTemperature}
+          type="number"
+          size="sm"
+          step={temperatureStep}
+          placeholder={`Enter temperature in ${temperatureDisplayUnits}`}
+          class="bg-white"
+          oninput={(event) => {
+            predictiveOutdoorTemperature = event.currentTarget.value;
+          }}
+        />
+      </section>
+
+      <article class="rounded-2xl bg-stone-50 px-4 py-4">
+        <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <header class="min-w-0">
+            <p class="text-sm font-medium text-stone-900">Estimated Clothing</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{predictedClothingDisplayValue} clo</p>
+
+            {#if predictedClothingValue !== null && predictedClothingValue > maxClothingValue}
+              <p class="mt-2 text-xs leading-5 text-amber-700">
+                This exceeds the current PMV input range used in this interface ({maxClothingValue.toFixed(1)} clo).
+              </p>
+            {/if}
+          </header>
+
+          <footer class="flex shrink-0 items-center gap-2">
+            <Button color="blue" size="sm" onclick={applyPredictedClothingValue} disabled={predictedClothingValue === null}>
+              Apply
+            </Button>
+          </footer>
+        </section>
+      </article>
+    </section>
   {:else}
-    <GarmentBuilder
-      {garmentSearchInputId}
-      {searchQuery}
-      {filteredGarments}
-      {selectedGarmentIds}
-      {selectionSummaryLabel}
-      {customClothingValue}
-      {maxClothingValue}
-      onSearchInput={(value) => {
-        searchQuery = value;
-      }}
-      onToggleGarment={handleToggleGarment}
-      onClear={clearSelection}
-      onApply={() => applyClothingValue(customClothingValue)}
-    />
+    <section class="grid gap-4">
+      <section class="grid gap-2">
+        <label for={garmentSearchInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+          Search garments
+        </label>
+        <Input
+          id={garmentSearchInputId}
+          value={searchQuery}
+          size="sm"
+          placeholder="Search the original CBE garment list"
+          class="bg-white"
+          oninput={(event) => {
+            searchQuery = event.currentTarget.value;
+          }}
+        />
+      </section>
+
+      <section class="max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white">
+        {#if filteredGarments.length === 0}
+          <p class="px-4 py-8 text-sm text-stone-500">No garments match this search.</p>
+        {:else}
+          {#each filteredGarments as garment}
+            <label class="grid cursor-pointer grid-cols-[auto,minmax(0,1fr),auto] items-start gap-3 border-b border-stone-100 px-4 py-3 last:border-b-0 hover:bg-stone-50">
+              <input
+                type="checkbox"
+                checked={selectedGarmentIds.includes(garment.id)}
+                onchange={(event) => handleToggleGarment(garment.id, event.currentTarget.checked)}
+                class="mt-0.5 h-4 w-4 rounded border-stone-300 text-sky-600 focus:ring-sky-500"
+              />
+              <span class="min-w-0 text-sm text-stone-800">{garment.article}</span>
+              <span class="shrink-0 text-xs font-semibold text-stone-500">{garment.clo.toFixed(2)} clo</span>
+            </label>
+          {/each}
+        {/if}
+      </section>
+
+      <article class="rounded-2xl bg-stone-50 px-4 py-4">
+        <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <header class="min-w-0">
+            <p class="text-sm font-medium text-stone-900">{selectionSummaryLabel}</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{customClothingValue.toFixed(2)} clo</p>
+
+            {#if customClothingValue > maxClothingValue}
+              <p class="mt-2 text-xs leading-5 text-amber-700">
+                This exceeds the current PMV input range used in this interface ({maxClothingValue.toFixed(1)} clo).
+              </p>
+            {/if}
+          </header>
+
+          <footer class="flex shrink-0 items-center gap-2">
+            <Button color="light" size="sm" onclick={clearSelection}>Clear</Button>
+            <Button color="blue" size="sm" onclick={() => applyClothingValue(customClothingValue)} disabled={selectedGarmentIds.length === 0}>
+              Apply
+            </Button>
+          </footer>
+        </section>
+      </article>
+    </section>
   {/if}
-</div>
+</section>

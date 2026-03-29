@@ -1,22 +1,20 @@
 import {
-  CompareCaseId,
-  type CompareCaseId as CompareCaseIdType,
-} from "../../models/compareCases";
+  inputOrder,
+  type InputId as InputIdType,
+} from "../../models/inputSlots";
 import type {
+  CompareInputMap,
   ComfortZoneRequestDto,
   ComfortZoneResponseDto,
-  PmvCompareChartRequestDto,
-  RelativeHumidityChartRequestDto,
   UtciRequestDto,
   UtciResponseDto,
-  UtciStressChartRequestDto,
 } from "../../models/dto";
 
 export const PMV_COMFORT_LIMIT = 0.5;
 export const ATM_PRESSURE_PA = 101325;
 
-export type ComfortZonesByCase = Partial<Record<CompareCaseIdType, ComfortZoneResponseDto>>;
-export type UtciChartResultsByCase = Partial<Record<CompareCaseIdType, UtciResponseDto>>;
+export type ComfortZonesByInput = Partial<Record<InputIdType, ComfortZoneResponseDto>>;
+export type UtciChartResultsByInput = Partial<Record<InputIdType, UtciResponseDto>>;
 
 export function roundValue(value: number, decimals = 3): number {
   return Number(value.toFixed(decimals));
@@ -59,38 +57,9 @@ export function getPaddedAxisRange(
   return [paddedMinimum, paddedMaximum];
 }
 
-export function getPmvCompareCases(
-  payload: PmvCompareChartRequestDto | RelativeHumidityChartRequestDto,
-): Array<{ caseId: CompareCaseIdType; payload: ComfortZoneRequestDto }> {
-  const cases: Array<{ caseId: CompareCaseIdType; payload: ComfortZoneRequestDto }> = [
-    { caseId: CompareCaseId.A, payload: payload.case_a },
-  ];
-
-  if (payload.case_b) {
-    cases.push({ caseId: CompareCaseId.B, payload: payload.case_b });
-  }
-
-  if (payload.case_c) {
-    cases.push({ caseId: CompareCaseId.C, payload: payload.case_c });
-  }
-
-  return cases;
-}
-
-export function getUtciCases(
-  payload: UtciStressChartRequestDto,
-): Array<{ caseId: CompareCaseIdType; payload: UtciRequestDto }> {
-  const cases: Array<{ caseId: CompareCaseIdType; payload: UtciRequestDto }> = [
-    { caseId: CompareCaseId.A, payload: payload.case_a },
-  ];
-
-  if (payload.case_b) {
-    cases.push({ caseId: CompareCaseId.B, payload: payload.case_b });
-  }
-
-  if (payload.case_c) {
-    cases.push({ caseId: CompareCaseId.C, payload: payload.case_c });
-  }
-
-  return cases;
+export function getCompareInputs<T>(inputsByInput: CompareInputMap<T>): Array<{ inputId: InputIdType; payload: T }> {
+  return inputOrder.flatMap((inputId) => {
+    const payload = inputsByInput[inputId];
+    return payload ? [{ inputId, payload }] : [];
+  });
 }

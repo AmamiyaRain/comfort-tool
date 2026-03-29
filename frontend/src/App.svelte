@@ -3,8 +3,8 @@
 
   import SiteShell from "./components/SiteShell.svelte";
   import ComfortDashboard from "./views/ComfortDashboard.svelte";
-  import { readShareStateFromUrl } from "./services/shareState";
-  import { createComfortToolState } from "./state/comfortTool.svelte";
+  import { createComfortToolState } from "./state/comfortTool/createComfortToolState.svelte";
+  import { readShareStateFromUrl } from "./state/comfortTool/shareState";
 
   const toolState = createComfortToolState();
 

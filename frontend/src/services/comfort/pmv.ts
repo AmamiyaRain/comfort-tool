@@ -112,7 +112,7 @@ export function calculatePmv(payload: PmvRequestDto): PmvResponseDto {
   return {
     pmv: result.pmv,
     ppd: result.ppd,
-    acceptable_80: Math.abs(result.pmv) <= PMV_COMFORT_LIMIT,
+    acceptable80: Math.abs(result.pmv) <= PMV_COMFORT_LIMIT,
     standard: ComfortStandard.Ashrae55PmvPpd,
     source: CalculationSource.JsThermalComfort,
   };

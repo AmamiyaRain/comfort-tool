@@ -1,16 +1,17 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
+  import { Button, NavBrand, NavLi, Navbar, NavUl } from "flowbite-svelte";
   import { onDestroy } from "svelte";
 
-  import { chromeBrand, headerActionLinks } from "../models/siteChrome";
-  import { buildShareUrl } from "../services/shareState";
-  import type { ComfortToolState } from "../state/comfortTool.svelte";
+  import { siteBrand, siteHeaderLinks } from "../models/siteShellConfig";
+  import { buildShareUrl } from "../state/comfortTool/shareState";
+  import type { ComfortToolController } from "../state/comfortTool/types";
 
   let {
     toolState,
   }: {
-    toolState: ComfortToolState;
+    toolState: ComfortToolController;
   } = $props();
 
   let exportStatus = $state<"idle" | "copied" | "error">("idle");
@@ -83,29 +84,24 @@
   });
 </script>
 
-<header class="border-b border-stone-200 bg-white">
-  <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-    <a href="#overview" class="flex min-w-0 items-center gap-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#124f7f] p-2">
-        <img src={chromeBrand.headerLogoSrc} alt={chromeBrand.eyebrow} class="h-full w-full object-contain" />
-      </div>
+<Navbar class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+  <section class="mx-auto flex w-full max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <NavBrand href="#overview" class="min-w-0 !gap-4">
+      <figure class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#124f7f] p-2">
+        <img src={siteBrand.headerLogoSrc} alt={siteBrand.eyebrow} class="h-full w-full object-contain" />
+      </figure>
 
-      <div class="min-w-0">
-        <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">{chromeBrand.eyebrow}</div>
-        <h1 class="truncate text-lg font-semibold tracking-tight text-stone-950 sm:text-xl">{chromeBrand.title}</h1>
-      </div>
-    </a>
+      <section class="min-w-0">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">{siteBrand.eyebrow}</p>
+        <h1 class="truncate text-lg font-semibold tracking-tight text-stone-950 sm:text-xl">{siteBrand.title}</h1>
+      </section>
+    </NavBrand>
 
-    <nav class="flex flex-wrap items-center gap-3" aria-label="Header links">
-      <button
-        type="button"
-        class={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-          exportStatus === "copied"
-            ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-            : exportStatus === "error"
-              ? "border border-red-200 bg-red-50 text-red-700"
-              : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:text-stone-950"
-        }`}
+    <nav class="flex flex-wrap items-center gap-2" aria-label="Site actions">
+      <Button
+        pill
+        color={exportStatus === "copied" ? "green" : exportStatus === "error" ? "red" : "alternative"}
+        class="!rounded-full !px-4 !py-2 !text-sm !font-semibold"
         onclick={() => void handleExportLink()}
       >
         <svg class="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
@@ -113,22 +109,23 @@
           <path d="m12.5 9.5-5 5A2.5 2.5 0 1 1 4 11l5-5"></path>
         </svg>
         {getExportLabel()}
-      </button>
+      </Button>
 
-      {#each headerActionLinks as link, index}
-        <a
-          href={link.href}
-          target={getLinkTarget(link.external)}
-          rel={getLinkRel(link.external)}
-          class={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
-            index === 0
-              ? "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:text-stone-950"
-              : "bg-stone-950 text-white hover:bg-stone-800"
-          }`}
-        >
-          {link.label}
-        </a>
-      {/each}
+      {#if siteHeaderLinks.length > 0}
+        <NavUl hidden={false} divClass="w-auto" ulClass="!mt-0 flex flex-wrap items-center gap-2 !p-0">
+          {#each siteHeaderLinks as link}
+            <NavLi
+              href={link.href}
+              target={getLinkTarget(link.external)}
+              rel={getLinkRel(link.external)}
+              activeClass="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700"
+              nonActiveClass="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-stone-300 hover:text-stone-950"
+            >
+              {link.label}
+            </NavLi>
+          {/each}
+        </NavUl>
+      {/if}
     </nav>
-  </div>
-</header>
+  </section>
+</Navbar>

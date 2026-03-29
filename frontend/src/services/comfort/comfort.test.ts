@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CompareCaseId } from "../../models/compareCases";
+import { InputId } from "../../models/inputSlots";
 import { UnitSystem } from "../../models/units";
 import {
   buildComparePsychrometricChart,
@@ -23,9 +23,9 @@ const pmvPayload = {
 
 const comfortZonePayload = {
   ...pmvPayload,
-  rh_min: 0,
-  rh_max: 100,
-  rh_points: 31,
+  rhMin: 0,
+  rhMax: 100,
+  rhPoints: 31,
 };
 
 const utciPayload = {
@@ -43,40 +43,40 @@ describe("comfort services", () => {
 
     expect(pmvResult.pmv).toBeTypeOf("number");
     expect(pmvResult.ppd).toBeGreaterThanOrEqual(0);
-    expect(comfortZone.cool_edge.length).toBeGreaterThan(0);
-    expect(comfortZone.warm_edge.length).toBeGreaterThan(0);
+    expect(comfortZone.coolEdge.length).toBeGreaterThan(0);
+    expect(comfortZone.warmEdge.length).toBeGreaterThan(0);
   });
 
   it("builds PMV and UTCI charts from typed requests", () => {
     const comfortZone = calculateComfortZone(comfortZonePayload);
     const psychrometricChart = buildComparePsychrometricChart(
       {
-        case_a: comfortZonePayload,
-        case_b: null,
-        case_c: null,
-        chart_range: {
-          tdb_min: 10,
-          tdb_max: 40,
-          tdb_points: 121,
-          humidity_ratio_min: 0,
-          humidity_ratio_max: 30,
+        inputs: {
+          [InputId.Input1]: comfortZonePayload,
         },
-        rh_curves: [10, 20, 30, 40, 50, 60],
+        chartRange: {
+          tdbMin: 10,
+          tdbMax: 40,
+          tdbPoints: 121,
+          humidityRatioMin: 0,
+          humidityRatioMax: 30,
+        },
+        rhCurves: [10, 20, 30, 40, 50, 60],
       },
       {
-        [CompareCaseId.A]: comfortZone,
+        [InputId.Input1]: comfortZone,
       },
     );
 
     const utciResult = calculateUtci(utciPayload);
     const utciChart = buildUtciTemperatureChart(
       {
-        case_a: utciPayload,
-        case_b: null,
-        case_c: null,
+        inputs: {
+          [InputId.Input1]: utciPayload,
+        },
       },
       {
-        [CompareCaseId.A]: utciResult,
+        [InputId.Input1]: utciResult,
       },
     );
 

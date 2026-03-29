@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { ChartId } from "../models/chartOptions";
-import { CompareCaseId } from "../models/compareCases";
-import { ComfortModel } from "../models/comfortModels";
-import { FieldKey } from "../models/fieldKeys";
+import { ChartId } from "../../models/chartOptions";
+import { InputId } from "../../models/inputSlots";
+import { ComfortModel } from "../../models/comfortModels";
+import { FieldKey } from "../../models/fieldKeys";
 import {
-  PmvAirSpeedControlMode,
-  PmvAirSpeedInputMode,
-  PmvHumidityInputMode,
-  PmvTemperatureInputMode,
-} from "../models/inputModes";
-import { ModelOptionKey } from "../models/modelOptions";
-import { UnitSystem } from "../models/units";
+  AirSpeedControlMode,
+  AirSpeedInputMode,
+  HumidityInputMode,
+  ModelOptionId,
+  TemperatureInputMode,
+} from "../../models/inputModes";
+import { UnitSystem } from "../../models/units";
 import {
   buildShareUrl,
   deserializeShareState,
@@ -21,27 +21,29 @@ import {
 } from "./shareState";
 
 const snapshot: ShareStateSnapshot = {
-  version: 2,
+  version: 5,
   selectedModel: ComfortModel.Pmv,
-  selectedChartByModel: {
-    [ComfortModel.Pmv]: ChartId.RelativeHumidity,
-    [ComfortModel.Utci]: ChartId.AirTemperature,
-  },
-  modelOptionsByModel: {
+  models: {
     [ComfortModel.Pmv]: {
-      [ModelOptionKey.PmvTemperatureInputMode]: PmvTemperatureInputMode.Operative,
-      [ModelOptionKey.PmvAirSpeedControlMode]: PmvAirSpeedControlMode.NoLocalControl,
-      [ModelOptionKey.PmvAirSpeedInputMode]: PmvAirSpeedInputMode.Measured,
-      [ModelOptionKey.PmvHumidityInputMode]: PmvHumidityInputMode.DewPoint,
+      selectedChart: ChartId.RelativeHumidity,
+      options: {
+        [ModelOptionId.TemperatureInputMode]: TemperatureInputMode.Operative,
+        [ModelOptionId.AirSpeedControlMode]: AirSpeedControlMode.NoLocalControl,
+        [ModelOptionId.AirSpeedInputMode]: AirSpeedInputMode.Measured,
+        [ModelOptionId.HumidityInputMode]: HumidityInputMode.DewPoint,
+      },
     },
-    [ComfortModel.Utci]: {},
+    [ComfortModel.Utci]: {
+      selectedChart: ChartId.AirTemperature,
+      options: {},
+    },
   },
   compareEnabled: true,
-  compareCaseIds: [CompareCaseId.A, CompareCaseId.C],
-  activeCaseId: CompareCaseId.C,
+  compareInputIds: [InputId.Input1, InputId.Input3],
+  activeInputId: InputId.Input3,
   unitSystem: UnitSystem.IP,
-  inputsByCase: {
-    [CompareCaseId.A]: {
+  inputsByInput: {
+    [InputId.Input1]: {
       [FieldKey.DryBulbTemperature]: 25,
       [FieldKey.MeanRadiantTemperature]: 25,
       [FieldKey.RelativeAirSpeed]: 0.2,
@@ -51,7 +53,7 @@ const snapshot: ShareStateSnapshot = {
       [FieldKey.ClothingInsulation]: 0.6,
       [FieldKey.ExternalWork]: 0,
     },
-    [CompareCaseId.B]: {
+    [InputId.Input2]: {
       [FieldKey.DryBulbTemperature]: 24,
       [FieldKey.MeanRadiantTemperature]: 24,
       [FieldKey.RelativeAirSpeed]: 0.2,
@@ -61,7 +63,7 @@ const snapshot: ShareStateSnapshot = {
       [FieldKey.ClothingInsulation]: 0.6,
       [FieldKey.ExternalWork]: 0,
     },
-    [CompareCaseId.C]: {
+    [InputId.Input3]: {
       [FieldKey.DryBulbTemperature]: 23,
       [FieldKey.MeanRadiantTemperature]: 23,
       [FieldKey.RelativeAirSpeed]: 0.2,
@@ -74,8 +76,8 @@ const snapshot: ShareStateSnapshot = {
   },
 };
 
-describe("shareState", () => {
-  it("round-trips version 2 snapshots", () => {
+describe("comfortTool shareState", () => {
+  it("round-trips version 5 snapshots", () => {
     const serialized = serializeShareState(snapshot);
     expect(deserializeShareState(serialized)).toEqual(snapshot);
   });
@@ -86,12 +88,27 @@ describe("shareState", () => {
   });
 
   it("rejects legacy snapshot versions", () => {
-    const legacyEncoded = Buffer.from(JSON.stringify({ version: 1 }), "utf8")
+    const legacyEncoded = Buffer.from(JSON.stringify({ version: 2 }), "utf8")
       .toString("base64")
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/g, "");
 
     expect(deserializeShareState(legacyEncoded)).toBeNull();
+  });
+
+  it("rejects charts that are not registered for the model", () => {
+    const invalidSnapshot = {
+      ...snapshot,
+      models: {
+        ...snapshot.models,
+        [ComfortModel.Utci]: {
+          selectedChart: ChartId.Psychrometric,
+          options: {},
+        },
+      },
+    };
+
+    expect(deserializeShareState(serializeShareState(invalidSnapshot as ShareStateSnapshot))).toBeNull();
   });
 });

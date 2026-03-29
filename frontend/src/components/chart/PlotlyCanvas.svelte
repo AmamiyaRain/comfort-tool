@@ -115,26 +115,26 @@
   });
 </script>
 
-<div class="relative min-w-0 mt-2">
-  <div class="w-full overflow-hidden bg-white">
+<figure class="relative mt-2 min-w-0">
+  <section class="w-full overflow-hidden bg-white">
     <div
       class={`plotly-panel h-full w-full min-w-0 max-w-full ${chartHeightStyle ? "" : heightClass}`}
       style={chartHeightStyle}
       bind:this={chartElement}
     ></div>
-  </div>
+  </section>
 
   {#if chartError}
-    <div class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-red-600">
+    <p class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-red-600">
       {chartError}
-    </div>
+    </p>
   {:else if !chartResult}
-    <div class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-stone-500">
+    <p class="absolute inset-0 flex items-center justify-center bg-white/92 p-6 text-sm text-stone-500">
       {isLoading ? "Calculating chart..." : emptyMessage}
-    </div>
+    </p>
   {:else if isLoading && !hasRenderedChart}
-    <div class="absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-sm text-stone-500">
+    <p class="absolute inset-0 flex items-center justify-center bg-white/75 p-6 text-sm text-stone-500">
       Rendering chart...
-    </div>
+    </p>
   {/if}
-</div>
+</figure>

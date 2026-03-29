@@ -1,4 +1,5 @@
 import type { CalculationSource, ComfortStandard } from "./calculationMetadata";
+import type { InputId as InputIdType } from "./inputSlots";
 import type { UtciStressCategory } from "./utciStress";
 import type { UnitSystem } from "./units";
 
@@ -16,7 +17,7 @@ export interface PmvRequestDto {
 export interface PmvResponseDto {
   pmv: number;
   ppd: number;
-  acceptable_80: boolean;
+  acceptable80: boolean;
   standard: ComfortStandard;
   source: CalculationSource;
 }
@@ -27,14 +28,14 @@ export interface ComfortPointDto {
 }
 
 export interface ComfortZoneRequestDto extends PmvRequestDto {
-  rh_min: number;
-  rh_max: number;
-  rh_points: number;
+  rhMin: number;
+  rhMax: number;
+  rhPoints: number;
 }
 
 export interface ComfortZoneResponseDto {
-  cool_edge: ComfortPointDto[];
-  warm_edge: ComfortPointDto[];
+  coolEdge: ComfortPointDto[];
+  warmEdge: ComfortPointDto[];
   source: CalculationSource;
 }
 
@@ -48,37 +49,35 @@ export interface UtciRequestDto {
 
 export interface UtciResponseDto {
   utci: number;
-  stress_category: UtciStressCategory;
+  stressCategory: UtciStressCategory;
   source: CalculationSource;
 }
 
 export interface ChartRangeDto {
-  tdb_min: number;
-  tdb_max: number;
-  tdb_points: number;
-  humidity_ratio_min: number;
-  humidity_ratio_max: number;
+  tdbMin: number;
+  tdbMax: number;
+  tdbPoints: number;
+  humidityRatioMin: number;
+  humidityRatioMax: number;
 }
 
 export interface PsychrometricChartRequestDto extends ComfortZoneRequestDto {
-  chart_range: ChartRangeDto;
-  rh_curves: number[];
+  chartRange: ChartRangeDto;
+  rhCurves: number[];
 }
 
-export interface PmvCompareChartRequestDto {
-  case_a: ComfortZoneRequestDto;
-  case_b: ComfortZoneRequestDto | null;
-  case_c: ComfortZoneRequestDto | null;
-  chart_range: ChartRangeDto;
-  rh_curves: number[];
+export type CompareInputMap<T> = Partial<Record<InputIdType, T>>;
+
+export interface PmvChartInputsRequestDto {
+  inputs: CompareInputMap<ComfortZoneRequestDto>;
+  chartRange: ChartRangeDto;
+  rhCurves: number[];
 }
 
-export interface RelativeHumidityChartRequestDto extends PmvCompareChartRequestDto {}
+export interface RelativeHumidityChartRequestDto extends PmvChartInputsRequestDto {}
 
-export interface UtciStressChartRequestDto {
-  case_a: UtciRequestDto;
-  case_b: UtciRequestDto | null;
-  case_c: UtciRequestDto | null;
+export interface UtciChartInputsRequestDto {
+  inputs: CompareInputMap<UtciRequestDto>;
 }
 
 export interface PlotTraceDto {

@@ -1,7 +1,47 @@
 import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 
-export function convertSiToDisplay(key: FieldKeyType, value: number, unitSystem: UnitSystemType): number {
+/**
+ * Centralized unit conversion helpers.
+ * Canonical shared state stays in SI; these helpers map values to and from the active UI unit system.
+ */
+type DisplayQuantityMeta = {
+  displayUnits: string;
+  step: number;
+  decimals: number;
+};
+
+const humidityRatioDisplayMetaByUnitSystem: Record<UnitSystemType, DisplayQuantityMeta> = {
+  [UnitSystem.SI]: {
+    displayUnits: "g/kg",
+    step: 0.1,
+    decimals: 1,
+  },
+  [UnitSystem.IP]: {
+    displayUnits: "gr/lb",
+    step: 1,
+    decimals: 0,
+  },
+};
+
+const vaporPressureDisplayMetaByUnitSystem: Record<UnitSystemType, DisplayQuantityMeta> = {
+  [UnitSystem.SI]: {
+    displayUnits: "kPa",
+    step: 0.01,
+    decimals: 2,
+  },
+  [UnitSystem.IP]: {
+    displayUnits: "inHg",
+    step: 0.01,
+    decimals: 2,
+  },
+};
+
+export function convertFieldValueFromSi(
+  key: FieldKeyType,
+  value: number,
+  unitSystem: UnitSystemType,
+): number {
   if (unitSystem === UnitSystem.SI) {
     return value;
   }
@@ -17,7 +57,11 @@ export function convertSiToDisplay(key: FieldKeyType, value: number, unitSystem:
   return value;
 }
 
-export function convertDisplayToSi(key: FieldKeyType, value: number, unitSystem: UnitSystemType): number {
+export function convertFieldValueToSi(
+  key: FieldKeyType,
+  value: number,
+  unitSystem: UnitSystemType,
+): number {
   if (unitSystem === UnitSystem.SI) {
     return value;
   }
@@ -33,20 +77,28 @@ export function convertDisplayToSi(key: FieldKeyType, value: number, unitSystem:
   return value;
 }
 
-export function convertHumidityRatioSiToDisplay(value: number, unitSystem: UnitSystemType): number {
+export function convertHumidityRatioFromSi(value: number, unitSystem: UnitSystemType): number {
   return unitSystem === UnitSystem.IP ? value * 7000 : value * 1000;
 }
 
-export function convertHumidityRatioDisplayToSi(value: number, unitSystem: UnitSystemType): number {
+export function convertHumidityRatioToSi(value: number, unitSystem: UnitSystemType): number {
   return unitSystem === UnitSystem.IP ? value / 7000 : value / 1000;
 }
 
-export function convertVaporPressureSiToDisplay(value: number, unitSystem: UnitSystemType): number {
+export function convertVaporPressureFromSi(value: number, unitSystem: UnitSystemType): number {
   return unitSystem === UnitSystem.IP ? value / 3386.389 : value / 1000;
 }
 
-export function convertVaporPressureDisplayToSi(value: number, unitSystem: UnitSystemType): number {
+export function convertVaporPressureToSi(value: number, unitSystem: UnitSystemType): number {
   return unitSystem === UnitSystem.IP ? value * 3386.389 : value * 1000;
+}
+
+export function getHumidityRatioDisplayMeta(unitSystem: UnitSystemType): DisplayQuantityMeta {
+  return humidityRatioDisplayMetaByUnitSystem[unitSystem];
+}
+
+export function getVaporPressureDisplayMeta(unitSystem: UnitSystemType): DisplayQuantityMeta {
+  return vaporPressureDisplayMetaByUnitSystem[unitSystem];
 }
 
 export function formatDisplayValue(value: number, decimals: number): string {

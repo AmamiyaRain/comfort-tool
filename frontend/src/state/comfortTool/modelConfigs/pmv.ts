@@ -1,30 +1,31 @@
+/**
+ * PMV model adapter.
+ * This config owns PMV-specific option semantics, display/derived synchronization, calculations, and chart assembly
+ * while still reading and writing canonical SI values from the shared controller state.
+ */
 import { clothingTypicalEnsembles } from "../../../models/clothingEnsembles";
-import {
-  ChartId,
-  PmvChartId,
-} from "../../../models/chartOptions";
-import { compareCaseOrder, type CompareCaseId as CompareCaseIdType } from "../../../models/compareCases";
+import { ChartId, chartMetaById, type ChartId as ChartIdType } from "../../../models/chartOptions";
+import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel } from "../../../models/comfortModels";
-import { DerivedFieldKey } from "../../../models/derivedFieldKeys";
 import type {
   ComfortZoneRequestDto,
   PlotlyChartResponseDto,
-  PmvCompareChartRequestDto,
+  PmvChartInputsRequestDto,
   PmvResponseDto,
 } from "../../../models/dto";
-import { FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
+import { DerivedFieldKey, FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import { fieldMetaByKey } from "../../../models/fieldMeta";
 import {
-  PmvAirSpeedControlMode,
-  PmvAirSpeedInputMode,
-  PmvHumidityInputMode,
-  PmvTemperatureInputMode,
+  AirSpeedControlMode,
+  AirSpeedInputMode,
+  defaultPmvOptions,
+  HumidityInputMode,
+  ModelOptionId,
+  type ModelOptionId as ModelOptionIdType,
+  type PmvModelOptions,
+  TemperatureInputMode,
 } from "../../../models/inputModes";
 import { metabolicActivityOptions } from "../../../models/metabolicActivities";
-import {
-  ModelOptionKey,
-  type PmvModelOptions,
-} from "../../../models/modelOptions";
 import { UnitSystem } from "../../../models/units";
 import {
   buildComparePsychrometricChart,
@@ -37,19 +38,64 @@ import {
   deriveRelativeHumidityFromHumidityRatio,
   deriveRelativeHumidityFromVaporPressure,
   deriveRelativeHumidityFromWetBulb,
-  type ComfortZonesByCase,
+  type ComfortZonesByInput,
 } from "../../../services/comfort";
 import {
-  convertDisplayToSi,
-  convertHumidityRatioDisplayToSi,
-  convertHumidityRatioSiToDisplay,
-  convertSiToDisplay,
-  convertVaporPressureDisplayToSi,
-  convertVaporPressureSiToDisplay,
+  convertFieldValueFromSi,
+  convertFieldValueToSi,
+  convertHumidityRatioFromSi,
+  convertHumidityRatioToSi,
+  convertVaporPressureFromSi,
+  convertVaporPressureToSi,
   formatDisplayValue,
+  getHumidityRatioDisplayMeta,
+  getVaporPressureDisplayMeta,
 } from "../../../services/units";
-import { refreshAllDerivedState, refreshDerivedStateForCase } from "../derivedState";
-import type { ComfortModelConfig } from "./types";
+import { refreshAllDerivedState, refreshDerivedStateForInput } from "../derivedState";
+import type {
+  AdvancedOptionMenu,
+  ComfortToolStateSlice,
+  FieldPresentation,
+  ModelOptionsState,
+} from "../types";
+import type { ComfortModelConfig } from "./index";
+
+type PresentationMeta = Pick<FieldPresentation, "displayUnits" | "step" | "decimals" | "rangeText">;
+
+type PmvTemperatureModeDescriptor = {
+  dryBulbLabel: string;
+  meanRadiantHidden: boolean;
+  getDisplayValue?: (state: ComfortToolStateSlice, inputId: InputIdType, decimals: number) => string;
+  applyDisplayValue?: (state: ComfortToolStateSlice, inputId: InputIdType, nextValue: number) => void;
+};
+
+type PmvAirSpeedModeDescriptor = {
+  label: string;
+  getDisplayValue?: (state: ComfortToolStateSlice, inputId: InputIdType, decimals: number) => string;
+  applyDisplayValue?: (state: ComfortToolStateSlice, inputId: InputIdType, nextValue: number) => void;
+  syncOnMetabolicRateChange: boolean;
+};
+
+type PmvHumidityModeDescriptor = {
+  label: string;
+  getPresentationMeta: (state: ComfortToolStateSlice) => PresentationMeta;
+  getDisplayValue: (state: ComfortToolStateSlice, inputId: InputIdType, decimals: number) => string;
+  applyDisplayValue?: (state: ComfortToolStateSlice, inputId: InputIdType, nextValue: number) => void;
+  syncOnDryBulbTemperatureChange: boolean;
+};
+
+type AdvancedMenuItemDefinition<Value extends string> = {
+  label: string;
+  description: string;
+  value: Value;
+};
+
+const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
+
+const temperatureInputModeValues = Object.values(TemperatureInputMode);
+const airSpeedControlModeValues = Object.values(AirSpeedControlMode);
+const airSpeedInputModeValues = Object.values(AirSpeedInputMode);
+const humidityInputModeValues = Object.values(HumidityInputMode);
 
 const clothingPresetOptions = clothingTypicalEnsembles.map((ensemble) => ({
   id: ensemble.id,
@@ -63,66 +109,437 @@ const metabolicPresetOptions = metabolicActivityOptions.map((activity) => ({
   value: activity.met,
 }));
 
-export const defaultPmvOptions: PmvModelOptions = {
-  [ModelOptionKey.PmvTemperatureInputMode]: PmvTemperatureInputMode.Air,
-  [ModelOptionKey.PmvAirSpeedControlMode]: PmvAirSpeedControlMode.WithLocalControl,
-  [ModelOptionKey.PmvAirSpeedInputMode]: PmvAirSpeedInputMode.Relative,
-  [ModelOptionKey.PmvHumidityInputMode]: PmvHumidityInputMode.RelativeHumidity,
-};
+const temperatureMenuItems: AdvancedMenuItemDefinition<TemperatureInputMode>[] = [
+  {
+    label: "Air temperature",
+    description: "Use dry-bulb air temperature and keep radiant temperature separate.",
+    value: TemperatureInputMode.Air,
+  },
+  {
+    label: "Operative temp",
+    description: "Treat operative temperature as the single temperature input.",
+    value: TemperatureInputMode.Operative,
+  },
+];
 
-function createEmptyPmvResults(): Record<CompareCaseIdType, PmvResponseDto | null> {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = null;
+const airSpeedControlMenuItems: AdvancedMenuItemDefinition<AirSpeedControlMode>[] = [
+  {
+    label: "No local control",
+    description: "Assume occupants do not have local control over elevated air speed.",
+    value: AirSpeedControlMode.NoLocalControl,
+  },
+  {
+    label: "With local control",
+    description: "Assume occupants can locally control elevated air speed.",
+    value: AirSpeedControlMode.WithLocalControl,
+  },
+];
+
+const humidityMenuItems: AdvancedMenuItemDefinition<HumidityInputMode>[] = [
+  {
+    label: "Relative humidity",
+    description: "Input relative humidity as a percentage.",
+    value: HumidityInputMode.RelativeHumidity,
+  },
+  {
+    label: "Humidity ratio",
+    description: "Hold absolute moisture content constant.",
+    value: HumidityInputMode.HumidityRatio,
+  },
+  {
+    label: "Dew point",
+    description: "Keep dew point fixed and derive relative humidity from dry-bulb temperature.",
+    value: HumidityInputMode.DewPoint,
+  },
+  {
+    label: "Wet bulb",
+    description: "Input wet-bulb temperature instead of relative humidity.",
+    value: HumidityInputMode.WetBulb,
+  },
+  {
+    label: "Vapor pressure",
+    description: "Input vapor pressure directly.",
+    value: HumidityInputMode.VaporPressure,
+  },
+];
+
+function createEmptyPmvResults(): Record<InputIdType, PmvResponseDto | null> {
+  return inputOrder.reduce((accumulator, inputId) => {
+    accumulator[inputId] = null;
     return accumulator;
-  }, {} as Record<CompareCaseIdType, PmvResponseDto | null>);
+  }, {} as Record<InputIdType, PmvResponseDto | null>);
 }
 
-function getPmvOptions(state): PmvModelOptions {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isTemperatureInputMode(value: unknown): value is TemperatureInputMode {
+  return temperatureInputModeValues.includes(
+    value as typeof TemperatureInputMode[keyof typeof TemperatureInputMode],
+  );
+}
+
+function isAirSpeedControlMode(value: unknown): value is AirSpeedControlMode {
+  return airSpeedControlModeValues.includes(
+    value as typeof AirSpeedControlMode[keyof typeof AirSpeedControlMode],
+  );
+}
+
+function isAirSpeedInputMode(value: unknown): value is AirSpeedInputMode {
+  return airSpeedInputModeValues.includes(
+    value as typeof AirSpeedInputMode[keyof typeof AirSpeedInputMode],
+  );
+}
+
+function isHumidityInputMode(value: unknown): value is HumidityInputMode {
+  return humidityInputModeValues.includes(
+    value as typeof HumidityInputMode[keyof typeof HumidityInputMode],
+  );
+}
+
+function normalizePmvOptions(value: unknown): ModelOptionsState | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const temperatureMode = value[ModelOptionId.TemperatureInputMode];
+  const airSpeedControlMode = value[ModelOptionId.AirSpeedControlMode];
+  const airSpeedInputMode = value[ModelOptionId.AirSpeedInputMode];
+  const humidityInputMode = value[ModelOptionId.HumidityInputMode];
+
+  if (temperatureMode !== undefined && !isTemperatureInputMode(temperatureMode)) {
+    return null;
+  }
+
+  if (airSpeedControlMode !== undefined && !isAirSpeedControlMode(airSpeedControlMode)) {
+    return null;
+  }
+
+  if (airSpeedInputMode !== undefined && !isAirSpeedInputMode(airSpeedInputMode)) {
+    return null;
+  }
+
+  if (humidityInputMode !== undefined && !isHumidityInputMode(humidityInputMode)) {
+    return null;
+  }
+
+  return {
+    ...defaultPmvOptions,
+    ...(temperatureMode !== undefined ? {
+      [ModelOptionId.TemperatureInputMode]: temperatureMode,
+    } : {}),
+    ...(airSpeedControlMode !== undefined ? {
+      [ModelOptionId.AirSpeedControlMode]: airSpeedControlMode,
+    } : {}),
+    ...(airSpeedInputMode !== undefined ? {
+      [ModelOptionId.AirSpeedInputMode]: airSpeedInputMode,
+    } : {}),
+    ...(humidityInputMode !== undefined ? {
+      [ModelOptionId.HumidityInputMode]: humidityInputMode,
+    } : {}),
+  };
+}
+
+function getChartOptions() {
+  return pmvChartIds.map((chartId) => ({
+    name: chartMetaById[chartId].name,
+    value: chartId,
+  }));
+}
+
+function getPmvOptions(state: ComfortToolStateSlice): PmvModelOptions {
   return {
     ...defaultPmvOptions,
     ...state.ui.modelOptionsByModel[ComfortModel.Pmv],
   } as PmvModelOptions;
 }
 
-function syncCurrentPmvDerivedInputs(state, caseId: CompareCaseIdType) {
-  const options = getPmvOptions(state);
-  const inputs = state.inputsByCase[caseId];
-  const derived = state.derivedByCase[caseId];
+function buildAdvancedOptionMenu<Value extends string>(
+  title: string,
+  optionKey: ModelOptionIdType,
+  activeValue: string,
+  items: AdvancedMenuItemDefinition<Value>[],
+): AdvancedOptionMenu {
+  return {
+    title,
+    items: items.map((item) => ({
+      ...item,
+      optionKey,
+      active: activeValue === item.value,
+    })),
+  };
+}
 
-  if (options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured) {
+function formatRangeText(state: ComfortToolStateSlice, fieldKey: FieldKeyType): string {
+  const meta = fieldMetaByKey[fieldKey];
+  const minimum = formatDisplayValue(
+    convertFieldValueFromSi(fieldKey, meta.minValue, state.ui.unitSystem),
+    meta.decimals,
+  );
+  const maximum = formatDisplayValue(
+    convertFieldValueFromSi(fieldKey, meta.maxValue, state.ui.unitSystem),
+    meta.decimals,
+  );
+  return `From ${minimum} to ${maximum}`;
+}
+
+function getBasePresentationMeta(state: ComfortToolStateSlice, fieldKey: FieldKeyType): PresentationMeta {
+  const meta = fieldMetaByKey[fieldKey];
+  return {
+    displayUnits: meta.displayUnits[state.ui.unitSystem],
+    step: meta.step,
+    decimals: meta.decimals,
+    rangeText: formatRangeText(state, fieldKey),
+  };
+}
+
+function getTemperatureInputMeta(state: ComfortToolStateSlice): PresentationMeta {
+  const meta = fieldMetaByKey[FieldKey.DryBulbTemperature];
+  return {
+    displayUnits: meta.displayUnits[state.ui.unitSystem],
+    step: meta.step,
+    decimals: meta.decimals,
+    rangeText: "",
+  };
+}
+
+function getTemperatureDisplayValue(state: ComfortToolStateSlice, inputId: InputIdType, decimals: number): string {
+  return formatDisplayValue(
+    convertFieldValueFromSi(
+      FieldKey.DryBulbTemperature,
+      state.inputsByInput[inputId][FieldKey.DryBulbTemperature],
+      state.ui.unitSystem,
+    ),
+    decimals,
+  );
+}
+
+function getFieldDisplayValue(
+  state: ComfortToolStateSlice,
+  inputId: InputIdType,
+  fieldKey: FieldKeyType,
+  decimals: number,
+): string {
+  return formatDisplayValue(
+    convertFieldValueFromSi(fieldKey, state.inputsByInput[inputId][fieldKey], state.ui.unitSystem),
+    decimals,
+  );
+}
+
+function syncCurrentPmvDerivedInputs(state: ComfortToolStateSlice, inputId: InputIdType) {
+  const options = getPmvOptions(state);
+  const inputs = state.inputsByInput[inputId];
+  const derived = state.derivedByInput[inputId];
+
+  if (options[ModelOptionId.AirSpeedInputMode] === AirSpeedInputMode.Measured) {
     inputs[FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
       derived[DerivedFieldKey.MeasuredAirSpeed] ?? 0,
       inputs[FieldKey.MetabolicRate],
     );
   }
 
-  if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.DewPoint) {
+  if (options[ModelOptionId.HumidityInputMode] === HumidityInputMode.DewPoint) {
     inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
       inputs[FieldKey.DryBulbTemperature],
       derived[DerivedFieldKey.DewPoint] ?? 0,
     );
-  } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.HumidityRatio) {
+  } else if (options[ModelOptionId.HumidityInputMode] === HumidityInputMode.HumidityRatio) {
     inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
       inputs[FieldKey.DryBulbTemperature],
       derived[DerivedFieldKey.HumidityRatio] ?? 0,
     );
-  } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.WetBulb) {
+  } else if (options[ModelOptionId.HumidityInputMode] === HumidityInputMode.WetBulb) {
     inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
       inputs[FieldKey.DryBulbTemperature],
       derived[DerivedFieldKey.WetBulb] ?? 0,
     );
-  } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.VaporPressure) {
+  } else if (options[ModelOptionId.HumidityInputMode] === HumidityInputMode.VaporPressure) {
     inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
       inputs[FieldKey.DryBulbTemperature],
       derived[DerivedFieldKey.VaporPressure] ?? 0,
     );
   }
 
-  refreshDerivedStateForCase(state, caseId);
+  refreshDerivedStateForInput(state, inputId);
 }
 
-function toPmvRequest(state, caseId: CompareCaseIdType) {
-  const inputs = state.inputsByCase[caseId];
+const temperatureModeDescriptors: Record<TemperatureInputMode, PmvTemperatureModeDescriptor> = {
+  [TemperatureInputMode.Air]: {
+    dryBulbLabel: fieldMetaByKey[FieldKey.DryBulbTemperature].label,
+    meanRadiantHidden: false,
+  },
+  [TemperatureInputMode.Operative]: {
+    dryBulbLabel: "Operative temperature",
+    meanRadiantHidden: true,
+    getDisplayValue: getTemperatureDisplayValue,
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const operativeTemperature = convertFieldValueToSi(
+        FieldKey.DryBulbTemperature,
+        nextValue,
+        state.ui.unitSystem,
+      );
+      state.inputsByInput[inputId][FieldKey.DryBulbTemperature] = operativeTemperature;
+      state.inputsByInput[inputId][FieldKey.MeanRadiantTemperature] = operativeTemperature;
+      syncCurrentPmvDerivedInputs(state, inputId);
+    },
+  },
+};
+
+const airSpeedModeDescriptors: Record<AirSpeedInputMode, PmvAirSpeedModeDescriptor> = {
+  [AirSpeedInputMode.Relative]: {
+    label: fieldMetaByKey[FieldKey.RelativeAirSpeed].label,
+    syncOnMetabolicRateChange: false,
+  },
+  [AirSpeedInputMode.Measured]: {
+    label: "Air speed",
+    syncOnMetabolicRateChange: true,
+    getDisplayValue: (state, inputId, decimals) => formatDisplayValue(
+      convertFieldValueFromSi(
+        FieldKey.RelativeAirSpeed,
+        state.derivedByInput[inputId][DerivedFieldKey.MeasuredAirSpeed] ?? 0,
+        state.ui.unitSystem,
+      ),
+      decimals,
+    ),
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const inputs = state.inputsByInput[inputId];
+      state.derivedByInput[inputId][DerivedFieldKey.MeasuredAirSpeed] = convertFieldValueToSi(
+        FieldKey.RelativeAirSpeed,
+        nextValue,
+        state.ui.unitSystem,
+      );
+      inputs[FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
+        state.derivedByInput[inputId][DerivedFieldKey.MeasuredAirSpeed] ?? 0,
+        inputs[FieldKey.MetabolicRate],
+      );
+      refreshDerivedStateForInput(state, inputId);
+    },
+  },
+};
+
+const humidityModeDescriptors: Record<HumidityInputMode, PmvHumidityModeDescriptor> = {
+  [HumidityInputMode.RelativeHumidity]: {
+    label: fieldMetaByKey[FieldKey.RelativeHumidity].label,
+    getPresentationMeta: (state) => getBasePresentationMeta(state, FieldKey.RelativeHumidity),
+    getDisplayValue: (state, inputId, decimals) => getFieldDisplayValue(
+      state,
+      inputId,
+      FieldKey.RelativeHumidity,
+      decimals,
+    ),
+    syncOnDryBulbTemperatureChange: false,
+  },
+  [HumidityInputMode.DewPoint]: {
+    label: "Dew point",
+    getPresentationMeta: (state) => getTemperatureInputMeta(state),
+    getDisplayValue: (state, inputId, decimals) => formatDisplayValue(
+      convertFieldValueFromSi(
+        FieldKey.DryBulbTemperature,
+        state.derivedByInput[inputId][DerivedFieldKey.DewPoint] ?? 0,
+        state.ui.unitSystem,
+      ),
+      decimals,
+    ),
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const inputs = state.inputsByInput[inputId];
+      state.derivedByInput[inputId][DerivedFieldKey.DewPoint] = convertFieldValueToSi(
+        FieldKey.DryBulbTemperature,
+        nextValue,
+        state.ui.unitSystem,
+      );
+      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
+        inputs[FieldKey.DryBulbTemperature],
+        state.derivedByInput[inputId][DerivedFieldKey.DewPoint] ?? 0,
+      );
+      refreshDerivedStateForInput(state, inputId);
+    },
+    syncOnDryBulbTemperatureChange: true,
+  },
+  [HumidityInputMode.HumidityRatio]: {
+    label: "Humidity ratio",
+    getPresentationMeta: (state) => ({
+      ...getHumidityRatioDisplayMeta(state.ui.unitSystem),
+      rangeText: "",
+    }),
+    getDisplayValue: (state, inputId, decimals) => formatDisplayValue(
+      convertHumidityRatioFromSi(
+        state.derivedByInput[inputId][DerivedFieldKey.HumidityRatio] ?? 0,
+        state.ui.unitSystem,
+      ),
+      decimals,
+    ),
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const inputs = state.inputsByInput[inputId];
+      state.derivedByInput[inputId][DerivedFieldKey.HumidityRatio] = convertHumidityRatioToSi(
+        nextValue,
+        state.ui.unitSystem,
+      );
+      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
+        inputs[FieldKey.DryBulbTemperature],
+        state.derivedByInput[inputId][DerivedFieldKey.HumidityRatio] ?? 0,
+      );
+      refreshDerivedStateForInput(state, inputId);
+    },
+    syncOnDryBulbTemperatureChange: true,
+  },
+  [HumidityInputMode.WetBulb]: {
+    label: "Wet-bulb temperature",
+    getPresentationMeta: (state) => getTemperatureInputMeta(state),
+    getDisplayValue: (state, inputId, decimals) => formatDisplayValue(
+      convertFieldValueFromSi(
+        FieldKey.DryBulbTemperature,
+        state.derivedByInput[inputId][DerivedFieldKey.WetBulb] ?? 0,
+        state.ui.unitSystem,
+      ),
+      decimals,
+    ),
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const inputs = state.inputsByInput[inputId];
+      state.derivedByInput[inputId][DerivedFieldKey.WetBulb] = convertFieldValueToSi(
+        FieldKey.DryBulbTemperature,
+        nextValue,
+        state.ui.unitSystem,
+      );
+      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
+        inputs[FieldKey.DryBulbTemperature],
+        state.derivedByInput[inputId][DerivedFieldKey.WetBulb] ?? 0,
+      );
+      refreshDerivedStateForInput(state, inputId);
+    },
+    syncOnDryBulbTemperatureChange: true,
+  },
+  [HumidityInputMode.VaporPressure]: {
+    label: "Vapor pressure",
+    getPresentationMeta: (state) => ({
+      ...getVaporPressureDisplayMeta(state.ui.unitSystem),
+      rangeText: "",
+    }),
+    getDisplayValue: (state, inputId, decimals) => formatDisplayValue(
+      convertVaporPressureFromSi(
+        state.derivedByInput[inputId][DerivedFieldKey.VaporPressure] ?? 0,
+        state.ui.unitSystem,
+      ),
+      decimals,
+    ),
+    applyDisplayValue: (state, inputId, nextValue) => {
+      const inputs = state.inputsByInput[inputId];
+      state.derivedByInput[inputId][DerivedFieldKey.VaporPressure] = convertVaporPressureToSi(
+        nextValue,
+        state.ui.unitSystem,
+      );
+      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
+        inputs[FieldKey.DryBulbTemperature],
+        state.derivedByInput[inputId][DerivedFieldKey.VaporPressure] ?? 0,
+      );
+      refreshDerivedStateForInput(state, inputId);
+    },
+    syncOnDryBulbTemperatureChange: true,
+  },
+};
+
+function toPmvRequest(state: ComfortToolStateSlice, inputId: InputIdType) {
+  const inputs = state.inputsByInput[inputId];
   return {
     tdb: Number(inputs[FieldKey.DryBulbTemperature]),
     tr: Number(inputs[FieldKey.MeanRadiantTemperature]),
@@ -135,60 +552,58 @@ function toPmvRequest(state, caseId: CompareCaseIdType) {
   };
 }
 
-function toComfortZoneRequest(state, caseId: CompareCaseIdType): ComfortZoneRequestDto {
+function toComfortZoneRequest(state: ComfortToolStateSlice, inputId: InputIdType): ComfortZoneRequestDto {
   return {
-    ...toPmvRequest(state, caseId),
-    rh_min: 0,
-    rh_max: 100,
-    rh_points: 31,
+    ...toPmvRequest(state, inputId),
+    rhMin: 0,
+    rhMax: 100,
+    rhPoints: 31,
   };
 }
 
-function toPmvCompareChartRequest(
-  state,
-  visibleCaseIds: CompareCaseIdType[],
-): PmvCompareChartRequestDto {
+function toPmvChartInputsRequest(
+  state: ComfortToolStateSlice,
+  visibleInputIds: InputIdType[],
+): PmvChartInputsRequestDto {
   return {
-    case_a: toComfortZoneRequest(state, compareCaseOrder[0]),
-    case_b: visibleCaseIds.includes(compareCaseOrder[1]) ? toComfortZoneRequest(state, compareCaseOrder[1]) : null,
-    case_c: visibleCaseIds.includes(compareCaseOrder[2]) ? toComfortZoneRequest(state, compareCaseOrder[2]) : null,
-    chart_range: {
-      tdb_min: 10,
-      tdb_max: 40,
-      tdb_points: 121,
-      humidity_ratio_min: 0,
-      humidity_ratio_max: 30,
+    inputs: visibleInputIds.reduce((accumulator, inputId) => {
+      accumulator[inputId] = toComfortZoneRequest(state, inputId);
+      return accumulator;
+    }, {} as PmvChartInputsRequestDto["inputs"]),
+    chartRange: {
+      tdbMin: 10,
+      tdbMax: 40,
+      tdbPoints: 121,
+      humidityRatioMin: 0,
+      humidityRatioMax: 30,
     },
-    rh_curves: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+    rhCurves: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
   };
 }
 
-function formatRangeText(state, fieldKey: FieldKeyType): string {
-  const meta = fieldMetaByKey[fieldKey];
-  const minimum = formatDisplayValue(
-    convertSiToDisplay(fieldKey, meta.minValue, state.ui.unitSystem),
-    meta.decimals,
-  );
-  const maximum = formatDisplayValue(
-    convertSiToDisplay(fieldKey, meta.maxValue, state.ui.unitSystem),
-    meta.decimals,
-  );
-  return `From ${minimum} to ${maximum}`;
-}
-
-function getTemperatureDisplayValue(state, caseId: CompareCaseIdType, decimals: number) {
-  return formatDisplayValue(
-    convertSiToDisplay(
-      FieldKey.DryBulbTemperature,
-      state.inputsByCase[caseId][FieldKey.DryBulbTemperature],
-      state.ui.unitSystem,
-    ),
-    decimals,
-  );
+function activateOperativeTemperatureMode(state: ComfortToolStateSlice, options: PmvModelOptions) {
+  inputOrder.forEach((inputId) => {
+    const airSpeed = options[ModelOptionId.AirSpeedInputMode] === AirSpeedInputMode.Measured
+      ? state.derivedByInput[inputId][DerivedFieldKey.MeasuredAirSpeed] ?? 0
+      : state.inputsByInput[inputId][FieldKey.RelativeAirSpeed];
+    const operativeTemperature = deriveOperativeTemperature(
+      state.inputsByInput[inputId][FieldKey.DryBulbTemperature],
+      state.inputsByInput[inputId][FieldKey.MeanRadiantTemperature],
+      airSpeed,
+    );
+    state.inputsByInput[inputId][FieldKey.DryBulbTemperature] = operativeTemperature;
+    state.inputsByInput[inputId][FieldKey.MeanRadiantTemperature] = operativeTemperature;
+    syncCurrentPmvDerivedInputs(state, inputId);
+  });
 }
 
 export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
   id: ComfortModel.Pmv,
+  chartIds: pmvChartIds,
+  defaultChartId: ChartId.Psychrometric,
+  defaultOptions: { ...defaultPmvOptions },
+  normalizeOptions: normalizePmvOptions,
+  getChartOptions,
   fieldOrder: [
     FieldKey.DryBulbTemperature,
     FieldKey.MeanRadiantTemperature,
@@ -197,46 +612,26 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
     FieldKey.MetabolicRate,
     FieldKey.ClothingInsulation,
   ],
-  defaultChartId: ChartId.Psychrometric,
-  defaultOptions: defaultPmvOptions,
   syncDerivedState: (state) => {
     refreshAllDerivedState(state);
   },
   setOption: (state, optionKey, nextValue) => {
     const options = getPmvOptions(state);
-    const currentValue = options[optionKey as keyof PmvModelOptions];
-    if (currentValue === nextValue) {
-      return true;
-    }
 
-    if (optionKey === ModelOptionKey.PmvTemperatureInputMode) {
-      if (!Object.values(PmvTemperatureInputMode).includes(nextValue as typeof PmvTemperatureInputMode[keyof typeof PmvTemperatureInputMode])) {
+    if (optionKey === ModelOptionId.TemperatureInputMode) {
+      if (!isTemperatureInputMode(nextValue) || options[optionKey] === nextValue) {
         return false;
       }
 
       state.ui.modelOptionsByModel[ComfortModel.Pmv][optionKey] = nextValue;
-
-      if (nextValue === PmvTemperatureInputMode.Operative) {
-        compareCaseOrder.forEach((caseId) => {
-          const airSpeed = options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured
-            ? state.derivedByCase[caseId][DerivedFieldKey.MeasuredAirSpeed] ?? 0
-            : state.inputsByCase[caseId][FieldKey.RelativeAirSpeed];
-          const operativeTemperature = deriveOperativeTemperature(
-            state.inputsByCase[caseId][FieldKey.DryBulbTemperature],
-            state.inputsByCase[caseId][FieldKey.MeanRadiantTemperature],
-            airSpeed,
-          );
-          state.inputsByCase[caseId][FieldKey.DryBulbTemperature] = operativeTemperature;
-          state.inputsByCase[caseId][FieldKey.MeanRadiantTemperature] = operativeTemperature;
-          syncCurrentPmvDerivedInputs(state, caseId);
-        });
+      if (nextValue === TemperatureInputMode.Operative) {
+        activateOperativeTemperatureMode(state, options);
       }
-
       return true;
     }
 
-    if (optionKey === ModelOptionKey.PmvAirSpeedControlMode) {
-      if (!Object.values(PmvAirSpeedControlMode).includes(nextValue as typeof PmvAirSpeedControlMode[keyof typeof PmvAirSpeedControlMode])) {
+    if (optionKey === ModelOptionId.AirSpeedControlMode) {
+      if (!isAirSpeedControlMode(nextValue) || options[optionKey] === nextValue) {
         return false;
       }
 
@@ -244,8 +639,8 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       return true;
     }
 
-    if (optionKey === ModelOptionKey.PmvAirSpeedInputMode) {
-      if (!Object.values(PmvAirSpeedInputMode).includes(nextValue as typeof PmvAirSpeedInputMode[keyof typeof PmvAirSpeedInputMode])) {
+    if (optionKey === ModelOptionId.AirSpeedInputMode) {
+      if (!isAirSpeedInputMode(nextValue) || options[optionKey] === nextValue) {
         return false;
       }
 
@@ -254,8 +649,8 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       return true;
     }
 
-    if (optionKey === ModelOptionKey.PmvHumidityInputMode) {
-      if (!Object.values(PmvHumidityInputMode).includes(nextValue as typeof PmvHumidityInputMode[keyof typeof PmvHumidityInputMode])) {
+    if (optionKey === ModelOptionId.HumidityInputMode) {
+      if (!isHumidityInputMode(nextValue) || options[optionKey] === nextValue) {
         return false;
       }
 
@@ -266,119 +661,42 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
 
     return false;
   },
-  updateInput: (state, caseId, fieldKey, rawValue) => {
+  updateInput: (state, inputId, fieldKey, rawValue) => {
     const nextValue = Number(rawValue);
     if (Number.isNaN(nextValue)) {
       return;
     }
 
     const options = getPmvOptions(state);
-    const inputs = state.inputsByCase[caseId];
-    const derived = state.derivedByCase[caseId];
+    const temperatureMode = temperatureModeDescriptors[options[ModelOptionId.TemperatureInputMode]];
+    const airSpeedMode = airSpeedModeDescriptors[options[ModelOptionId.AirSpeedInputMode]];
+    const humidityMode = humidityModeDescriptors[options[ModelOptionId.HumidityInputMode]];
+    const inputs = state.inputsByInput[inputId];
 
-    if (
-      fieldKey === FieldKey.DryBulbTemperature &&
-      options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative
-    ) {
-      const operativeTemperature = convertDisplayToSi(FieldKey.DryBulbTemperature, nextValue, state.ui.unitSystem);
-      inputs[FieldKey.DryBulbTemperature] = operativeTemperature;
-      inputs[FieldKey.MeanRadiantTemperature] = operativeTemperature;
-      syncCurrentPmvDerivedInputs(state, caseId);
+    if (fieldKey === FieldKey.DryBulbTemperature && temperatureMode.applyDisplayValue) {
+      temperatureMode.applyDisplayValue(state, inputId, nextValue);
       return;
     }
 
-    if (
-      fieldKey === FieldKey.RelativeAirSpeed &&
-      options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured
-    ) {
-      derived[DerivedFieldKey.MeasuredAirSpeed] = convertDisplayToSi(
-        FieldKey.RelativeAirSpeed,
-        nextValue,
-        state.ui.unitSystem,
-      );
-      inputs[FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
-        derived[DerivedFieldKey.MeasuredAirSpeed] ?? 0,
-        inputs[FieldKey.MetabolicRate],
-      );
-      refreshDerivedStateForCase(state, caseId);
+    if (fieldKey === FieldKey.RelativeAirSpeed && airSpeedMode.applyDisplayValue) {
+      airSpeedMode.applyDisplayValue(state, inputId, nextValue);
       return;
     }
 
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.DewPoint
-    ) {
-      derived[DerivedFieldKey.DewPoint] = convertDisplayToSi(
-        FieldKey.DryBulbTemperature,
-        nextValue,
-        state.ui.unitSystem,
-      );
-      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
-        inputs[FieldKey.DryBulbTemperature],
-        derived[DerivedFieldKey.DewPoint] ?? 0,
-      );
-      refreshDerivedStateForCase(state, caseId);
+    if (fieldKey === FieldKey.RelativeHumidity && humidityMode.applyDisplayValue) {
+      humidityMode.applyDisplayValue(state, inputId, nextValue);
       return;
     }
 
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.HumidityRatio
-    ) {
-      derived[DerivedFieldKey.HumidityRatio] = convertHumidityRatioDisplayToSi(nextValue, state.ui.unitSystem);
-      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
-        inputs[FieldKey.DryBulbTemperature],
-        derived[DerivedFieldKey.HumidityRatio] ?? 0,
-      );
-      refreshDerivedStateForCase(state, caseId);
+    inputs[fieldKey] = convertFieldValueToSi(fieldKey, nextValue, state.ui.unitSystem);
+
+    if (fieldKey === FieldKey.MetabolicRate && airSpeedMode.syncOnMetabolicRateChange) {
+      syncCurrentPmvDerivedInputs(state, inputId);
       return;
     }
 
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.WetBulb
-    ) {
-      derived[DerivedFieldKey.WetBulb] = convertDisplayToSi(
-        FieldKey.DryBulbTemperature,
-        nextValue,
-        state.ui.unitSystem,
-      );
-      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
-        inputs[FieldKey.DryBulbTemperature],
-        derived[DerivedFieldKey.WetBulb] ?? 0,
-      );
-      refreshDerivedStateForCase(state, caseId);
-      return;
-    }
-
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.VaporPressure
-    ) {
-      derived[DerivedFieldKey.VaporPressure] = convertVaporPressureDisplayToSi(nextValue, state.ui.unitSystem);
-      inputs[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
-        inputs[FieldKey.DryBulbTemperature],
-        derived[DerivedFieldKey.VaporPressure] ?? 0,
-      );
-      refreshDerivedStateForCase(state, caseId);
-      return;
-    }
-
-    inputs[fieldKey] = convertDisplayToSi(fieldKey, nextValue, state.ui.unitSystem);
-
-    if (
-      fieldKey === FieldKey.MetabolicRate &&
-      options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured
-    ) {
-      syncCurrentPmvDerivedInputs(state, caseId);
-      return;
-    }
-
-    if (
-      fieldKey === FieldKey.DryBulbTemperature &&
-      options[ModelOptionKey.PmvHumidityInputMode] !== PmvHumidityInputMode.RelativeHumidity
-    ) {
-      syncCurrentPmvDerivedInputs(state, caseId);
+    if (fieldKey === FieldKey.DryBulbTemperature && humidityMode.syncOnDryBulbTemperatureChange) {
+      syncCurrentPmvDerivedInputs(state, inputId);
       return;
     }
 
@@ -388,44 +706,45 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       fieldKey === FieldKey.RelativeAirSpeed ||
       fieldKey === FieldKey.MetabolicRate
     ) {
-      refreshDerivedStateForCase(state, caseId);
+      refreshDerivedStateForInput(state, inputId);
     }
   },
-  calculate: (state, visibleCaseIds) => {
-    const compareChartRequest = toPmvCompareChartRequest(state, visibleCaseIds);
-    const resultsByCase = createEmptyPmvResults();
-    const comfortZonesByCase = visibleCaseIds.reduce((accumulator, caseId) => {
-      accumulator[caseId] = calculateComfortZone(toComfortZoneRequest(state, caseId));
+  calculate: (state, visibleInputIds) => {
+    const compareChartRequest = toPmvChartInputsRequest(state, visibleInputIds);
+    const resultsByInput = createEmptyPmvResults();
+    const comfortZonesByInput = visibleInputIds.reduce((accumulator, inputId) => {
+      accumulator[inputId] = calculateComfortZone(toComfortZoneRequest(state, inputId));
       return accumulator;
-    }, {} as ComfortZonesByCase);
+    }, {} as ComfortZonesByInput);
 
-    visibleCaseIds.forEach((caseId) => {
-      resultsByCase[caseId] = calculatePmv(toPmvRequest(state, caseId));
+    visibleInputIds.forEach((inputId) => {
+      resultsByInput[inputId] = calculatePmv(toPmvRequest(state, inputId));
     });
 
     return {
-      resultsByCase,
+      resultsByInput,
       chartResults: {
         [ChartId.Psychrometric]: buildComparePsychrometricChart(
           compareChartRequest,
-          comfortZonesByCase,
+          comfortZonesByInput,
         ) as PlotlyChartResponseDto,
         [ChartId.RelativeHumidity]: buildRelativeHumidityChart(
           compareChartRequest,
-          comfortZonesByCase,
+          comfortZonesByInput,
         ) as PlotlyChartResponseDto,
       },
     };
   },
   getFieldPresentation: (state, fieldKey) => {
     const options = getPmvOptions(state);
+    const temperatureMode = temperatureModeDescriptors[options[ModelOptionId.TemperatureInputMode]];
+    const airSpeedMode = airSpeedModeDescriptors[options[ModelOptionId.AirSpeedInputMode]];
+    const humidityMode = humidityModeDescriptors[options[ModelOptionId.HumidityInputMode]];
     const baseMeta = fieldMetaByKey[fieldKey];
-    const presentation = {
+    const basePresentationMeta = getBasePresentationMeta(state, fieldKey);
+    const presentation: FieldPresentation = {
       label: baseMeta.label,
-      displayUnits: baseMeta.displayUnits[state.ui.unitSystem],
-      step: baseMeta.step,
-      decimals: baseMeta.decimals,
-      rangeText: formatRangeText(state, fieldKey),
+      ...basePresentationMeta,
       hidden: false,
       showClothingBuilder: fieldKey === FieldKey.ClothingInsulation,
       showPresetInput: fieldKey === FieldKey.ClothingInsulation || fieldKey === FieldKey.MetabolicRate,
@@ -438,140 +757,45 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       presetDecimals: fieldKey === FieldKey.ClothingInsulation ? 2 : baseMeta.decimals,
     };
 
-    if (
-      fieldKey === FieldKey.DryBulbTemperature &&
-      options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative
-    ) {
-      presentation.label = "Operative temperature";
+    if (fieldKey === FieldKey.DryBulbTemperature) {
+      presentation.label = temperatureMode.dryBulbLabel;
     }
 
-    if (
-      fieldKey === FieldKey.MeanRadiantTemperature &&
-      options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative
-    ) {
-      presentation.hidden = true;
+    if (fieldKey === FieldKey.MeanRadiantTemperature) {
+      presentation.hidden = temperatureMode.meanRadiantHidden;
     }
 
-    if (
-      fieldKey === FieldKey.RelativeAirSpeed &&
-      options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured
-    ) {
-      presentation.label = "Air speed";
+    if (fieldKey === FieldKey.RelativeAirSpeed) {
+      presentation.label = airSpeedMode.label;
     }
 
     if (fieldKey === FieldKey.RelativeHumidity) {
-      if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.DewPoint) {
-        presentation.label = "Dew point";
-        presentation.displayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[state.ui.unitSystem];
-        presentation.step = fieldMetaByKey[FieldKey.DryBulbTemperature].step;
-        presentation.decimals = fieldMetaByKey[FieldKey.DryBulbTemperature].decimals;
-        presentation.rangeText = "";
-      } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.HumidityRatio) {
-        presentation.label = "Humidity ratio";
-        presentation.displayUnits = state.ui.unitSystem === UnitSystem.IP ? "gr/lb" : "g/kg";
-        presentation.step = state.ui.unitSystem === UnitSystem.IP ? 1 : 0.1;
-        presentation.decimals = state.ui.unitSystem === UnitSystem.IP ? 0 : 1;
-        presentation.rangeText = "";
-      } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.WetBulb) {
-        presentation.label = "Wet-bulb temperature";
-        presentation.displayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[state.ui.unitSystem];
-        presentation.step = fieldMetaByKey[FieldKey.DryBulbTemperature].step;
-        presentation.decimals = fieldMetaByKey[FieldKey.DryBulbTemperature].decimals;
-        presentation.rangeText = "";
-      } else if (options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.VaporPressure) {
-        presentation.label = "Vapor pressure";
-        presentation.displayUnits = state.ui.unitSystem === UnitSystem.IP ? "inHg" : "kPa";
-        presentation.step = 0.01;
-        presentation.decimals = 2;
-        presentation.rangeText = "";
-      }
+      presentation.label = humidityMode.label;
+      Object.assign(presentation, humidityMode.getPresentationMeta(state));
     }
 
     return presentation;
   },
-  getDisplayValue: (state, caseId, fieldKey) => {
+  getDisplayValue: (state, inputId, fieldKey) => {
     const options = getPmvOptions(state);
     const presentation = pmvModelConfig.getFieldPresentation(state, fieldKey);
+    const temperatureMode = temperatureModeDescriptors[options[ModelOptionId.TemperatureInputMode]];
+    const airSpeedMode = airSpeedModeDescriptors[options[ModelOptionId.AirSpeedInputMode]];
+    const humidityMode = humidityModeDescriptors[options[ModelOptionId.HumidityInputMode]];
 
-    if (
-      fieldKey === FieldKey.DryBulbTemperature &&
-      options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative
-    ) {
-      return getTemperatureDisplayValue(state, caseId, presentation.decimals);
+    if (fieldKey === FieldKey.DryBulbTemperature && temperatureMode.getDisplayValue) {
+      return temperatureMode.getDisplayValue(state, inputId, presentation.decimals);
     }
 
-    if (
-      fieldKey === FieldKey.RelativeAirSpeed &&
-      options[ModelOptionKey.PmvAirSpeedInputMode] === PmvAirSpeedInputMode.Measured
-    ) {
-      return formatDisplayValue(
-        convertSiToDisplay(
-          FieldKey.RelativeAirSpeed,
-          state.derivedByCase[caseId][DerivedFieldKey.MeasuredAirSpeed] ?? 0,
-          state.ui.unitSystem,
-        ),
-        presentation.decimals,
-      );
+    if (fieldKey === FieldKey.RelativeAirSpeed && airSpeedMode.getDisplayValue) {
+      return airSpeedMode.getDisplayValue(state, inputId, presentation.decimals);
     }
 
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.DewPoint
-    ) {
-      return formatDisplayValue(
-        convertSiToDisplay(
-          FieldKey.DryBulbTemperature,
-          state.derivedByCase[caseId][DerivedFieldKey.DewPoint] ?? 0,
-          state.ui.unitSystem,
-        ),
-        presentation.decimals,
-      );
+    if (fieldKey === FieldKey.RelativeHumidity) {
+      return humidityMode.getDisplayValue(state, inputId, presentation.decimals);
     }
 
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.HumidityRatio
-    ) {
-      return formatDisplayValue(
-        convertHumidityRatioSiToDisplay(
-          state.derivedByCase[caseId][DerivedFieldKey.HumidityRatio] ?? 0,
-          state.ui.unitSystem,
-        ),
-        presentation.decimals,
-      );
-    }
-
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.WetBulb
-    ) {
-      return formatDisplayValue(
-        convertSiToDisplay(
-          FieldKey.DryBulbTemperature,
-          state.derivedByCase[caseId][DerivedFieldKey.WetBulb] ?? 0,
-          state.ui.unitSystem,
-        ),
-        presentation.decimals,
-      );
-    }
-
-    if (
-      fieldKey === FieldKey.RelativeHumidity &&
-      options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.VaporPressure
-    ) {
-      return formatDisplayValue(
-        convertVaporPressureSiToDisplay(
-          state.derivedByCase[caseId][DerivedFieldKey.VaporPressure] ?? 0,
-          state.ui.unitSystem,
-        ),
-        presentation.decimals,
-      );
-    }
-
-    return formatDisplayValue(
-      convertSiToDisplay(fieldKey, state.inputsByCase[caseId][fieldKey], state.ui.unitSystem),
-      presentation.decimals,
-    );
+    return getFieldDisplayValue(state, inputId, fieldKey, presentation.decimals);
   },
   getAdvancedOptionMenu: (state, fieldKey) => {
     const options = getPmvOptions(state);
@@ -580,110 +804,50 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
     if (
       fieldKey === FieldKey.DryBulbTemperature &&
       (
-        selectedChart === PmvChartId.Psychrometric ||
-        options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative
+        selectedChart === ChartId.Psychrometric ||
+        options[ModelOptionId.TemperatureInputMode] === TemperatureInputMode.Operative
       )
     ) {
-      return {
-        title: "Temperature input",
-        items: [
-          {
-            label: "Air temperature",
-            description: "Use dry-bulb air temperature and keep radiant temperature separate.",
-            optionKey: ModelOptionKey.PmvTemperatureInputMode,
-            value: PmvTemperatureInputMode.Air,
-            active: options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Air,
-          },
-          {
-            label: "Operative temp",
-            description: "Treat operative temperature as the single temperature input.",
-            optionKey: ModelOptionKey.PmvTemperatureInputMode,
-            value: PmvTemperatureInputMode.Operative,
-            active: options[ModelOptionKey.PmvTemperatureInputMode] === PmvTemperatureInputMode.Operative,
-          },
-        ],
-      };
+      return buildAdvancedOptionMenu(
+        "Temperature input",
+        ModelOptionId.TemperatureInputMode,
+        options[ModelOptionId.TemperatureInputMode],
+        temperatureMenuItems,
+      );
     }
 
     if (fieldKey === FieldKey.RelativeAirSpeed) {
-      return {
-        title: "Air speed input",
-        items: [
-          {
-            label: "No local control",
-            description: "Assume occupants do not have local control over elevated air speed.",
-            optionKey: ModelOptionKey.PmvAirSpeedControlMode,
-            value: PmvAirSpeedControlMode.NoLocalControl,
-            active: options[ModelOptionKey.PmvAirSpeedControlMode] === PmvAirSpeedControlMode.NoLocalControl,
-          },
-          {
-            label: "With local control",
-            description: "Assume occupants can locally control elevated air speed.",
-            optionKey: ModelOptionKey.PmvAirSpeedControlMode,
-            value: PmvAirSpeedControlMode.WithLocalControl,
-            active: options[ModelOptionKey.PmvAirSpeedControlMode] === PmvAirSpeedControlMode.WithLocalControl,
-          },
-        ],
-      };
+      return buildAdvancedOptionMenu(
+        "Air speed input",
+        ModelOptionId.AirSpeedControlMode,
+        options[ModelOptionId.AirSpeedControlMode],
+        airSpeedControlMenuItems,
+      );
     }
 
     if (fieldKey === FieldKey.RelativeHumidity) {
-      return {
-        title: "Humidity input",
-        items: [
-          {
-            label: "Relative humidity",
-            description: "Input relative humidity as a percentage.",
-            optionKey: ModelOptionKey.PmvHumidityInputMode,
-            value: PmvHumidityInputMode.RelativeHumidity,
-            active: options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.RelativeHumidity,
-          },
-          {
-            label: "Humidity ratio",
-            description: "Hold absolute moisture content constant.",
-            optionKey: ModelOptionKey.PmvHumidityInputMode,
-            value: PmvHumidityInputMode.HumidityRatio,
-            active: options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.HumidityRatio,
-          },
-          {
-            label: "Dew point",
-            description: "Keep dew point fixed and derive relative humidity from dry-bulb temperature.",
-            optionKey: ModelOptionKey.PmvHumidityInputMode,
-            value: PmvHumidityInputMode.DewPoint,
-            active: options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.DewPoint,
-          },
-          {
-            label: "Wet bulb",
-            description: "Input wet-bulb temperature instead of relative humidity.",
-            optionKey: ModelOptionKey.PmvHumidityInputMode,
-            value: PmvHumidityInputMode.WetBulb,
-            active: options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.WetBulb,
-          },
-          {
-            label: "Vapor pressure",
-            description: "Input vapor pressure directly.",
-            optionKey: ModelOptionKey.PmvHumidityInputMode,
-            value: PmvHumidityInputMode.VaporPressure,
-            active: options[ModelOptionKey.PmvHumidityInputMode] === PmvHumidityInputMode.VaporPressure,
-          },
-        ],
-      };
+      return buildAdvancedOptionMenu(
+        "Humidity input",
+        ModelOptionId.HumidityInputMode,
+        options[ModelOptionId.HumidityInputMode],
+        humidityMenuItems,
+      );
     }
 
     return null;
   },
-  getResultSections: (state, visibleCaseIds) => {
+  getResultSections: (state, visibleInputIds) => {
     const results = state.ui.resultsByModel[ComfortModel.Pmv];
 
     return [
       {
         title: "Compliance",
-        valuesByCase: visibleCaseIds.reduce((accumulator, caseId) => {
-          const result = results[caseId];
-          accumulator[caseId] = result
+        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+          const result = results[inputId];
+          accumulator[inputId] = result
             ? {
-                text: result.acceptable_80 ? "Compliant" : "Out of range",
-                toneClass: result.acceptable_80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600",
+                text: result.acceptable80 ? "Compliant" : "Out of range",
+                toneClass: result.acceptable80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600",
               }
             : null;
           return accumulator;
@@ -691,9 +855,9 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       },
       {
         title: "PMV",
-        valuesByCase: visibleCaseIds.reduce((accumulator, caseId) => {
-          const result = results[caseId];
-          accumulator[caseId] = result
+        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+          const result = results[inputId];
+          accumulator[inputId] = result
             ? { text: result.pmv.toFixed(2), toneClass: "text-base font-semibold text-stone-900" }
             : null;
           return accumulator;
@@ -701,9 +865,9 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       },
       {
         title: "PPD",
-        valuesByCase: visibleCaseIds.reduce((accumulator, caseId) => {
-          const result = results[caseId];
-          accumulator[caseId] = result
+        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+          const result = results[inputId];
+          accumulator[inputId] = result
             ? { text: `${result.ppd.toFixed(1)}%`, toneClass: "text-base font-semibold text-stone-900" }
             : null;
           return accumulator;
@@ -711,9 +875,9 @@ export const pmvModelConfig: ComfortModelConfig<PmvResponseDto> = {
       },
       {
         title: "Acceptability",
-        valuesByCase: visibleCaseIds.reduce((accumulator, caseId) => {
-          const result = results[caseId];
-          accumulator[caseId] = result
+        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+          const result = results[inputId];
+          accumulator[inputId] = result
             ? { text: `${(100 - result.ppd).toFixed(1)}%`, toneClass: "text-base font-semibold text-stone-900" }
             : null;
           return accumulator;

@@ -26,7 +26,7 @@ export function calculateUtci(payload: UtciRequestDto): UtciResponseDto {
 
   return {
     utci: ensureFiniteValue("UTCI", result.utci),
-    stress_category: normalizeUtciStressCategory(String(result.stress_category)),
+    stressCategory: normalizeUtciStressCategory(String(result.stress_category)),
     source: CalculationSource.JsThermalComfort,
   };
 }

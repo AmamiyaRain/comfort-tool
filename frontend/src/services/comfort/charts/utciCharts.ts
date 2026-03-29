@@ -1,4 +1,4 @@
-import { compareCaseChartStyleById } from "../../../models/compareCases";
+import { inputChartStyleById, inputMetaById } from "../../../models/inputSlots";
 import { CalculationSource } from "../../../models/calculationMetadata";
 import {
   utciStressBands,
@@ -10,58 +10,59 @@ import type {
   PlotTraceDto,
   UtciRequestDto,
   UtciResponseDto,
-  UtciStressChartRequestDto,
+  UtciChartInputsRequestDto,
 } from "../../../models/dto";
 import { calculateUtci } from "../utci";
 import {
   formatSignedTemperature,
   getPaddedAxisRange,
-  getUtciCases,
+  getCompareInputs,
   roundValue,
-  type UtciChartResultsByCase,
+  type UtciChartResultsByInput,
 } from "../helpers";
 
-function getUtciResultForCase(
-  caseId,
+function getUtciResultForInput(
+  inputId,
   payload: UtciRequestDto,
-  utciResultsByCase: UtciChartResultsByCase,
+  cachedResultsByInput: UtciChartResultsByInput,
 ): UtciResponseDto {
-  return utciResultsByCase[caseId] ?? calculateUtci(payload);
+  return cachedResultsByInput[inputId] ?? calculateUtci(payload);
 }
 
 export function buildUtciStressChart(
-  payload: UtciStressChartRequestDto,
-  utciResultsByCase: UtciChartResultsByCase = {},
+  payload: UtciChartInputsRequestDto,
+  cachedResultsByInput: UtciChartResultsByInput = {},
 ): PlotlyChartResponseDto {
-  const cases = getUtciCases(payload);
-  const showCaseLegend = cases.length > 1;
-  const markerPositions = cases.length > 1 ? [0.78, 0.5, 0.22] : [0.5];
+  const inputs = getCompareInputs(payload.inputs);
+  const showInputLegend = inputs.length > 1;
+  const markerPositions = inputs.length > 1 ? [0.78, 0.5, 0.22] : [0.5];
   const traces: PlotTraceDto[] = [];
   const annotations: PlotAnnotationDto[] = [];
 
-  cases.forEach(({ caseId, payload: casePayload }, index) => {
-    const result = getUtciResultForCase(caseId, casePayload, utciResultsByCase);
-    const caseStyle = compareCaseChartStyleById[caseId];
+  inputs.forEach(({ inputId, payload: inputPayload }, index) => {
+    const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
+    const inputStyle = inputChartStyleById[inputId];
+    const inputLabel = inputMetaById[inputId].label;
     const yPosition = markerPositions[index];
 
     traces.push({
       type: "scatter",
       mode: "markers",
-      name: `Case ${caseId}`,
+      name: inputLabel,
       x: [roundValue(result.utci)],
       y: [yPosition],
-      showlegend: showCaseLegend,
+      showlegend: showInputLegend,
       line: {},
-      marker: { color: caseStyle.marker, size: 14 },
-      hovertemplate: `Case ${caseId}<br>UTCI %{x:.1f} C<br>${result.stress_category}<extra></extra>`,
+      marker: { color: inputStyle.marker, size: 14 },
+      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} C<br>${result.stressCategory}<extra></extra>`,
     });
 
     annotations.push({
       x: roundValue(result.utci),
       y: yPosition + 0.12,
-      text: `Case ${caseId}<br>${result.stress_category}`,
+      text: `${inputLabel}<br>${result.stressCategory}`,
       showarrow: false,
-      font: { size: 12, color: caseStyle.line },
+      font: { size: 12, color: inputStyle.line },
     });
   });
 
@@ -81,7 +82,7 @@ export function buildUtciStressChart(
       title: "UTCI stress category",
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#f8fafc",
-      showlegend: showCaseLegend,
+      showlegend: showInputLegend,
       margin: { l: 40, r: 24, t: 48, b: 96 },
       xaxis: {
         title: "UTCI (C)",
@@ -115,39 +116,40 @@ export function buildUtciStressChart(
 }
 
 export function buildUtciTemperatureChart(
-  payload: UtciStressChartRequestDto,
-  utciResultsByCase: UtciChartResultsByCase = {},
+  payload: UtciChartInputsRequestDto,
+  cachedResultsByInput: UtciChartResultsByInput = {},
 ): PlotlyChartResponseDto {
-  const cases = getUtciCases(payload);
-  const showCaseLegend = cases.length > 1;
+  const inputs = getCompareInputs(payload.inputs);
+  const showInputLegend = inputs.length > 1;
   const traces: PlotTraceDto[] = [];
   const annotations: PlotAnnotationDto[] = [];
-  const dryBulbTemperatures = cases.map(({ payload: casePayload }) => casePayload.tdb);
+  const dryBulbTemperatures = inputs.map(({ payload: inputPayload }) => inputPayload.tdb);
   const xRange = getPaddedAxisRange(dryBulbTemperatures, [-50, 55]);
 
-  cases.forEach(({ caseId, payload: casePayload }) => {
-    const result = getUtciResultForCase(caseId, casePayload, utciResultsByCase);
-    const caseStyle = compareCaseChartStyleById[caseId];
-    const temperatureOffset = result.utci - casePayload.tdb;
+  inputs.forEach(({ inputId, payload: inputPayload }) => {
+    const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
+    const inputStyle = inputChartStyleById[inputId];
+    const inputLabel = inputMetaById[inputId].label;
+    const temperatureOffset = result.utci - inputPayload.tdb;
 
     traces.push({
       type: "scatter",
       mode: "markers",
-      name: `Case ${caseId}`,
-      x: [roundValue(casePayload.tdb)],
+      name: inputLabel,
+      x: [roundValue(inputPayload.tdb)],
       y: [roundValue(result.utci)],
-      showlegend: showCaseLegend,
+      showlegend: showInputLegend,
       line: {},
-      marker: { color: caseStyle.marker, size: 13 },
-      hovertemplate: `Case ${caseId}<br>Dry bulb %{x:.1f} C<br>UTCI %{y:.1f} C<br>Offset ${formatSignedTemperature(temperatureOffset)}<br>${result.stress_category}<extra></extra>`,
+      marker: { color: inputStyle.marker, size: 13 },
+      hovertemplate: `${inputLabel}<br>Dry bulb %{x:.1f} C<br>UTCI %{y:.1f} C<br>Offset ${formatSignedTemperature(temperatureOffset)}<br>${result.stressCategory}<extra></extra>`,
     });
 
     annotations.push({
-      x: roundValue(casePayload.tdb),
+      x: roundValue(inputPayload.tdb),
       y: roundValue(result.utci),
-      text: `Case ${caseId}<br>${formatSignedTemperature(temperatureOffset)}`,
+      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset)}`,
       showarrow: true,
-      font: { size: 11, color: caseStyle.line },
+      font: { size: 11, color: inputStyle.line },
     });
   });
 
@@ -157,7 +159,7 @@ export function buildUtciTemperatureChart(
       title: "UTCI vs air temperature",
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#f8fafc",
-      showlegend: showCaseLegend,
+      showlegend: showInputLegend,
       margin: { l: 56, r: 24, t: 48, b: 56 },
       xaxis: {
         title: "Dry bulb temperature (°C)",

@@ -1,25 +1,25 @@
 import { FieldKey, type FieldKey as FieldKeyType } from "./fieldKeys";
 
-export const CompareCaseId = {
-  A: "A",
-  B: "B",
-  C: "C",
+export const InputId = {
+  Input1: "input1",
+  Input2: "input2",
+  Input3: "input3",
 } as const;
 
-export type CompareCaseId = (typeof CompareCaseId)[keyof typeof CompareCaseId];
+export type InputId = (typeof InputId)[keyof typeof InputId];
 
-export const compareCaseOrder: CompareCaseId[] = [CompareCaseId.A, CompareCaseId.B, CompareCaseId.C];
+export const inputOrder: InputId[] = [InputId.Input1, InputId.Input2, InputId.Input3];
 
-export type CompareCaseDefaults = Record<FieldKeyType, number>;
-export type CompareCaseTone = "red" | "green" | "blue";
+export type InputDefaults = Record<FieldKeyType, number>;
+export type InputTone = "red" | "green" | "blue";
 
-export interface CompareCaseChartStyle {
+export interface InputChartStyle {
   line: string;
   fill: string;
   marker: string;
 }
 
-export interface CompareCaseUiStyle {
+export interface InputUiStyle {
   inputToggleVisibleClass: string;
   inputToggleHiddenClass: string;
   clothingTargetActiveClass: string;
@@ -28,8 +28,12 @@ export interface CompareCaseUiStyle {
   resultActiveRingClass: string;
 }
 
-export const compareCaseDefaultsById: Record<CompareCaseId, CompareCaseDefaults> = {
-  [CompareCaseId.A]: {
+export function getInputIndex(inputId: InputId): number {
+  return inputOrder.indexOf(inputId) + 1;
+}
+
+export const inputDefaultsById: Record<InputId, InputDefaults> = {
+  [InputId.Input1]: {
     [FieldKey.DryBulbTemperature]: 26,
     [FieldKey.MeanRadiantTemperature]: 25,
     [FieldKey.RelativeAirSpeed]: 0.1,
@@ -39,7 +43,7 @@ export const compareCaseDefaultsById: Record<CompareCaseId, CompareCaseDefaults>
     [FieldKey.ClothingInsulation]: 0.51,
     [FieldKey.ExternalWork]: 0,
   },
-  [CompareCaseId.B]: {
+  [InputId.Input2]: {
     [FieldKey.DryBulbTemperature]: 25,
     [FieldKey.MeanRadiantTemperature]: 25,
     [FieldKey.RelativeAirSpeed]: 0.1,
@@ -49,7 +53,7 @@ export const compareCaseDefaultsById: Record<CompareCaseId, CompareCaseDefaults>
     [FieldKey.ClothingInsulation]: 0.61,
     [FieldKey.ExternalWork]: 0,
   },
-  [CompareCaseId.C]: {
+  [InputId.Input3]: {
     [FieldKey.DryBulbTemperature]: 23,
     [FieldKey.MeanRadiantTemperature]: 23,
     [FieldKey.RelativeAirSpeed]: 0.1,
@@ -61,20 +65,20 @@ export const compareCaseDefaultsById: Record<CompareCaseId, CompareCaseDefaults>
   },
 };
 
-export const compareCaseMetaById: Record<
-  CompareCaseId,
+export const inputMetaById: Record<
+  InputId,
   {
     label: string;
     shortLabel: string;
-    tone: CompareCaseTone;
+    tone: InputTone;
     accentClass: string;
-    chartStyle: CompareCaseChartStyle;
-    ui: CompareCaseUiStyle;
+    chartStyle: InputChartStyle;
+    ui: InputUiStyle;
   }
 > = {
-  [CompareCaseId.A]: {
-    label: "Case A",
-    shortLabel: "A",
+  [InputId.Input1]: {
+    label: "Input 1",
+    shortLabel: "Input 1",
     tone: "blue",
     accentClass: "text-blue-800",
     chartStyle: {
@@ -91,9 +95,9 @@ export const compareCaseMetaById: Record<
       resultActiveRingClass: "ring-1 ring-blue-200/80",
     },
   },
-  [CompareCaseId.B]: {
-    label: "Case B",
-    shortLabel: "B",
+  [InputId.Input2]: {
+    label: "Input 2",
+    shortLabel: "Input 2",
     tone: "red",
     accentClass: "text-red-800",
     chartStyle: {
@@ -110,9 +114,9 @@ export const compareCaseMetaById: Record<
       resultActiveRingClass: "ring-1 ring-red-200/80",
     },
   },
-  [CompareCaseId.C]: {
-    label: "Case C",
-    shortLabel: "C",
+  [InputId.Input3]: {
+    label: "Input 3",
+    shortLabel: "Input 3",
     tone: "green",
     accentClass: "text-emerald-800",
     chartStyle: {
@@ -131,10 +135,10 @@ export const compareCaseMetaById: Record<
   },
 };
 
-export const compareCaseChartStyleById: Record<CompareCaseId, CompareCaseChartStyle> = compareCaseOrder.reduce(
-  (accumulator, caseId) => {
-    accumulator[caseId] = compareCaseMetaById[caseId].chartStyle;
+export const inputChartStyleById: Record<InputId, InputChartStyle> = inputOrder.reduce(
+  (accumulator, inputId) => {
+    accumulator[inputId] = inputMetaById[inputId].chartStyle;
     return accumulator;
   },
-  {} as Record<CompareCaseId, CompareCaseChartStyle>,
+  {} as Record<InputId, InputChartStyle>,
 );

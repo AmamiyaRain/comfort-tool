@@ -1,6 +1,5 @@
-import { compareCaseOrder, type CompareCaseId as CompareCaseIdType } from "../../models/compareCases";
-import { DerivedFieldKey } from "../../models/derivedFieldKeys";
-import { FieldKey } from "../../models/fieldKeys";
+import { inputOrder, type InputId as InputIdType } from "../../models/inputSlots";
+import { DerivedFieldKey, FieldKey } from "../../models/fieldKeys";
 import {
   deriveDewPointFromRelativeHumidity,
   deriveHumidityRatioFromRelativeHumidity,
@@ -8,41 +7,41 @@ import {
   deriveVaporPressureFromRelativeHumidity,
   deriveWetBulbFromRelativeHumidity,
 } from "../../services/comfort";
-import type { DerivedByCaseState, ComfortToolStateSlice } from "./types";
+import type { DerivedByInputState, ComfortToolStateSlice } from "./types";
 
-export function createEmptyDerivedByCase(): DerivedByCaseState {
-  return compareCaseOrder.reduce((accumulator, caseId) => {
-    accumulator[caseId] = {};
+export function createEmptyDerivedByInput(): DerivedByInputState {
+  return inputOrder.reduce((accumulator, inputId) => {
+    accumulator[inputId] = {};
     return accumulator;
-  }, {} as DerivedByCaseState);
+  }, {} as DerivedByInputState);
 }
 
-export function refreshDerivedStateForCase(state: ComfortToolStateSlice, caseId: CompareCaseIdType) {
-  const inputs = state.inputsByCase[caseId];
-  state.derivedByCase[caseId][DerivedFieldKey.MeasuredAirSpeed] = deriveMeasuredAirSpeedFromRelative(
+export function refreshDerivedStateForInput(state: ComfortToolStateSlice, inputId: InputIdType) {
+  const inputs = state.inputsByInput[inputId];
+  state.derivedByInput[inputId][DerivedFieldKey.MeasuredAirSpeed] = deriveMeasuredAirSpeedFromRelative(
     inputs[FieldKey.RelativeAirSpeed],
     inputs[FieldKey.MetabolicRate],
   );
-  state.derivedByCase[caseId][DerivedFieldKey.DewPoint] = deriveDewPointFromRelativeHumidity(
+  state.derivedByInput[inputId][DerivedFieldKey.DewPoint] = deriveDewPointFromRelativeHumidity(
     inputs[FieldKey.DryBulbTemperature],
     inputs[FieldKey.RelativeHumidity],
   );
-  state.derivedByCase[caseId][DerivedFieldKey.HumidityRatio] = deriveHumidityRatioFromRelativeHumidity(
+  state.derivedByInput[inputId][DerivedFieldKey.HumidityRatio] = deriveHumidityRatioFromRelativeHumidity(
     inputs[FieldKey.DryBulbTemperature],
     inputs[FieldKey.RelativeHumidity],
   );
-  state.derivedByCase[caseId][DerivedFieldKey.WetBulb] = deriveWetBulbFromRelativeHumidity(
+  state.derivedByInput[inputId][DerivedFieldKey.WetBulb] = deriveWetBulbFromRelativeHumidity(
     inputs[FieldKey.DryBulbTemperature],
     inputs[FieldKey.RelativeHumidity],
   );
-  state.derivedByCase[caseId][DerivedFieldKey.VaporPressure] = deriveVaporPressureFromRelativeHumidity(
+  state.derivedByInput[inputId][DerivedFieldKey.VaporPressure] = deriveVaporPressureFromRelativeHumidity(
     inputs[FieldKey.DryBulbTemperature],
     inputs[FieldKey.RelativeHumidity],
   );
 }
 
 export function refreshAllDerivedState(state: ComfortToolStateSlice) {
-  compareCaseOrder.forEach((caseId) => {
-    refreshDerivedStateForCase(state, caseId);
+  inputOrder.forEach((inputId) => {
+    refreshDerivedStateForInput(state, inputId);
   });
 }

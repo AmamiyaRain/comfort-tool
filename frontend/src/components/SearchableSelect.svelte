@@ -29,7 +29,7 @@
     class?: string;
   } = $props();
 
-  let rootElement = $state<HTMLDivElement | null>(null);
+  let rootElement = $state<HTMLElement | null>(null);
   let searchInput = $state<HTMLInputElement | null>(null);
   let isOpen = $state(false);
   let query = $state("");
@@ -154,70 +154,70 @@
   });
 </script>
 
-<div class={`relative w-full min-w-0 ${className}`} bind:this={rootElement}>
-  <div class="relative">
-    <input
-      bind:this={searchInput}
-      type="text"
-      value={inputValue}
-      placeholder={placeholder}
-      class={`w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 pr-10 text-sm text-stone-900 focus:border-sky-600 focus:outline-none ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
-      onfocus={openDropdown}
-      oninput={handleInput}
-      onkeydown={handleKeydown}
-      role="combobox"
-      aria-expanded={isOpen}
-      aria-haspopup="listbox"
-      aria-controls={listboxId}
-      aria-autocomplete="list"
-      disabled={disabled}
-      autocomplete="off"
-      spellcheck="false"
-    />
-    <button
-      type="button"
-      class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500"
-      onclick={toggleDropdown}
-      tabindex="-1"
-      aria-label={isOpen ? "Close options" : "Open options"}
-      disabled={disabled}
-    >
-      <span class="text-xs">{isOpen ? "▲" : "▼"}</span>
-    </button>
-  </div>
+<section class={`relative w-full min-w-0 ${className}`} bind:this={rootElement}>
+  <input
+    bind:this={searchInput}
+    type="text"
+    value={inputValue}
+    placeholder={placeholder}
+    class={`w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 pr-10 text-sm text-stone-900 focus:border-sky-600 focus:outline-none ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+    onfocus={openDropdown}
+    oninput={handleInput}
+    onkeydown={handleKeydown}
+    role="combobox"
+    aria-expanded={isOpen}
+    aria-haspopup="listbox"
+    aria-controls={listboxId}
+    aria-autocomplete="list"
+    disabled={disabled}
+    autocomplete="off"
+    spellcheck="false"
+  />
+  <button
+    type="button"
+    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500"
+    onclick={toggleDropdown}
+    tabindex="-1"
+    aria-label={isOpen ? "Close options" : "Open options"}
+    disabled={disabled}
+  >
+    <span class="text-xs">{isOpen ? "▲" : "▼"}</span>
+  </button>
 
   {#if isOpen}
-    <div id={listboxId} role="listbox" class="absolute z-20 mt-1 w-full rounded-lg border border-stone-300 bg-white p-2 shadow-lg">
-      <div class="px-1 pb-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
+    <section id={listboxId} role="listbox" class="absolute z-20 mt-1 w-full rounded-lg border border-stone-300 bg-white p-2 shadow-lg">
+      <p class="px-1 pb-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
         {searchPlaceholder}
-      </div>
-      <div class="max-h-64 overflow-y-auto">
+      </p>
+      <ul class="max-h-64 overflow-y-auto">
         {#if filteredItems.length > 0}
           {#each filteredItems as item, index}
-            <button
-              type="button"
-              class={`flex w-full items-center rounded-md px-2 py-2 text-left text-sm ${
-                item.value === value
-                  ? "bg-sky-50 text-sky-900"
-                  : index === highlightedIndex
-                    ? "bg-stone-100 text-stone-900"
-                    : "text-stone-700 hover:bg-stone-100"
-              } ${item.disabled ? "cursor-not-allowed opacity-50" : ""}`}
-              onclick={() => !item.disabled && handleSelect(item.value)}
-              onmouseenter={() => {
-                if (!item.disabled) {
-                  highlightedIndex = index;
-                }
-              }}
-              disabled={item.disabled}
-            >
-              {item.name}
-            </button>
+            <li>
+              <button
+                type="button"
+                class={`flex w-full items-center rounded-md px-2 py-2 text-left text-sm ${
+                  item.value === value
+                    ? "bg-sky-50 text-sky-900"
+                    : index === highlightedIndex
+                      ? "bg-stone-100 text-stone-900"
+                      : "text-stone-700 hover:bg-stone-100"
+                } ${item.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                onclick={() => !item.disabled && handleSelect(item.value)}
+                onmouseenter={() => {
+                  if (!item.disabled) {
+                    highlightedIndex = index;
+                  }
+                }}
+                disabled={item.disabled}
+              >
+                {item.name}
+              </button>
+            </li>
           {/each}
         {:else}
-          <div class="px-2 py-2 text-sm text-stone-500">{emptyMessage}</div>
+          <li class="px-2 py-2 text-sm text-stone-500">{emptyMessage}</li>
         {/if}
-      </div>
-    </div>
+      </ul>
+    </section>
   {/if}
-</div>
+</section>

@@ -29,12 +29,12 @@
 
 {#snippet chartBody()}
   {#if hasControls}
-    <div class={`flex flex-col gap-3 ${embedded ? "mt-0" : "mt-3"} ${hasChartSelector ? "md:flex-row md:items-center" : "items-end"}`}>
+    <header class={`flex flex-col gap-3 ${embedded ? "mt-0" : "mt-3"} ${hasChartSelector ? "md:flex-row md:items-center" : "items-end"}`}>
       {#if hasChartSelector}
-        <div class="shrink-0 text-base font-semibold text-stone-900">Charts</div>
+        <h3 class="shrink-0 text-base font-semibold text-stone-900">Charts</h3>
       {/if}
 
-      <div class={`flex min-w-0 flex-col gap-2 ${hasChartSelector ? "md:flex-1 sm:flex-row sm:items-center" : "items-end"}`}>
+      <section class={`flex min-w-0 flex-col gap-2 ${hasChartSelector ? "md:flex-1 sm:flex-row sm:items-center" : "items-end"}`}>
         {#if hasChartSelector}
           <SearchableSelect
             class="w-full min-w-0 flex-1"
@@ -56,8 +56,8 @@
             }}
           />
         {/if}
-      </div>
-    </div>
+      </section>
+    </header>
   {/if}
 
   <PlotlyCanvas
@@ -74,22 +74,22 @@
 {/snippet}
 
 {#if embedded}
-  <div class="w-full min-w-0 bg-white pt-1.5">
+  <section class="w-full min-w-0 bg-white pt-1.5">
     {@render chartBody()}
-  </div>
+  </section>
 {:else}
   <Card size="none" class="w-full min-w-0 border border-stone-300 bg-white shadow-sm">
-    <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
-      <div>
+    <header class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
+      <section>
         <h2 class="text-base font-semibold text-stone-900">{title}</h2>
         {#if description}
           <p class="mt-0.5 text-xs text-stone-500">{description}</p>
         {/if}
-      </div>
-      <div class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">
+      </section>
+      <p class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">
         {isLoading ? "Calculating" : "Ready"}
-      </div>
-    </div>
+      </p>
+    </header>
 
     {@render chartBody()}
   </Card>

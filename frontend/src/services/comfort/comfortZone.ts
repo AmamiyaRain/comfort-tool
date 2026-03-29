@@ -8,13 +8,13 @@ import { PMV_COMFORT_LIMIT } from "./helpers";
 import { solveDryBulbForTargetPmv } from "./pmv";
 
 export function calculateComfortZone(payload: ComfortZoneRequestDto): ComfortZoneResponseDto {
-  const rhMinimum = Math.min(payload.rh_min, payload.rh_max);
-  const rhMaximum = Math.max(payload.rh_min, payload.rh_max);
+  const rhMinimum = Math.min(payload.rhMin, payload.rhMax);
+  const rhMaximum = Math.max(payload.rhMin, payload.rhMax);
   const rhValues =
-    payload.rh_points === 1
+    payload.rhPoints === 1
       ? [rhMinimum]
-      : Array.from({ length: payload.rh_points }, (_, index) => (
-          rhMinimum + ((rhMaximum - rhMinimum) * index) / (payload.rh_points - 1)
+      : Array.from({ length: payload.rhPoints }, (_, index) => (
+          rhMinimum + ((rhMaximum - rhMinimum) * index) / (payload.rhPoints - 1)
         ));
 
   const coolEdge: ComfortPointDto[] = [];
@@ -39,8 +39,8 @@ export function calculateComfortZone(payload: ComfortZoneRequestDto): ComfortZon
   });
 
   return {
-    cool_edge: coolEdge,
-    warm_edge: warmEdge,
+    coolEdge,
+    warmEdge,
     source: CalculationSource.FrontendGenerated,
   };
 }
