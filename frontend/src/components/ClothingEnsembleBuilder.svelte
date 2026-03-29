@@ -7,12 +7,9 @@
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/fieldMeta";
   import { clothingGarmentOptions } from "../models/clothingEnsembles";
+  import type { ClothingGarmentOption } from "../models/clothingEnsembles";
   import type { UnitSystem as UnitSystemType } from "../models/units";
-  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort";
-  import {
-    filterClothingGarments,
-    sumSelectedGarmentClo,
-  } from "../services/clothingEnsembles";
+  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort/inputDerivations";
 
   let {
     activeInputId,
@@ -59,6 +56,34 @@
   const maxClothingValue = fieldMetaByKey[FieldKey.ClothingInsulation].maxValue;
   const temperatureStep = fieldMetaByKey[FieldKey.DryBulbTemperature].step;
   const temperatureDisplayUnits = $derived(fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]);
+
+  function roundClothingValue(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
+  function filterClothingGarments(
+    garments: ClothingGarmentOption[],
+    query: string,
+  ): ClothingGarmentOption[] {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return garments;
+    }
+
+    return garments.filter((garment) => garment.article.toLowerCase().includes(normalizedQuery));
+  }
+
+  function sumSelectedGarmentClo(
+    selectedGarmentIds: string[],
+    garments: ClothingGarmentOption[] = clothingGarmentOptions,
+  ): number {
+    const selectedSet = new Set(selectedGarmentIds);
+    const total = garments.reduce((accumulator, garment) => (
+      selectedSet.has(garment.id) ? accumulator + garment.clo : accumulator
+    ), 0);
+
+    return roundClothingValue(total);
+  }
 
   $effect(() => {
     if (visibleInputIds.includes(activeInputId)) {

@@ -1,13 +1,13 @@
 /**
- * Shared input option identifiers and mode values.
+ * Shared option identifiers and mode values.
  * These ids are stored inside serializable UI state, while canonical field values remain in SI elsewhere.
  */
-export const TemperatureInputMode = {
+export const TemperatureMode = {
   Air: "air",
   Operative: "operative",
 } as const;
 
-export type TemperatureInputMode = (typeof TemperatureInputMode)[keyof typeof TemperatureInputMode];
+export type TemperatureMode = (typeof TemperatureMode)[keyof typeof TemperatureMode];
 
 export const AirSpeedInputMode = {
   Relative: "relative",
@@ -33,27 +33,27 @@ export const HumidityInputMode = {
 
 export type HumidityInputMode = (typeof HumidityInputMode)[keyof typeof HumidityInputMode];
 
-export const ModelOptionId = {
-  TemperatureInputMode: "temperatureInputMode",
-  AirSpeedControlMode: "airSpeedControlMode",
-  AirSpeedInputMode: "airSpeedInputMode",
-  HumidityInputMode: "humidityInputMode",
+export const OptionKey = {
+  TemperatureMode: "temperature.mode",
+  AirSpeedControlMode: "airSpeed.controlMode",
+  AirSpeedInputMode: "airSpeed.inputMode",
+  HumidityInputMode: "humidity.inputMode",
 } as const;
 
-export type ModelOptionId = (typeof ModelOptionId)[keyof typeof ModelOptionId];
+export type OptionKey = (typeof OptionKey)[keyof typeof OptionKey];
 
-export type ModelOptionsRecord = Partial<Record<ModelOptionId, string>>;
+export type ModelOptionsRecord = Partial<Record<OptionKey, string>>;
 
 export type PmvModelOptions = {
-  [ModelOptionId.TemperatureInputMode]: TemperatureInputMode;
-  [ModelOptionId.AirSpeedControlMode]: AirSpeedControlMode;
-  [ModelOptionId.AirSpeedInputMode]: AirSpeedInputMode;
-  [ModelOptionId.HumidityInputMode]: HumidityInputMode;
+  [OptionKey.TemperatureMode]: TemperatureMode;
+  [OptionKey.AirSpeedControlMode]: AirSpeedControlMode;
+  [OptionKey.AirSpeedInputMode]: AirSpeedInputMode;
+  [OptionKey.HumidityInputMode]: HumidityInputMode;
 };
 
 export const defaultPmvOptions: PmvModelOptions = {
-  [ModelOptionId.TemperatureInputMode]: TemperatureInputMode.Air,
-  [ModelOptionId.AirSpeedControlMode]: AirSpeedControlMode.WithLocalControl,
-  [ModelOptionId.AirSpeedInputMode]: AirSpeedInputMode.Relative,
-  [ModelOptionId.HumidityInputMode]: HumidityInputMode.RelativeHumidity,
+  [OptionKey.TemperatureMode]: TemperatureMode.Air,
+  [OptionKey.AirSpeedControlMode]: AirSpeedControlMode.WithLocalControl,
+  [OptionKey.AirSpeedInputMode]: AirSpeedInputMode.Relative,
+  [OptionKey.HumidityInputMode]: HumidityInputMode.RelativeHumidity,
 };

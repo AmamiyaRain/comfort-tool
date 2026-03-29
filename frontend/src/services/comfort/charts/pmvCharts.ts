@@ -4,38 +4,35 @@ import {
   inputChartStyleById,
 } from "../../../models/inputSlots";
 import { CalculationSource } from "../../../models/calculationMetadata";
+import { UnitSystem } from "../../../models/units";
 import type {
   PlotAnnotationDto,
   PlotlyChartResponseDto,
   PlotTraceDto,
   PmvChartInputsRequestDto,
-  PsychrometricChartRequestDto,
   RelativeHumidityChartRequestDto,
 } from "../../../models/dto";
+import { convertHumidityRatioFromSi } from "../../units";
 import { calculateComfortZone } from "../comfortZone";
 import {
+  ensureFiniteValue,
   getCompareInputs,
   roundValue,
   type ComfortZonesByInput,
 } from "../helpers";
-import { getHumidityRatioGkg } from "../psychrometrics";
+import { derivePsychrometricStateFromRelativeHumidity } from "../inputDerivations";
 
 function getComfortZoneForInput(inputId, payload, comfortZonesByInput: ComfortZonesByInput) {
   return comfortZonesByInput[inputId] ?? calculateComfortZone(payload);
 }
 
-export function buildPsychrometricChart(payload: PsychrometricChartRequestDto): PlotlyChartResponseDto {
-  return buildComparePsychrometricChart(
-    {
-      inputs: {
-        [InputId.Input1]: payload,
-      },
-      chartRange: payload.chartRange,
-      rhCurves: payload.rhCurves,
-    },
-    {
-      [InputId.Input1]: calculateComfortZone(payload),
-    },
+function getHumidityRatioGkg(temperature: number, relativeHumidity: number): number {
+  return convertHumidityRatioFromSi(
+    ensureFiniteValue(
+      "Humidity ratio",
+      derivePsychrometricStateFromRelativeHumidity(temperature, relativeHumidity).humidityRatio,
+    ),
+    UnitSystem.SI,
   );
 }
 

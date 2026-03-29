@@ -1,14 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { InputId } from "../../models/inputSlots";
 import { UnitSystem } from "../../models/units";
-import {
-  buildComparePsychrometricChart,
-  buildUtciTemperatureChart,
-  calculateComfortZone,
-  calculatePmv,
-  calculateUtci,
-} from "./index";
+import { buildComparePsychrometricChart } from "./charts/pmvCharts";
+import { buildUtciTemperatureChart } from "./charts/utciCharts";
+import { calculateComfortZone } from "./comfortZone";
+import { predictClothingInsulationFromOutdoorTemperature } from "./inputDerivations";
+import { calculatePmv } from "./pmv";
+import { calculateUtci } from "./utci";
 
 const pmvPayload = {
   tdb: 26,
@@ -18,6 +17,7 @@ const pmvPayload = {
   met: 1.2,
   clo: 0.5,
   wme: 0,
+  occupantHasAirSpeedControl: true,
   units: UnitSystem.SI,
 };
 
@@ -45,6 +45,32 @@ describe("comfort services", () => {
     expect(pmvResult.ppd).toBeGreaterThanOrEqual(0);
     expect(comfortZone.coolEdge.length).toBeGreaterThan(0);
     expect(comfortZone.warmEdge.length).toBeGreaterThan(0);
+  });
+
+  it("applies the no-local-control constraint to PMV acceptability and comfort zones", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const constrainedPayload = {
+        ...pmvPayload,
+        tdb: 24,
+        tr: 24,
+        vr: 0.4,
+        occupantHasAirSpeedControl: false,
+      };
+
+      const constrainedResult = calculatePmv(constrainedPayload);
+      const constrainedComfortZone = calculateComfortZone({
+        ...constrainedPayload,
+        rhMin: 0,
+        rhMax: 100,
+        rhPoints: 31,
+      });
+
+      expect(constrainedResult.acceptable80).toBe(false);
+      expect(constrainedComfortZone.coolEdge.length).toBeLessThan(31);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("builds PMV and UTCI charts from typed requests", () => {
@@ -83,5 +109,12 @@ describe("comfort services", () => {
     expect(psychrometricChart.traces.length).toBeGreaterThan(1);
     expect(utciChart.traces).toHaveLength(1);
     expect(utciChart.annotations).toHaveLength(1);
+  });
+
+  it("normalizes clothing prediction results from jsthermalcomfort", () => {
+    const predictedClothing = predictClothingInsulationFromOutdoorTemperature(10, UnitSystem.SI);
+
+    expect(predictedClothing).toBeTypeOf("number");
+    expect(predictedClothing).toBeGreaterThan(0);
   });
 });

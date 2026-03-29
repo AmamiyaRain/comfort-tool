@@ -4,30 +4,25 @@
  * chart state, and calculation lifecycle flags.
  */
 import type { InputId as InputIdType } from "../../models/inputSlots";
-import { ComfortModel, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
-import type { PlotlyChartResponseDto, PmvResponseDto, UtciResponseDto } from "../../models/dto";
-import type { DerivedFieldKey as DerivedFieldKeyType, FieldKey as FieldKeyType } from "../../models/fieldKeys";
+import type { ComfortModel as ComfortModelType } from "../../models/comfortModels";
+import type { PlotlyChartResponseDto } from "../../models/dto";
+import type { DerivedInputId as DerivedInputIdType, FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
-import type { ModelOptionId as ModelOptionIdType } from "../../models/inputModes";
+import type { InputControlId as InputControlIdType, InputControlViewModel } from "../../models/inputControls";
+import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import type { UnitSystem as UnitSystemType } from "../../models/units";
 import type { ShareStateSnapshot } from "./shareState";
 
 export type InputState = Record<FieldKeyType, number>;
 export type InputsByInputState = Record<InputIdType, InputState>;
-export type DerivedInputState = Partial<Record<DerivedFieldKeyType, number>>;
+export type DerivedInputState = Partial<Record<DerivedInputIdType, number>>;
 export type DerivedByInputState = Record<InputIdType, DerivedInputState>;
-export type ModelOptionsState = Partial<Record<ModelOptionIdType, string>>;
+export type ModelOptionsState = Partial<Record<OptionKeyType, string>>;
 export type ModelOptionsByModelState = Record<ComfortModelType, ModelOptionsState>;
 export type SelectedChartByModelState = Record<ComfortModelType, ChartIdType>;
-
-export type ModelResultDtoByModel = {
-  [ComfortModel.Pmv]: PmvResponseDto;
-  [ComfortModel.Utci]: UtciResponseDto;
-};
-
-export type ResultsByModelState = {
-  [ModelId in ComfortModelType]: Record<InputIdType, ModelResultDtoByModel[ModelId] | null>;
-};
+export type ModelResultsState = Record<InputIdType, unknown | null>;
+export type ResultsByModelState = Record<ComfortModelType, ModelResultsState>;
+export type ResultSectionsByModelState = Record<ComfortModelType, ResultSection[]>;
 
 export type ChartResultsByModelState = Record<
   ComfortModelType,
@@ -48,6 +43,7 @@ export type UiState = {
   lastCompletedAt: number;
   resultRevision: number;
   resultsByModel: ResultsByModelState;
+  resultSectionsByModel: ResultSectionsByModelState;
   chartResultsByModel: ChartResultsByModelState;
 };
 
@@ -56,38 +52,6 @@ export type ComfortToolStateSlice = {
   derivedByInput: DerivedByInputState;
   ui: UiState;
 };
-
-export type PresetInputOption = {
-  id: string;
-  label: string;
-  value: number;
-};
-
-export type FieldPresentation = {
-  label: string;
-  displayUnits: string;
-  step: number;
-  decimals: number;
-  rangeText: string;
-  hidden: boolean;
-  showClothingBuilder: boolean;
-  showPresetInput: boolean;
-  presetOptions: PresetInputOption[];
-  presetDecimals: number;
-};
-
-export type AdvancedOptionItem = {
-  label: string;
-  description: string;
-  optionKey: ModelOptionIdType;
-  value: string;
-  active: boolean;
-};
-
-export type AdvancedOptionMenu = {
-  title: string;
-  items: AdvancedOptionItem[];
-} | null;
 
 export type ResultCellPresentation = {
   text: string;
@@ -102,7 +66,7 @@ export type ResultSection = {
 export type ComfortToolActions = {
   setSelectedModel: (nextModel: ComfortModelType) => void;
   setSelectedChart: (nextChart: ChartIdType) => void;
-  setModelOption: (optionKey: ModelOptionIdType, nextValue: string) => void;
+  setModelOption: (optionKey: OptionKeyType, nextValue: string) => void;
   setCompareEnabled: (enabled: boolean) => void;
   setActiveInputId: (nextInputId: InputIdType) => void;
   toggleCompareInputVisibility: (inputId: InputIdType) => void;
@@ -110,16 +74,13 @@ export type ComfortToolActions = {
   toggleUnitSystem: () => void;
   exportShareSnapshot: () => ShareStateSnapshot;
   applyShareSnapshot: (snapshot: ShareStateSnapshot) => void;
-  updateInput: (inputId: InputIdType, fieldKey: FieldKeyType, rawValue: string) => void;
+  updateInput: (inputId: InputIdType, controlId: InputControlIdType, rawValue: string) => void;
   scheduleCalculation: (options?: { immediate?: boolean }) => void;
 };
 
 export type ComfortToolSelectors = {
   getVisibleInputIds: () => InputIdType[];
-  getFieldOrder: () => FieldKeyType[];
-  getFieldPresentation: (fieldKey: FieldKeyType) => FieldPresentation;
-  getFieldDisplayValue: (inputId: InputIdType, fieldKey: FieldKeyType) => string;
-  getAdvancedOptionMenu: (fieldKey: FieldKeyType) => AdvancedOptionMenu;
+  getInputControls: () => InputControlViewModel[];
   getResultSections: () => ResultSection[];
   getCurrentChartResult: () => PlotlyChartResponseDto | null;
   getCurrentChartEmptyMessage: () => string;

@@ -6,18 +6,18 @@ import { inputOrder, InputId, type InputId as InputIdType } from "../../models/i
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
 import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
 import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
-import type { ModelOptionId as ModelOptionIdType } from "../../models/inputModes";
+import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 import { getComfortModelConfig } from "./modelConfigs";
 
 export interface ShareStateSnapshot {
-  version: 5;
+  version: 6;
   selectedModel: ComfortModelType;
   models: Record<
     ComfortModelType,
     {
       selectedChart: ChartIdType;
-      options: Partial<Record<ModelOptionIdType, string>>;
+      options: Partial<Record<OptionKeyType, string>>;
     }
   >;
   compareEnabled: boolean;
@@ -27,7 +27,7 @@ export interface ShareStateSnapshot {
   inputsByInput: Record<InputIdType, Record<FieldKeyType, number>>;
 }
 
-const SHARE_STATE_VERSION = 5;
+const SHARE_STATE_VERSION = 6;
 const SHARE_STATE_PARAM = "state";
 const comfortModelValues = new Set<ComfortModelType>(Object.values(ComfortModel));
 const inputIdValues = new Set<InputIdType>(Object.values(InputId));

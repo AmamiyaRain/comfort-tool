@@ -11,12 +11,12 @@ export const FieldKey = {
 
 export type FieldKey = (typeof FieldKey)[keyof typeof FieldKey];
 
-export const DerivedFieldKey = {
-  MeasuredAirSpeed: "measuredAirSpeed",
-  DewPoint: "dewPoint",
-  HumidityRatio: "humidityRatio",
-  WetBulb: "wetBulb",
-  VaporPressure: "vaporPressure",
+export const DerivedInputId = {
+  MeasuredAirSpeed: "airSpeed.measured",
+  DewPoint: "humidity.dewPoint",
+  HumidityRatio: "humidity.humidityRatio",
+  WetBulb: "humidity.wetBulb",
+  VaporPressure: "humidity.vaporPressure",
 } as const;
 
-export type DerivedFieldKey = (typeof DerivedFieldKey)[keyof typeof DerivedFieldKey];
+export type DerivedInputId = (typeof DerivedInputId)[keyof typeof DerivedInputId];

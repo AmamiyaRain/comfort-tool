@@ -1,4 +1,4 @@
-export interface ClothingEnsembleOption {
+interface ClothingEnsembleOption {
   id: string;
   label: string;
   clo: number;

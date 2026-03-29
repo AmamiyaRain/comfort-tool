@@ -11,7 +11,6 @@ import type {
 } from "../../models/dto";
 
 export const PMV_COMFORT_LIMIT = 0.5;
-export const ATM_PRESSURE_PA = 101325;
 
 export type ComfortZonesByInput = Partial<Record<InputIdType, ComfortZoneResponseDto>>;
 export type UtciChartResultsByInput = Partial<Record<InputIdType, UtciResponseDto>>;

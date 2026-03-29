@@ -11,6 +11,7 @@ export interface PmvRequestDto {
   met: number;
   clo: number;
   wme: number;
+  occupantHasAirSpeedControl: boolean;
   units: UnitSystem;
 }
 
@@ -53,17 +54,12 @@ export interface UtciResponseDto {
   source: CalculationSource;
 }
 
-export interface ChartRangeDto {
+interface ChartRangeDto {
   tdbMin: number;
   tdbMax: number;
   tdbPoints: number;
   humidityRatioMin: number;
   humidityRatioMax: number;
-}
-
-export interface PsychrometricChartRequestDto extends ComfortZoneRequestDto {
-  chartRange: ChartRangeDto;
-  rhCurves: number[];
 }
 
 export type CompareInputMap<T> = Partial<Record<InputIdType, T>>;

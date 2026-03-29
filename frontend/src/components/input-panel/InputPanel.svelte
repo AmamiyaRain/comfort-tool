@@ -4,9 +4,9 @@
   import { Card, Modal } from "flowbite-svelte";
 
   import ClothingEnsembleBuilder from "../ClothingEnsembleBuilder.svelte";
-  import CompareInputToggleGroup from "./CompareInputToggleGroup.svelte";
   import InputFieldRow from "./InputFieldRow.svelte";
-  import { FieldKey } from "../../models/fieldKeys";
+  import { inputMetaById, inputOrder, type InputId as InputIdType } from "../../models/inputSlots";
+  import { InputControlId } from "../../models/inputControls";
   import ToolControls from "./ToolControls.svelte";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
@@ -20,7 +20,18 @@
 
   function handleApplyClothingValue(inputId, value) {
     toolState.actions.setActiveInputId(inputId);
-    toolState.actions.updateInput(inputId, FieldKey.ClothingInsulation, value.toFixed(2));
+    toolState.actions.updateInput(inputId, InputControlId.ClothingInsulation, value.toFixed(2));
+  }
+
+  function isInputVisible(inputId: InputIdType) {
+    return toolState.selectors.getVisibleInputIds().includes(inputId);
+  }
+
+  function getCompareToggleClasses(inputId: InputIdType) {
+    const inputUi = inputMetaById[inputId].ui;
+    return isInputVisible(inputId)
+      ? `border-solid bg-white ${inputUi.inputToggleVisibleClass}`
+      : `border-dashed bg-stone-50 ${inputUi.inputToggleHiddenClass}`;
   }
 </script>
 
@@ -32,19 +43,34 @@
   <ToolControls {toolState} />
 
   <section class="mt-4 bg-white">
-    <CompareInputToggleGroup {toolState} />
+    {#if toolState.state.ui.compareEnabled}
+      <fieldset class="px-1 pb-2">
+        <legend class="sr-only">Visible compare inputs</legend>
+        <ul class="grid gap-2 md:grid-cols-3">
+          {#each inputOrder as inputId}
+            <li>
+              <button
+                type="button"
+                class={`min-w-0 rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(inputId)}`}
+                onclick={() => toolState.actions.toggleCompareInputVisibility(inputId)}
+              >
+                <span class="text-sm font-semibold">{inputMetaById[inputId].label}</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      </fieldset>
+    {/if}
 
     <section class="grid gap-1" aria-label="Input fields">
-      {#each toolState.selectors.getFieldOrder() as fieldKey}
-        {#if !toolState.selectors.getFieldPresentation(fieldKey).hidden}
-          <InputFieldRow
-            {toolState}
-            {fieldKey}
-            onOpenClothingBuilder={() => {
-              clothingBuilderOpen = true;
-            }}
-          />
-        {/if}
+      {#each toolState.selectors.getInputControls() as control}
+        <InputFieldRow
+          {toolState}
+          {control}
+          onOpenClothingBuilder={() => {
+            clothingBuilderOpen = true;
+          }}
+        />
       {/each}
     </section>
   </section>

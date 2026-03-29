@@ -1,7 +1,7 @@
 /**
  * Main comfort-tool controller.
- * Canonical user inputs are stored in SI under `inputsByInput`; derived SI values and serializable UI state are
- * coordinated here, while model-specific behavior comes from the registered model configs.
+ * Canonical user inputs are stored in SI under `inputsByInput`; reusable control behaviors produce UI-ready view
+ * models and plain patches, while model definitions own calculations and chart assembly.
  */
 import {
   InputId,
@@ -9,27 +9,23 @@ import {
   inputOrder,
   type InputId as InputIdType,
 } from "../../models/inputSlots";
-import {
-  chartMetaById,
-  type ChartId as ChartIdType,
-} from "../../models/chartOptions";
-import {
-  ComfortModel,
-  comfortModelOrder,
-  type ComfortModel as ComfortModelType,
-} from "../../models/comfortModels";
+import { chartMetaById, type ChartId as ChartIdType } from "../../models/chartOptions";
+import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
 import { allFieldOrder, fieldMetaByKey } from "../../models/fieldMeta";
-import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
-import type { ModelOptionId as ModelOptionIdType } from "../../models/inputModes";
+import type { InputControlId as InputControlIdType } from "../../models/inputControls";
+import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem } from "../../models/units";
+import type { BehaviorPatch, ControlBehaviorContext } from "../../services/comfort/controls/types";
+import { mergeBehaviorPatches } from "../../services/comfort/controls/types";
+import { refreshAllDerivedState, createEmptyDerivedByInput } from "./derivedState";
 import { comfortModelConfigs, getComfortModelConfig } from "./modelConfigs";
-import { createEmptyDerivedByInput } from "./derivedState";
 import type { ShareStateSnapshot } from "./shareState";
 import type {
-  InputState,
   ChartResultsByModelState,
   ComfortToolController,
+  InputState,
   ModelOptionsByModelState,
+  ResultSectionsByModelState,
   ResultsByModelState,
   SelectedChartByModelState,
   ComfortToolStateSlice,
@@ -80,9 +76,16 @@ function createEmptyInputResultRecord<T>(): Record<InputIdType, T | null> {
 
 function createResultsByModel(): ResultsByModelState {
   return comfortModelOrder.reduce((accumulator, modelId) => {
-    accumulator[modelId] = createEmptyInputResultRecord() as ResultsByModelState[typeof modelId];
+    accumulator[modelId] = createEmptyInputResultRecord();
     return accumulator;
   }, {} as ResultsByModelState);
+}
+
+function createResultSectionsByModel(): ResultSectionsByModelState {
+  return comfortModelOrder.reduce((accumulator, modelId) => {
+    accumulator[modelId] = [];
+    return accumulator;
+  }, {} as ResultSectionsByModelState);
 }
 
 function createChartResultsByModel(): ChartResultsByModelState {
@@ -97,7 +100,7 @@ function createChartResultsByModel(): ChartResultsByModelState {
 
 function exportShareSnapshot(state: ComfortToolStateSlice): ShareStateSnapshot {
   return {
-    version: 5,
+    version: 6,
     selectedModel: state.ui.selectedModel,
     models: comfortModelOrder.reduce((accumulator, modelId) => {
       accumulator[modelId] = {
@@ -148,10 +151,7 @@ function applyShareSnapshot(
     });
   });
 
-  comfortModelOrder.forEach((modelId) => {
-    comfortModelConfigs[modelId].syncDerivedState(state);
-  });
-
+  refreshAllDerivedState(state);
   callbacks.clearResults();
   callbacks.scheduleCalculation({ immediate: true });
 }
@@ -168,8 +168,7 @@ async function yieldToNextFrame() {
 }
 
 export function createComfortToolState(): ComfortToolController {
-  const initialInputsByInput = createInputsByInput();
-  const inputsByInput = $state(initialInputsByInput);
+  const inputsByInput = $state(createInputsByInput());
   const derivedByInput = $state(createEmptyDerivedByInput());
   const ui = $state({
     selectedModel: ComfortModel.Pmv,
@@ -185,6 +184,7 @@ export function createComfortToolState(): ComfortToolController {
     lastCompletedAt: 0,
     resultRevision: 0,
     resultsByModel: createResultsByModel(),
+    resultSectionsByModel: createResultSectionsByModel(),
     chartResultsByModel: createChartResultsByModel(),
   });
 
@@ -194,9 +194,7 @@ export function createComfortToolState(): ComfortToolController {
     ui,
   };
 
-  Object.values(comfortModelConfigs).forEach((config) => {
-    config.syncDerivedState(state);
-  });
+  refreshAllDerivedState(state);
 
   function clearResults(options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
@@ -204,6 +202,7 @@ export function createComfortToolState(): ComfortToolController {
     }
     state.ui.lastCompletedAt = 0;
     state.ui.resultsByModel = createResultsByModel();
+    state.ui.resultSectionsByModel = createResultSectionsByModel();
     state.ui.chartResultsByModel = createChartResultsByModel();
     state.ui.resultRevision += 1;
   }
@@ -216,6 +215,17 @@ export function createComfortToolState(): ComfortToolController {
     return normalizeCompareInputIds(state.ui.compareInputIds);
   }
 
+  function getModelContext(modelId: ComfortModelType): ControlBehaviorContext {
+    return {
+      inputsByInput: state.inputsByInput,
+      derivedByInput: state.derivedByInput,
+      options: state.ui.modelOptionsByModel[modelId],
+      unitSystem: state.ui.unitSystem,
+      visibleInputIds: getVisibleInputIds(),
+      selectedChartId: state.ui.selectedChartByModel[modelId],
+    };
+  }
+
   function getActiveModelConfig() {
     return getComfortModelConfig(state.ui.selectedModel);
   }
@@ -224,18 +234,55 @@ export function createComfortToolState(): ComfortToolController {
     return state.ui.selectedChartByModel[state.ui.selectedModel];
   }
 
+  function applyBehaviorPatch(patch: BehaviorPatch) {
+    if (patch.optionsPatch) {
+      state.ui.modelOptionsByModel[state.ui.selectedModel] = {
+        ...state.ui.modelOptionsByModel[state.ui.selectedModel],
+        ...patch.optionsPatch,
+      };
+    }
+
+    if (patch.inputsPatch) {
+      Object.entries(patch.inputsPatch).forEach(([inputId, inputPatch]) => {
+        if (!inputPatch) {
+          return;
+        }
+
+        Object.entries(inputPatch).forEach(([fieldKey, value]) => {
+          state.inputsByInput[inputId as InputIdType][fieldKey] = value;
+        });
+      });
+    }
+
+    if (patch.derivedPatch) {
+      Object.entries(patch.derivedPatch).forEach(([inputId, derivedPatch]) => {
+        if (!derivedPatch) {
+          return;
+        }
+
+        state.derivedByInput[inputId as InputIdType] = {
+          ...state.derivedByInput[inputId as InputIdType],
+          ...derivedPatch,
+        };
+      });
+    }
+  }
+
   const selectors = {
     getVisibleInputIds,
-    getFieldOrder: () => getActiveModelConfig().fieldOrder,
-    getFieldPresentation: (fieldKey: FieldKeyType) => getActiveModelConfig().getFieldPresentation(state, fieldKey),
-    getFieldDisplayValue: (inputId: InputIdType, fieldKey: FieldKeyType) => (
-      getActiveModelConfig().getDisplayValue(state, inputId, fieldKey)
-    ),
-    getAdvancedOptionMenu: (fieldKey: FieldKeyType) => getActiveModelConfig().getAdvancedOptionMenu(state, fieldKey),
-    getResultSections: () => getActiveModelConfig().getResultSections(state, getVisibleInputIds()),
+    getInputControls: () => {
+      const context = getModelContext(state.ui.selectedModel);
+      return getActiveModelConfig().controls
+        .map((control) => control.behavior.buildViewModel(context))
+        .filter((control) => !control.hidden);
+    },
+    getResultSections: () => state.ui.resultSectionsByModel[state.ui.selectedModel],
     getCurrentChartResult: () => state.ui.chartResultsByModel[state.ui.selectedModel][getCurrentSelectedChartId()] ?? null,
     getCurrentChartEmptyMessage: () => chartMetaById[getCurrentSelectedChartId()].emptyMessage,
-    getCurrentChartOptions: () => getActiveModelConfig().getChartOptions(),
+    getCurrentChartOptions: () => getActiveModelConfig().chartIds.map((chartId) => ({
+      name: chartMetaById[chartId].name,
+      value: chartId,
+    })),
     getCurrentSelectedChart: () => getCurrentSelectedChartId(),
     getCurrentChartHeightClass: () => chartMetaById[getCurrentSelectedChartId()].heightClass,
   };
@@ -267,7 +314,8 @@ export function createComfortToolState(): ComfortToolController {
       const modelConfig = getComfortModelConfig(selectedModel);
       const calculationOutputs = modelConfig.calculate(state, getVisibleInputIds());
 
-      state.ui.resultsByModel[selectedModel] = calculationOutputs.resultsByInput as typeof state.ui.resultsByModel[typeof selectedModel];
+      state.ui.resultsByModel[selectedModel] = calculationOutputs.resultsByInput;
+      state.ui.resultSectionsByModel[selectedModel] = calculationOutputs.resultSections;
       state.ui.chartResultsByModel[selectedModel] = {
         ...state.ui.chartResultsByModel[selectedModel],
         ...calculationOutputs.chartResults,
@@ -328,12 +376,23 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
   }
 
-  function setModelOption(optionKey: ModelOptionIdType, nextValue: string) {
-    const modelConfig = getComfortModelConfig(state.ui.selectedModel);
-    if (!modelConfig.setOption(state, optionKey, nextValue)) {
+  function setModelOption(optionKey: OptionKeyType, nextValue: string) {
+    const modelConfig = getActiveModelConfig();
+    const context = getModelContext(state.ui.selectedModel);
+    const patch = modelConfig.controls.reduce<BehaviorPatch | null>((accumulator, control) => {
+      const nextPatch = control.behavior.applyOptionChange?.(context, optionKey, nextValue);
+      if (!nextPatch) {
+        return accumulator;
+      }
+
+      return accumulator ? mergeBehaviorPatches(accumulator, nextPatch) : nextPatch;
+    }, null);
+
+    if (!patch) {
       return;
     }
 
+    applyBehaviorPatch(patch);
     scheduleCalculation({ immediate: true });
   }
 
@@ -384,9 +443,18 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
 
-  function updateInput(inputId: InputIdType, fieldKey: FieldKeyType, rawValue: string) {
-    const modelConfig = getComfortModelConfig(state.ui.selectedModel);
-    modelConfig.updateInput(state, inputId, fieldKey, rawValue);
+  function updateInput(inputId: InputIdType, controlId: InputControlIdType, rawValue: string) {
+    const control = getActiveModelConfig().controls.find((item) => item.id === controlId);
+    if (!control?.behavior.applyInput) {
+      return;
+    }
+
+    const patch = control.behavior.applyInput(getModelContext(state.ui.selectedModel), inputId, rawValue);
+    if (!patch) {
+      return;
+    }
+
+    applyBehaviorPatch(patch);
     scheduleCalculation();
   }
 

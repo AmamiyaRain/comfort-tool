@@ -26,7 +26,7 @@ export const utciStressCategoryOrder: UtciStressCategory[] = [
   UtciStressCategory.ExtremeHeatStress,
 ];
 
-export interface UtciStressBand {
+interface UtciStressBand {
   minimum: number;
   maximum: number;
   category: UtciStressCategory;

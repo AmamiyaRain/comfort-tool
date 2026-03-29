@@ -1,4 +1,4 @@
-export interface MetabolicActivityOption {
+interface MetabolicActivityOption {
   id: string;
   label: string;
   met: number;

@@ -1,7 +1,7 @@
 /**
  * Shared site-shell content for the frontend-only app frame.
  */
-export interface SiteLink {
+interface SiteLink {
   label: string;
   href: string;
   external?: boolean;

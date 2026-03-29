@@ -1,19 +1,17 @@
 /**
- * UTCI model adapter.
- * This config keeps UTCI-specific calculation and chart wiring isolated while reading canonical SI inputs from the
- * shared controller state and exposing a lean presentation layer to the UI.
+ * UTCI model definition.
+ * UTCI uses the shared control-driven contract with fixed numeric inputs and no advanced option menus.
  */
-import { ChartId, chartMetaById, type ChartId as ChartIdType } from "../../../models/chartOptions";
+import { ChartId, type ChartId as ChartIdType } from "../../../models/chartOptions";
 import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel } from "../../../models/comfortModels";
 import type { UtciChartInputsRequestDto, UtciResponseDto } from "../../../models/dto";
-import { FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
-import { buildUtciStressChart, buildUtciTemperatureChart, calculateUtci } from "../../../services/comfort";
-import { convertFieldValueFromSi, convertFieldValueToSi, formatDisplayValue } from "../../../services/units";
-import { refreshAllDerivedState, refreshDerivedStateForInput } from "../derivedState";
-import type { ComfortToolStateSlice, ModelOptionsState } from "../types";
-import type { ComfortModelConfig } from "./index";
+import { FieldKey } from "../../../models/fieldKeys";
+import { InputControlId } from "../../../models/inputControls";
+import { createNumericControlBehavior } from "../../../services/comfort/controls/numericControlBehavior";
+import { buildUtciStressChart, buildUtciTemperatureChart } from "../../../services/comfort/charts/utciCharts";
+import { calculateUtci } from "../../../services/comfort/utci";
+import type { ComfortModelDefinition } from "./index";
 
 const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
 
@@ -28,18 +26,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalizeUtciOptions(value: unknown): ModelOptionsState | null {
+function normalizeUtciOptions(value: unknown) {
   return isRecord(value) ? {} : null;
 }
 
-function getChartOptions() {
-  return utciChartIds.map((chartId) => ({
-    name: chartMetaById[chartId].name,
-    value: chartId,
-  }));
-}
-
-function toUtciRequest(state: ComfortToolStateSlice, inputId: InputIdType) {
+function toUtciRequest(state, inputId: InputIdType) {
   const inputs = state.inputsByInput[inputId];
   return {
     tdb: Number(inputs[FieldKey.DryBulbTemperature]),
@@ -51,7 +42,7 @@ function toUtciRequest(state: ComfortToolStateSlice, inputId: InputIdType) {
 }
 
 function toUtciChartInputsRequest(
-  state: ComfortToolStateSlice,
+  state,
   visibleInputIds: InputIdType[],
 ): UtciChartInputsRequestDto {
   return {
@@ -62,45 +53,72 @@ function toUtciChartInputsRequest(
   };
 }
 
-function formatRangeText(state: ComfortToolStateSlice, fieldKey: FieldKeyType): string {
-  const meta = fieldMetaByKey[fieldKey];
-  const minimum = formatDisplayValue(
-    convertFieldValueFromSi(fieldKey, meta.minValue, state.ui.unitSystem),
-    meta.decimals,
-  );
-  const maximum = formatDisplayValue(
-    convertFieldValueFromSi(fieldKey, meta.maxValue, state.ui.unitSystem),
-    meta.decimals,
-  );
-  return `From ${minimum} to ${maximum}`;
+function buildUtciResultSections(
+  results: Record<InputIdType, UtciResponseDto | null>,
+  visibleInputIds: InputIdType[],
+) {
+  return [
+    {
+      title: "UTCI",
+      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+        const result = results[inputId];
+        accumulator[inputId] = result
+          ? { text: `${result.utci.toFixed(1)} C`, toneClass: "text-base font-semibold text-stone-900" }
+          : null;
+        return accumulator;
+      }, {}),
+    },
+    {
+      title: "Stress Category",
+      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
+        const result = results[inputId];
+        accumulator[inputId] = result
+          ? { text: result.stressCategory, toneClass: "font-medium text-stone-900" }
+          : null;
+        return accumulator;
+      }, {}),
+    },
+  ];
 }
 
-export const utciModelConfig: ComfortModelConfig<UtciResponseDto> = {
+export const utciModelConfig: ComfortModelDefinition<UtciResponseDto> = {
   id: ComfortModel.Utci,
+  controls: [
+    {
+      id: InputControlId.Temperature,
+      behavior: createNumericControlBehavior({
+        controlId: InputControlId.Temperature,
+        fieldKey: FieldKey.DryBulbTemperature,
+        refreshDerived: true,
+      }),
+    },
+    {
+      id: InputControlId.RadiantTemperature,
+      behavior: createNumericControlBehavior({
+        controlId: InputControlId.RadiantTemperature,
+        fieldKey: FieldKey.MeanRadiantTemperature,
+      }),
+    },
+    {
+      id: InputControlId.WindSpeed,
+      behavior: createNumericControlBehavior({
+        controlId: InputControlId.WindSpeed,
+        fieldKey: FieldKey.WindSpeed,
+      }),
+    },
+    {
+      id: InputControlId.Humidity,
+      behavior: createNumericControlBehavior({
+        controlId: InputControlId.Humidity,
+        fieldKey: FieldKey.RelativeHumidity,
+        refreshDerived: true,
+      }),
+    },
+  ],
   chartIds: utciChartIds,
   defaultChartId: ChartId.Stress,
   defaultOptions: {},
   normalizeOptions: normalizeUtciOptions,
-  getChartOptions,
-  fieldOrder: [
-    FieldKey.DryBulbTemperature,
-    FieldKey.MeanRadiantTemperature,
-    FieldKey.WindSpeed,
-    FieldKey.RelativeHumidity,
-  ],
-  syncDerivedState: (state) => {
-    refreshAllDerivedState(state);
-  },
-  setOption: () => false,
-  updateInput: (state, inputId, fieldKey, rawValue) => {
-    const nextValue = Number(rawValue);
-    if (Number.isNaN(nextValue)) {
-      return;
-    }
-
-    state.inputsByInput[inputId][fieldKey] = convertFieldValueToSi(fieldKey, nextValue, state.ui.unitSystem);
-    refreshDerivedStateForInput(state, inputId);
-  },
   calculate: (state, visibleInputIds) => {
     const resultsByInput = createEmptyUtciResults();
     visibleInputIds.forEach((inputId) => {
@@ -115,55 +133,7 @@ export const utciModelConfig: ComfortModelConfig<UtciResponseDto> = {
         [ChartId.Stress]: buildUtciStressChart(chartRequest, resultsByInput),
         [ChartId.AirTemperature]: buildUtciTemperatureChart(chartRequest, resultsByInput),
       },
+      resultSections: buildUtciResultSections(resultsByInput, visibleInputIds),
     };
-  },
-  getFieldPresentation: (state, fieldKey) => {
-    const meta = fieldMetaByKey[fieldKey];
-    return {
-      label: meta.label,
-      displayUnits: meta.displayUnits[state.ui.unitSystem],
-      step: meta.step,
-      decimals: meta.decimals,
-      rangeText: formatRangeText(state, fieldKey),
-      hidden: false,
-      showClothingBuilder: false,
-      showPresetInput: false,
-      presetOptions: [],
-      presetDecimals: meta.decimals,
-    };
-  },
-  getDisplayValue: (state, inputId, fieldKey) => {
-    const presentation = utciModelConfig.getFieldPresentation(state, fieldKey);
-    return formatDisplayValue(
-      convertFieldValueFromSi(fieldKey, state.inputsByInput[inputId][fieldKey], state.ui.unitSystem),
-      presentation.decimals,
-    );
-  },
-  getAdvancedOptionMenu: () => null,
-  getResultSections: (state, visibleInputIds) => {
-    const results = state.ui.resultsByModel[ComfortModel.Utci];
-
-    return [
-      {
-        title: "UTCI",
-        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-          const result = results[inputId];
-          accumulator[inputId] = result
-            ? { text: `${result.utci.toFixed(1)} C`, toneClass: "text-base font-semibold text-stone-900" }
-            : null;
-          return accumulator;
-        }, {}),
-      },
-      {
-        title: "Stress Category",
-        valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-          const result = results[inputId];
-          accumulator[inputId] = result
-            ? { text: result.stressCategory, toneClass: "font-medium text-stone-900" }
-            : null;
-          return accumulator;
-        }, {}),
-      },
-    ];
   },
 };

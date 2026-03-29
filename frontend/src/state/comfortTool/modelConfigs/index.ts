@@ -1,59 +1,34 @@
 /**
- * Registered comfort-model adapters.
- * Each model config owns field order, option handling, SI derived-state sync, calculations, chart assembly, and
- * UI presentation for that model.
+ * Registered comfort-model definitions.
+ * Definitions declare reusable input controls plus the calculation entrypoint for each model.
  */
 import type { InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../../../models/comfortModels";
 import type { PlotlyChartResponseDto } from "../../../models/dto";
-import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
-import type { ModelOptionId as ModelOptionIdType } from "../../../models/inputModes";
-import type {
-  AdvancedOptionMenu,
-  ComfortToolStateSlice,
-  FieldPresentation,
-  ResultSection,
-} from "../types";
+import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
+import type { InputControlDefinition } from "../../../services/comfort/controls/types";
+import type { ComfortToolStateSlice, ModelOptionsState, ResultSection } from "../types";
 import { pmvModelConfig } from "./pmv";
 import { utciModelConfig } from "./utci";
 
 export type ModelCalculationOutputs<ResultType> = {
   resultsByInput: Record<InputIdType, ResultType | null>;
   chartResults: Partial<Record<ChartIdType, PlotlyChartResponseDto | null>>;
+  resultSections: ResultSection[];
 };
 
-export interface ComfortModelConfig<ResultType> {
+export interface ComfortModelDefinition<ResultType> {
   id: ComfortModelType;
+  controls: InputControlDefinition[];
   chartIds: ChartIdType[];
   defaultChartId: ChartIdType;
-  defaultOptions: Partial<Record<ModelOptionIdType, string>>;
-  normalizeOptions: (value: unknown) => Partial<Record<ModelOptionIdType, string>> | null;
-  getChartOptions: () => Array<{ name: string; value: ChartIdType }>;
-  fieldOrder: FieldKeyType[];
-  syncDerivedState: (state: ComfortToolStateSlice) => void;
-  setOption: (state: ComfortToolStateSlice, optionKey: ModelOptionIdType, nextValue: string) => boolean;
-  updateInput: (
-    state: ComfortToolStateSlice,
-    inputId: InputIdType,
-    fieldKey: FieldKeyType,
-    rawValue: string,
-  ) => void;
+  defaultOptions: Partial<Record<OptionKeyType, string>>;
+  normalizeOptions: (value: unknown) => ModelOptionsState | null;
   calculate: (
     state: ComfortToolStateSlice,
     visibleInputIds: InputIdType[],
   ) => ModelCalculationOutputs<ResultType>;
-  getFieldPresentation: (state: ComfortToolStateSlice, fieldKey: FieldKeyType) => FieldPresentation;
-  getDisplayValue: (
-    state: ComfortToolStateSlice,
-    inputId: InputIdType,
-    fieldKey: FieldKeyType,
-  ) => string;
-  getAdvancedOptionMenu: (state: ComfortToolStateSlice, fieldKey: FieldKeyType) => AdvancedOptionMenu;
-  getResultSections: (
-    state: ComfortToolStateSlice,
-    visibleInputIds: InputIdType[],
-  ) => ResultSection[];
 }
 
 export const comfortModelConfigs = {

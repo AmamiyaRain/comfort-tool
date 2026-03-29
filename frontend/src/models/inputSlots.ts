@@ -10,26 +10,22 @@ export type InputId = (typeof InputId)[keyof typeof InputId];
 
 export const inputOrder: InputId[] = [InputId.Input1, InputId.Input2, InputId.Input3];
 
-export type InputDefaults = Record<FieldKeyType, number>;
-export type InputTone = "red" | "green" | "blue";
+type InputDefaults = Record<FieldKeyType, number>;
+type InputTone = "red" | "green" | "blue";
 
-export interface InputChartStyle {
+interface InputChartStyle {
   line: string;
   fill: string;
   marker: string;
 }
 
-export interface InputUiStyle {
+interface InputUiStyle {
   inputToggleVisibleClass: string;
   inputToggleHiddenClass: string;
   clothingTargetActiveClass: string;
   clothingTargetInactiveClass: string;
   resultCellClass: string;
   resultActiveRingClass: string;
-}
-
-export function getInputIndex(inputId: InputId): number {
-  return inputOrder.indexOf(inputId) + 1;
 }
 
 export const inputDefaultsById: Record<InputId, InputDefaults> = {
