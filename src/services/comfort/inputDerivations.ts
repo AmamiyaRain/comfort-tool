@@ -59,6 +59,8 @@ export function normalizePmvOptions(options: ModelOptionsRecord): PmvModelOption
   } as PmvModelOptions;
 }
 
+export const normalizeControlOptions = normalizePmvOptions;
+
 export function derivePsychrometricStateFromRelativeHumidity(
   dryBulbTemperature: number,
   relativeHumidity: number,
@@ -229,6 +231,8 @@ export function synchronizePmvInputState(
   };
 }
 
+export const synchronizeControlInputState = synchronizePmvInputState;
+
 export function applyOperativeTemperatureMode(
   inputState: CanonicalInputState,
   derivedState: CanonicalDerivedState,
@@ -254,6 +258,8 @@ export function applyOperativeTemperatureMode(
     options,
   );
 }
+
+export const applyOperativeTemperatureControlMode = applyOperativeTemperatureMode;
 
 export function predictClothingInsulationFromOutdoorTemperature(
   outdoorTemperature: number,

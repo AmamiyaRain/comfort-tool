@@ -8,7 +8,7 @@ import { ComfortModel } from "../../../models/comfortModels";
 import type { UtciChartInputsRequestDto, UtciResponseDto } from "../../../models/dto";
 import { FieldKey } from "../../../models/fieldKeys";
 import { InputControlId } from "../../../models/inputControls";
-import { createNumericControlBehavior } from "../../../services/comfort/controls/numericControlBehavior";
+import { createControlBehavior } from "../../../services/comfort/controls/controlBehaviors";
 import { buildUtciStressChart, buildUtciTemperatureChart } from "../../../services/comfort/charts/utciCharts";
 import { calculateUtci } from "../../../services/comfort/utci";
 import type { ComfortModelDefinition } from "./index";
@@ -86,7 +86,7 @@ export const utciModelConfig: ComfortModelDefinition<UtciResponseDto> = {
   controls: [
     {
       id: InputControlId.Temperature,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.Temperature,
         fieldKey: FieldKey.DryBulbTemperature,
         refreshDerived: true,
@@ -94,21 +94,21 @@ export const utciModelConfig: ComfortModelDefinition<UtciResponseDto> = {
     },
     {
       id: InputControlId.RadiantTemperature,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.RadiantTemperature,
         fieldKey: FieldKey.MeanRadiantTemperature,
       }),
     },
     {
       id: InputControlId.WindSpeed,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.WindSpeed,
         fieldKey: FieldKey.WindSpeed,
       }),
     },
     {
       id: InputControlId.Humidity,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.Humidity,
         fieldKey: FieldKey.RelativeHumidity,
         refreshDerived: true,

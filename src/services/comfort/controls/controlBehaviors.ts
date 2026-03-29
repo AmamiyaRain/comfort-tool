@@ -1,0 +1,672 @@
+import { ChartId } from "../../../models/chartOptions";
+import {
+  DerivedInputId,
+  FieldKey,
+  type DerivedInputId as DerivedInputIdType,
+  type FieldKey as FieldKeyType,
+} from "../../../models/fieldKeys";
+import { fieldMetaByKey, type FieldMeta } from "../../../models/fieldMeta";
+import type {
+  AdvancedOptionMenu,
+  AdvancedOptionSection,
+  InputControlId as InputControlIdType,
+  PresetInputOption,
+} from "../../../models/inputControls";
+import {
+  AirSpeedControlMode,
+  AirSpeedInputMode,
+  HumidityInputMode,
+  OptionKey,
+  TemperatureMode,
+  type AirSpeedControlMode as AirSpeedControlModeType,
+  type AirSpeedInputMode as AirSpeedInputModeType,
+  type HumidityInputMode as HumidityInputModeType,
+  type TemperatureMode as TemperatureModeType,
+} from "../../../models/inputModes";
+import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
+import {
+  convertFieldValueFromSi,
+  convertFieldValueToSi,
+  convertHumidityRatioFromSi,
+  convertHumidityRatioToSi,
+  convertVaporPressureFromSi,
+  convertVaporPressureToSi,
+  formatDisplayValue,
+  getHumidityRatioDisplayMeta,
+  getVaporPressureDisplayMeta,
+} from "../../units";
+import {
+  applyOperativeTemperatureControlMode,
+  deriveInputDerivedState,
+  normalizeControlOptions,
+  synchronizeControlInputState,
+} from "../inputDerivations";
+import type { BehaviorPatch, ControlBehaviorContext, InputControlBehavior } from "./types";
+import { createSingleInputPatch } from "./types";
+
+type PresentationMeta = {
+  label: string;
+  displayUnits: string;
+  step: number;
+  decimals: number;
+  rangeText: string;
+};
+
+type MenuItemDefinition<Value extends string> = {
+  label: string;
+  description: string;
+  value: Value;
+};
+
+type ControlBehaviorConfig = {
+  controlId: InputControlIdType;
+  fieldKey: FieldKeyType;
+  getPresentation?: (context: ControlBehaviorContext, meta: FieldMeta) => PresentationMeta;
+  hidden?: (context: ControlBehaviorContext) => boolean;
+  getMenu?: (context: ControlBehaviorContext) => AdvancedOptionMenu;
+  presetOptions?: PresetInputOption[];
+  presetDecimals?: number;
+  showClothingBuilder?: boolean;
+  getDisplayValue?: (context: ControlBehaviorContext, inputId: InputIdType) => number;
+  parseInput?: (context: ControlBehaviorContext, nextValue: number) => number | null;
+  refreshDerived?: boolean;
+  applyInput?: (
+    context: ControlBehaviorContext,
+    inputId: InputIdType,
+    nextValue: number,
+  ) => BehaviorPatch | null;
+  applyOptionChange?: (
+    context: ControlBehaviorContext,
+    optionKey: typeof OptionKey[keyof typeof OptionKey],
+    nextValue: string,
+  ) => BehaviorPatch | null;
+};
+
+const temperatureModeValues = Object.values(TemperatureMode);
+const airSpeedInputModeValues = Object.values(AirSpeedInputMode);
+const airSpeedControlModeValues = Object.values(AirSpeedControlMode);
+const humidityInputModeValues = Object.values(HumidityInputMode);
+
+const temperatureMenuItems: MenuItemDefinition<TemperatureModeType>[] = [
+  {
+    label: "Air temperature",
+    description: "Use dry-bulb air temperature and keep radiant temperature separate.",
+    value: TemperatureMode.Air,
+  },
+  {
+    label: "Operative temp",
+    description: "Treat operative temperature as the single temperature input.",
+    value: TemperatureMode.Operative,
+  },
+];
+
+const airSpeedInputMenuItems: MenuItemDefinition<AirSpeedInputModeType>[] = [
+  {
+    label: "Relative air speed",
+    description: "Use the relative air speed value directly.",
+    value: AirSpeedInputMode.Relative,
+  },
+  {
+    label: "Measured air speed",
+    description: "Enter measured air speed and derive relative air speed from activity.",
+    value: AirSpeedInputMode.Measured,
+  },
+];
+
+const airSpeedControlMenuItems: MenuItemDefinition<AirSpeedControlModeType>[] = [
+  {
+    label: "No local control",
+    description: "Assume occupants do not have local control over elevated air speed.",
+    value: AirSpeedControlMode.NoLocalControl,
+  },
+  {
+    label: "With local control",
+    description: "Assume occupants can locally control elevated air speed.",
+    value: AirSpeedControlMode.WithLocalControl,
+  },
+];
+
+const humidityMenuItems: MenuItemDefinition<HumidityInputModeType>[] = [
+  {
+    label: "Relative humidity",
+    description: "Input relative humidity as a percentage.",
+    value: HumidityInputMode.RelativeHumidity,
+  },
+  {
+    label: "Humidity ratio",
+    description: "Hold absolute moisture content constant.",
+    value: HumidityInputMode.HumidityRatio,
+  },
+  {
+    label: "Dew point",
+    description: "Keep dew point fixed and derive relative humidity from dry-bulb temperature.",
+    value: HumidityInputMode.DewPoint,
+  },
+  {
+    label: "Wet bulb",
+    description: "Input wet-bulb temperature instead of relative humidity.",
+    value: HumidityInputMode.WetBulb,
+  },
+  {
+    label: "Vapor pressure",
+    description: "Input vapor pressure directly.",
+    value: HumidityInputMode.VaporPressure,
+  },
+];
+
+function isTemperatureMode(value: string): value is TemperatureModeType {
+  return temperatureModeValues.includes(value as TemperatureModeType);
+}
+
+function isAirSpeedInputMode(value: string): value is AirSpeedInputModeType {
+  return airSpeedInputModeValues.includes(value as AirSpeedInputModeType);
+}
+
+function isAirSpeedControlMode(value: string): value is AirSpeedControlModeType {
+  return airSpeedControlModeValues.includes(value as AirSpeedControlModeType);
+}
+
+function isHumidityInputMode(value: string): value is HumidityInputModeType {
+  return humidityInputModeValues.includes(value as HumidityInputModeType);
+}
+
+function buildRangeText(meta: FieldMeta, context: ControlBehaviorContext): string {
+  const minimum = formatDisplayValue(
+    convertFieldValueFromSi(meta.key, meta.minValue, context.unitSystem),
+    meta.decimals,
+  );
+  const maximum = formatDisplayValue(
+    convertFieldValueFromSi(meta.key, meta.maxValue, context.unitSystem),
+    meta.decimals,
+  );
+  return `From ${minimum} to ${maximum}`;
+}
+
+function buildDefaultPresentation(context: ControlBehaviorContext, meta: FieldMeta): PresentationMeta {
+  return {
+    label: meta.label,
+    displayUnits: meta.displayUnits[context.unitSystem],
+    step: meta.step,
+    decimals: meta.decimals,
+    rangeText: buildRangeText(meta, context),
+  };
+}
+
+function buildAdvancedOptionSection<Value extends string>(
+  title: string | undefined,
+  optionKey: typeof OptionKey[keyof typeof OptionKey],
+  activeValue: string,
+  items: MenuItemDefinition<Value>[],
+): AdvancedOptionSection {
+  return {
+    title,
+    items: items.map((item) => ({
+      ...item,
+      optionKey,
+      active: activeValue === item.value,
+    })),
+  };
+}
+
+function buildAdvancedOptionMenu(title: string, sections: AdvancedOptionSection[]): AdvancedOptionMenu {
+  return {
+    title,
+    sections,
+  };
+}
+
+function buildAllInputSyncPatch(
+  context: ControlBehaviorContext,
+  optionsPatch: Partial<Record<typeof OptionKey[keyof typeof OptionKey], string>>,
+  updater: (
+    inputId: InputIdType,
+  ) => {
+    inputState: Record<typeof FieldKey[keyof typeof FieldKey], number>;
+    derivedState: Partial<Record<DerivedInputIdType, number>>;
+  },
+): BehaviorPatch {
+  const inputsPatch = {} as BehaviorPatch["inputsPatch"];
+  const derivedPatch = {} as BehaviorPatch["derivedPatch"];
+
+  inputOrder.forEach((inputId) => {
+    const nextState = updater(inputId);
+    inputsPatch[inputId] = nextState.inputState;
+    derivedPatch[inputId] = nextState.derivedState;
+  });
+
+  return {
+    inputsPatch,
+    derivedPatch,
+    optionsPatch,
+  };
+}
+
+function getDefaultDisplayValue(
+  context: ControlBehaviorContext,
+  inputId: InputIdType,
+  fieldKey: FieldKeyType,
+): number {
+  return convertFieldValueFromSi(fieldKey, context.inputsByInput[inputId][fieldKey], context.unitSystem);
+}
+
+export function createControlBehavior(config: ControlBehaviorConfig): InputControlBehavior {
+  const meta = fieldMetaByKey[config.fieldKey];
+
+  return {
+    buildViewModel: (context) => {
+      const presentation = config.getPresentation?.(context, meta) ?? buildDefaultPresentation(context, meta);
+      return {
+        id: config.controlId,
+        label: presentation.label,
+        displayUnits: presentation.displayUnits,
+        rangeText: presentation.rangeText,
+        hidden: config.hidden?.(context) ?? false,
+        editorKind: config.presetOptions?.length ? "preset" : "number",
+        step: presentation.step,
+        menu: config.getMenu?.(context) ?? null,
+        presetOptions: config.presetOptions ?? [],
+        presetDecimals: config.presetDecimals ?? presentation.decimals,
+        showClothingBuilder: config.showClothingBuilder ?? false,
+        displayValuesByInput: context.visibleInputIds.reduce((accumulator, inputId) => {
+          const value = config.getDisplayValue?.(context, inputId) ??
+            getDefaultDisplayValue(context, inputId, config.fieldKey);
+          accumulator[inputId] = formatDisplayValue(value, presentation.decimals);
+          return accumulator;
+        }, {} as Record<InputIdType, string>),
+        numericValuesByInput: context.visibleInputIds.reduce((accumulator, inputId) => {
+          accumulator[inputId] = config.getDisplayValue?.(context, inputId) ??
+            getDefaultDisplayValue(context, inputId, config.fieldKey);
+          return accumulator;
+        }, {} as Record<InputIdType, number>),
+      };
+    },
+    applyInput: (context, inputId, rawValue) => {
+      const parsedValue = Number(rawValue);
+      if (Number.isNaN(parsedValue)) {
+        return null;
+      }
+
+      const nextValue = config.parseInput?.(context, parsedValue) ??
+        convertFieldValueToSi(config.fieldKey, parsedValue, context.unitSystem);
+
+      if (nextValue === null) {
+        return null;
+      }
+
+      if (config.applyInput) {
+        return config.applyInput(context, inputId, nextValue);
+      }
+
+      const nextInputState = {
+        ...context.inputsByInput[inputId],
+        [config.fieldKey]: nextValue,
+      };
+
+      return createSingleInputPatch(
+        inputId,
+        nextInputState,
+        config.refreshDerived ? deriveInputDerivedState(nextInputState) : undefined,
+      );
+    },
+    applyOptionChange: config.applyOptionChange,
+  };
+}
+
+export function createTemperatureControlBehavior(controlId: InputControlIdType): InputControlBehavior {
+  const temperatureMeta = fieldMetaByKey[FieldKey.DryBulbTemperature];
+
+  return createControlBehavior({
+    controlId,
+    fieldKey: FieldKey.DryBulbTemperature,
+    getPresentation: (context) => {
+      const temperatureMode = normalizeControlOptions(context.options)[OptionKey.TemperatureMode];
+      return {
+        label: temperatureMode === TemperatureMode.Operative ? "Operative temperature" : temperatureMeta.label,
+        displayUnits: temperatureMeta.displayUnits[context.unitSystem],
+        step: temperatureMeta.step,
+        decimals: temperatureMeta.decimals,
+        rangeText: buildRangeText(temperatureMeta, context),
+      };
+    },
+    getMenu: (context) => {
+      const temperatureMode = normalizeControlOptions(context.options)[OptionKey.TemperatureMode];
+      if (
+        context.selectedChartId !== ChartId.Psychrometric &&
+        temperatureMode !== TemperatureMode.Operative
+      ) {
+        return null;
+      }
+
+      return buildAdvancedOptionMenu("Temperature input", [
+        buildAdvancedOptionSection(
+          undefined,
+          OptionKey.TemperatureMode,
+          temperatureMode,
+          temperatureMenuItems,
+        ),
+      ]);
+    },
+    applyInput: (context, inputId, nextValueSi) => {
+      const options = normalizeControlOptions(context.options);
+      const nextInputState = {
+        ...context.inputsByInput[inputId],
+        [FieldKey.DryBulbTemperature]: nextValueSi,
+        ...(options[OptionKey.TemperatureMode] === TemperatureMode.Operative ? {
+          [FieldKey.MeanRadiantTemperature]: nextValueSi,
+        } : {}),
+      };
+      const synchronizedState = synchronizeControlInputState(
+        nextInputState,
+        context.derivedByInput[inputId],
+        context.options,
+      );
+      return createSingleInputPatch(inputId, synchronizedState.inputState, synchronizedState.derivedState);
+    },
+    applyOptionChange: (context, optionKey, nextValue) => {
+      if (optionKey !== OptionKey.TemperatureMode || !isTemperatureMode(nextValue)) {
+        return null;
+      }
+
+      const currentOptions = normalizeControlOptions(context.options);
+      if (currentOptions[optionKey] === nextValue) {
+        return null;
+      }
+
+      const nextOptions = {
+        ...context.options,
+        [optionKey]: nextValue,
+      };
+
+      return buildAllInputSyncPatch(
+        context,
+        { [optionKey]: nextValue },
+        (inputId) => (
+          nextValue === TemperatureMode.Operative
+            ? applyOperativeTemperatureControlMode(
+                context.inputsByInput[inputId],
+                context.derivedByInput[inputId],
+                nextOptions,
+              )
+            : synchronizeControlInputState(
+                context.inputsByInput[inputId],
+                context.derivedByInput[inputId],
+                nextOptions,
+              )
+        ),
+      );
+    },
+  });
+}
+
+export function createAirSpeedControlBehavior(controlId: InputControlIdType): InputControlBehavior {
+  const airSpeedMeta = fieldMetaByKey[FieldKey.RelativeAirSpeed];
+
+  return createControlBehavior({
+    controlId,
+    fieldKey: FieldKey.RelativeAirSpeed,
+    getPresentation: (context) => {
+      const airSpeedMode = normalizeControlOptions(context.options)[OptionKey.AirSpeedInputMode];
+      return {
+        label: airSpeedMode === AirSpeedInputMode.Measured ? "Measured air speed" : "Relative air speed",
+        displayUnits: airSpeedMeta.displayUnits[context.unitSystem],
+        step: airSpeedMeta.step,
+        decimals: airSpeedMeta.decimals,
+        rangeText: buildRangeText(airSpeedMeta, context),
+      };
+    },
+    getMenu: (context) => {
+      const options = normalizeControlOptions(context.options);
+      return buildAdvancedOptionMenu("Air speed options", [
+        buildAdvancedOptionSection(
+          "Input mode",
+          OptionKey.AirSpeedInputMode,
+          options[OptionKey.AirSpeedInputMode],
+          airSpeedInputMenuItems,
+        ),
+        buildAdvancedOptionSection(
+          "Occupant control",
+          OptionKey.AirSpeedControlMode,
+          options[OptionKey.AirSpeedControlMode],
+          airSpeedControlMenuItems,
+        ),
+      ]);
+    },
+    getDisplayValue: (context, inputId) => {
+      const airSpeedMode = normalizeControlOptions(context.options)[OptionKey.AirSpeedInputMode];
+      const sourceValue = airSpeedMode === AirSpeedInputMode.Measured
+        ? context.derivedByInput[inputId][DerivedInputId.MeasuredAirSpeed] ?? 0
+        : context.inputsByInput[inputId][FieldKey.RelativeAirSpeed];
+
+      return convertFieldValueFromSi(FieldKey.RelativeAirSpeed, sourceValue, context.unitSystem);
+    },
+    applyInput: (context, inputId, nextValueSi) => {
+      const airSpeedMode = normalizeControlOptions(context.options)[OptionKey.AirSpeedInputMode];
+      const nextInputState = {
+        ...context.inputsByInput[inputId],
+      };
+      const nextDerivedState = {
+        ...context.derivedByInput[inputId],
+      };
+
+      if (airSpeedMode === AirSpeedInputMode.Measured) {
+        nextDerivedState[DerivedInputId.MeasuredAirSpeed] = nextValueSi;
+      } else {
+        nextInputState[FieldKey.RelativeAirSpeed] = nextValueSi;
+      }
+
+      const synchronizedState = synchronizeControlInputState(nextInputState, nextDerivedState, context.options);
+      return createSingleInputPatch(inputId, synchronizedState.inputState, synchronizedState.derivedState);
+    },
+    applyOptionChange: (context, optionKey, nextValue) => {
+      if (optionKey === OptionKey.AirSpeedControlMode) {
+        if (!isAirSpeedControlMode(nextValue)) {
+          return null;
+        }
+
+        const currentOptions = normalizeControlOptions(context.options);
+        if (currentOptions[optionKey] === nextValue) {
+          return null;
+        }
+
+        return {
+          optionsPatch: {
+            [optionKey]: nextValue,
+          },
+        };
+      }
+
+      if (optionKey !== OptionKey.AirSpeedInputMode || !isAirSpeedInputMode(nextValue)) {
+        return null;
+      }
+
+      const currentOptions = normalizeControlOptions(context.options);
+      if (currentOptions[optionKey] === nextValue) {
+        return null;
+      }
+
+      const nextOptions = {
+        ...context.options,
+        [optionKey]: nextValue,
+      };
+
+      return buildAllInputSyncPatch(
+        context,
+        { [optionKey]: nextValue },
+        (inputId) => synchronizeControlInputState(
+          context.inputsByInput[inputId],
+          context.derivedByInput[inputId],
+          nextOptions,
+        ),
+      );
+    },
+  });
+}
+
+export function createHumidityControlBehavior(controlId: InputControlIdType): InputControlBehavior {
+  const relativeHumidityMeta = fieldMetaByKey[FieldKey.RelativeHumidity];
+  const temperatureMeta = fieldMetaByKey[FieldKey.DryBulbTemperature];
+
+  return createControlBehavior({
+    controlId,
+    fieldKey: FieldKey.RelativeHumidity,
+    getPresentation: (context) => {
+      const humidityMode = normalizeControlOptions(context.options)[OptionKey.HumidityInputMode];
+
+      if (humidityMode === HumidityInputMode.DewPoint) {
+        return {
+          label: "Dew point",
+          displayUnits: temperatureMeta.displayUnits[context.unitSystem],
+          step: temperatureMeta.step,
+          decimals: temperatureMeta.decimals,
+          rangeText: "",
+        };
+      }
+
+      if (humidityMode === HumidityInputMode.HumidityRatio) {
+        return {
+          label: "Humidity ratio",
+          ...getHumidityRatioDisplayMeta(context.unitSystem),
+          rangeText: "",
+        };
+      }
+
+      if (humidityMode === HumidityInputMode.WetBulb) {
+        return {
+          label: "Wet-bulb temperature",
+          displayUnits: temperatureMeta.displayUnits[context.unitSystem],
+          step: temperatureMeta.step,
+          decimals: temperatureMeta.decimals,
+          rangeText: "",
+        };
+      }
+
+      if (humidityMode === HumidityInputMode.VaporPressure) {
+        return {
+          label: "Vapor pressure",
+          ...getVaporPressureDisplayMeta(context.unitSystem),
+          rangeText: "",
+        };
+      }
+
+      return {
+        label: relativeHumidityMeta.label,
+        displayUnits: relativeHumidityMeta.displayUnits[context.unitSystem],
+        step: relativeHumidityMeta.step,
+        decimals: relativeHumidityMeta.decimals,
+        rangeText: buildRangeText(relativeHumidityMeta, context),
+      };
+    },
+    getMenu: (context) => buildAdvancedOptionMenu("Humidity input", [
+      buildAdvancedOptionSection(
+        undefined,
+        OptionKey.HumidityInputMode,
+        normalizeControlOptions(context.options)[OptionKey.HumidityInputMode],
+        humidityMenuItems,
+      ),
+    ]),
+    getDisplayValue: (context, inputId) => {
+      const humidityMode = normalizeControlOptions(context.options)[OptionKey.HumidityInputMode];
+      const derivedState = context.derivedByInput[inputId];
+
+      if (humidityMode === HumidityInputMode.DewPoint) {
+        return convertFieldValueFromSi(
+          FieldKey.DryBulbTemperature,
+          derivedState[DerivedInputId.DewPoint] ?? 0,
+          context.unitSystem,
+        );
+      }
+
+      if (humidityMode === HumidityInputMode.HumidityRatio) {
+        return convertHumidityRatioFromSi(derivedState[DerivedInputId.HumidityRatio] ?? 0, context.unitSystem);
+      }
+
+      if (humidityMode === HumidityInputMode.WetBulb) {
+        return convertFieldValueFromSi(
+          FieldKey.DryBulbTemperature,
+          derivedState[DerivedInputId.WetBulb] ?? 0,
+          context.unitSystem,
+        );
+      }
+
+      if (humidityMode === HumidityInputMode.VaporPressure) {
+        return convertVaporPressureFromSi(derivedState[DerivedInputId.VaporPressure] ?? 0, context.unitSystem);
+      }
+
+      return convertFieldValueFromSi(
+        FieldKey.RelativeHumidity,
+        context.inputsByInput[inputId][FieldKey.RelativeHumidity],
+        context.unitSystem,
+      );
+    },
+    parseInput: (context, nextValue) => {
+      const humidityMode = normalizeControlOptions(context.options)[OptionKey.HumidityInputMode];
+
+      if (humidityMode === HumidityInputMode.DewPoint) {
+        return convertFieldValueToSi(FieldKey.DryBulbTemperature, nextValue, context.unitSystem);
+      }
+
+      if (humidityMode === HumidityInputMode.HumidityRatio) {
+        return convertHumidityRatioToSi(nextValue, context.unitSystem);
+      }
+
+      if (humidityMode === HumidityInputMode.WetBulb) {
+        return convertFieldValueToSi(FieldKey.DryBulbTemperature, nextValue, context.unitSystem);
+      }
+
+      if (humidityMode === HumidityInputMode.VaporPressure) {
+        return convertVaporPressureToSi(nextValue, context.unitSystem);
+      }
+
+      return convertFieldValueToSi(FieldKey.RelativeHumidity, nextValue, context.unitSystem);
+    },
+    applyInput: (context, inputId, nextValue) => {
+      const humidityMode = normalizeControlOptions(context.options)[OptionKey.HumidityInputMode];
+      const nextInputState = {
+        ...context.inputsByInput[inputId],
+      };
+      const nextDerivedState = {
+        ...context.derivedByInput[inputId],
+      };
+
+      if (humidityMode === HumidityInputMode.DewPoint) {
+        nextDerivedState[DerivedInputId.DewPoint] = nextValue;
+      } else if (humidityMode === HumidityInputMode.HumidityRatio) {
+        nextDerivedState[DerivedInputId.HumidityRatio] = nextValue;
+      } else if (humidityMode === HumidityInputMode.WetBulb) {
+        nextDerivedState[DerivedInputId.WetBulb] = nextValue;
+      } else if (humidityMode === HumidityInputMode.VaporPressure) {
+        nextDerivedState[DerivedInputId.VaporPressure] = nextValue;
+      } else {
+        nextInputState[FieldKey.RelativeHumidity] = nextValue;
+      }
+
+      const synchronizedState = synchronizeControlInputState(nextInputState, nextDerivedState, context.options);
+      return createSingleInputPatch(inputId, synchronizedState.inputState, synchronizedState.derivedState);
+    },
+    applyOptionChange: (context, optionKey, nextValue) => {
+      if (optionKey !== OptionKey.HumidityInputMode || !isHumidityInputMode(nextValue)) {
+        return null;
+      }
+
+      const currentOptions = normalizeControlOptions(context.options);
+      if (currentOptions[optionKey] === nextValue) {
+        return null;
+      }
+
+      const nextOptions = {
+        ...context.options,
+        [optionKey]: nextValue,
+      };
+
+      return buildAllInputSyncPatch(
+        context,
+        { [optionKey]: nextValue },
+        (inputId) => synchronizeControlInputState(
+          context.inputsByInput[inputId],
+          context.derivedByInput[inputId],
+          nextOptions,
+        ),
+      );
+    },
+  });
+}

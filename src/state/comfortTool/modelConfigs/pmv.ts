@@ -36,13 +36,11 @@ import {
   synchronizePmvInputState,
 } from "../../../services/comfort/inputDerivations";
 import {
-  createNumericControlBehavior,
-} from "../../../services/comfort/controls/numericControlBehavior";
-import {
-  createPmvAirSpeedControlBehavior,
-  createPmvHumidityControlBehavior,
-  createPmvTemperatureControlBehavior,
-} from "../../../services/comfort/controls/pmvControlBehaviors";
+  createAirSpeedControlBehavior,
+  createControlBehavior,
+  createHumidityControlBehavior,
+  createTemperatureControlBehavior,
+} from "../../../services/comfort/controls/controlBehaviors";
 import { createSingleInputPatch } from "../../../services/comfort/controls/types";
 import type { ComfortModelDefinition } from "./index";
 
@@ -212,11 +210,11 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
   controls: [
     {
       id: InputControlId.Temperature,
-      behavior: createPmvTemperatureControlBehavior(InputControlId.Temperature),
+      behavior: createTemperatureControlBehavior(InputControlId.Temperature),
     },
     {
       id: InputControlId.RadiantTemperature,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.RadiantTemperature,
         fieldKey: FieldKey.MeanRadiantTemperature,
         hidden: (context) => (
@@ -226,22 +224,22 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
     },
     {
       id: InputControlId.AirSpeed,
-      behavior: createPmvAirSpeedControlBehavior(InputControlId.AirSpeed),
+      behavior: createAirSpeedControlBehavior(InputControlId.AirSpeed),
     },
     {
       id: InputControlId.Humidity,
-      behavior: createPmvHumidityControlBehavior(InputControlId.Humidity),
+      behavior: createHumidityControlBehavior(InputControlId.Humidity),
     },
     {
       id: InputControlId.MetabolicRate,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.MetabolicRate,
         fieldKey: FieldKey.MetabolicRate,
         presetOptions: metabolicPresetOptions,
-        applyInput: (context, inputId, nextValueSi) => {
+        applyInput: (context, inputId, nextValue) => {
           const nextInputState = {
             ...context.inputsByInput[inputId],
-            [FieldKey.MetabolicRate]: nextValueSi,
+            [FieldKey.MetabolicRate]: nextValue,
           };
           const synchronizedState = synchronizePmvInputState(
             nextInputState,
@@ -254,7 +252,7 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
     },
     {
       id: InputControlId.ClothingInsulation,
-      behavior: createNumericControlBehavior({
+      behavior: createControlBehavior({
         controlId: InputControlId.ClothingInsulation,
         fieldKey: FieldKey.ClothingInsulation,
         presetOptions: clothingPresetOptions,
