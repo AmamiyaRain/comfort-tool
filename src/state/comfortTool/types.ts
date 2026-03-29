@@ -39,9 +39,6 @@ export type UiState = {
   unitSystem: UnitSystemType;
   isLoading: boolean;
   errorMessage: string;
-  calculationCount: number;
-  lastCompletedAt: number;
-  resultRevision: number;
   resultsByModel: ResultsByModelState;
   resultSectionsByModel: ResultSectionsByModelState;
   chartResultsByModel: ChartResultsByModelState;
@@ -70,7 +67,6 @@ export type ComfortToolActions = {
   setCompareEnabled: (enabled: boolean) => void;
   setActiveInputId: (nextInputId: InputIdType) => void;
   toggleCompareInputVisibility: (inputId: InputIdType) => void;
-  setUnitSystem: (nextUnitSystem: UnitSystemType) => void;
   toggleUnitSystem: () => void;
   exportShareSnapshot: () => ShareStateSnapshot;
   applyShareSnapshot: (snapshot: ShareStateSnapshot) => void;

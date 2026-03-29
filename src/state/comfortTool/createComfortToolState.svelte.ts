@@ -180,9 +180,6 @@ export function createComfortToolState(): ComfortToolController {
     unitSystem: UnitSystem.SI,
     isLoading: false,
     errorMessage: "",
-    calculationCount: 0,
-    lastCompletedAt: 0,
-    resultRevision: 0,
     resultsByModel: createResultsByModel(),
     resultSectionsByModel: createResultSectionsByModel(),
     chartResultsByModel: createChartResultsByModel(),
@@ -200,11 +197,9 @@ export function createComfortToolState(): ComfortToolController {
     if (!options?.keepErrorMessage) {
       state.ui.errorMessage = "";
     }
-    state.ui.lastCompletedAt = 0;
     state.ui.resultsByModel = createResultsByModel();
     state.ui.resultSectionsByModel = createResultSectionsByModel();
     state.ui.chartResultsByModel = createChartResultsByModel();
-    state.ui.resultRevision += 1;
   }
 
   function getVisibleInputIds(): InputIdType[] {
@@ -302,7 +297,6 @@ export function createComfortToolState(): ComfortToolController {
 
     state.ui.isLoading = true;
     state.ui.errorMessage = "";
-    state.ui.calculationCount += 1;
 
     await yieldToNextFrame();
 
@@ -324,9 +318,6 @@ export function createComfortToolState(): ComfortToolController {
       if (calculationToken !== latestCalculationToken) {
         return;
       }
-
-      state.ui.lastCompletedAt = Date.now();
-      state.ui.resultRevision += 1;
     } catch (error) {
       if (calculationToken !== latestCalculationToken) {
         return;
@@ -435,10 +426,6 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculation({ immediate: true });
   }
 
-  function setUnitSystem(nextUnitSystem) {
-    state.ui.unitSystem = nextUnitSystem;
-  }
-
   function toggleUnitSystem() {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
@@ -465,7 +452,6 @@ export function createComfortToolState(): ComfortToolController {
     setCompareEnabled,
     setActiveInputId,
     toggleCompareInputVisibility,
-    setUnitSystem,
     toggleUnitSystem,
     exportShareSnapshot: () => exportShareSnapshot(state),
     applyShareSnapshot: (snapshot: ShareStateSnapshot) => applyShareSnapshot(state, snapshot, {

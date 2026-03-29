@@ -38,15 +38,12 @@
                 resultSections={toolState.selectors.getResultSections()}
                 errorMessage={toolState.state.ui.errorMessage}
                 isLoading={toolState.state.ui.isLoading}
-                lastCompletedAt={toolState.state.ui.lastCompletedAt}
-                resultRevision={toolState.state.ui.resultRevision}
                 embedded={true}
               />
               <ChartPanel
                 description=""
                 chartResult={toolState.selectors.getCurrentChartResult()}
                 isLoading={toolState.state.ui.isLoading}
-                resultRevision={toolState.state.ui.resultRevision}
                 emptyMessage={toolState.selectors.getCurrentChartEmptyMessage()}
                 heightClass={toolState.selectors.getCurrentChartHeightClass()}
                 chartOptions={toolState.selectors.getCurrentChartOptions()}

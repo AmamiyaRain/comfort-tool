@@ -27,10 +27,8 @@ import { UnitSystem } from "../../../models/units";
 import {
   type ComfortZonesByInput,
 } from "../../../services/comfort/helpers";
-import {
-  buildComparePsychrometricChart,
-  buildRelativeHumidityChart,
-} from "../../../services/comfort/charts/pmvCharts";
+import { buildComparePsychrometricChart } from "../../../services/comfort/charts/pmvCharts";
+import { buildRelativeHumidityChart } from "../../../services/comfort/charts/sharedCharts";
 import { calculateComfortZone } from "../../../services/comfort/comfortZone";
 import { calculatePmv } from "../../../services/comfort/pmv";
 import {

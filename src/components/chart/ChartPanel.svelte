@@ -12,7 +12,6 @@
     description,
     chartResult,
     isLoading,
-    resultRevision,
     emptyMessage,
     heightClass = "h-[420px]",
     chartOptions = [],
@@ -63,7 +62,6 @@
   <PlotlyCanvas
     {chartResult}
     {isLoading}
-    {resultRevision}
     {emptyMessage}
     {heightClass}
     {showPlotTitle}

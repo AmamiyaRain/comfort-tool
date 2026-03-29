@@ -8,7 +8,6 @@
   let {
     chartResult,
     isLoading,
-    resultRevision,
     emptyMessage,
     heightClass = "h-[420px]",
     showPlotTitle = false,
@@ -106,7 +105,6 @@
   });
 
   $effect(() => {
-    resultRevision;
     chartResult;
     if (onRegisterExport) {
       onRegisterExport(exportChart);

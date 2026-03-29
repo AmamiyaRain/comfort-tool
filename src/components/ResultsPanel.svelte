@@ -9,18 +9,8 @@
     resultSections,
     errorMessage,
     isLoading,
-    lastCompletedAt,
-    resultRevision,
     embedded = false,
   } = $props();
-
-  function formatUpdatedAt(timestamp: number) {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(timestamp);
-  }
 
   function getResultsTemplateColumns() {
     return `repeat(${visibleInputIds.length}, minmax(0, 1fr))`;
@@ -39,9 +29,6 @@
       <h2 class="text-base font-semibold text-stone-900">Results</h2>
       <p class="flex items-center gap-2">
         <Badge color={isLoading ? "yellow" : "success"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
-        {#if lastCompletedAt > 0}
-          <span class="text-[11px] text-stone-500">{formatUpdatedAt(lastCompletedAt)}</span>
-        {/if}
       </p>
     </header>
 
@@ -52,27 +39,25 @@
     {/if}
   {/if}
 
-  {#key resultRevision}
-    <section class={embedded ? "bg-white" : "mt-3 bg-white"}>
-      <section class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
-        {#each resultSections as section}
-          <article class="px-1 py-1.5">
-            <h3 class="text-sm font-medium text-sky-700">{section.title}</h3>
-            <ul class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-              {#each visibleInputIds as inputId}
-                {@const resultCell = section.valuesByInput[inputId]}
-                <li class={getResultCellClasses(inputId)}>
-                  {#if resultCell}
-                    <span class={resultCell.toneClass ?? "text-base font-semibold text-stone-900"}>{resultCell.text}</span>
-                  {:else}
-                    <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          </article>
-        {/each}
-      </section>
+  <section class={embedded ? "bg-white" : "mt-3 bg-white"}>
+    <section class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
+      {#each resultSections as section}
+        <article class="px-1 py-1.5">
+          <h3 class="text-sm font-medium text-sky-700">{section.title}</h3>
+          <ul class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
+            {#each visibleInputIds as inputId}
+              {@const resultCell = section.valuesByInput[inputId]}
+              <li class={getResultCellClasses(inputId)}>
+                {#if resultCell}
+                  <span class={resultCell.toneClass ?? "text-base font-semibold text-stone-900"}>{resultCell.text}</span>
+                {:else}
+                  <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </article>
+      {/each}
     </section>
-  {/key}
+  </section>
 </Card>
