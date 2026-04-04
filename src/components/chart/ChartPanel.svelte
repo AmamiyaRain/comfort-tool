@@ -1,7 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { Card } from "flowbite-svelte";
+
 
   import SearchableSelect from "../SearchableSelect.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
@@ -76,7 +76,7 @@
     {@render chartBody()}
   </section>
 {:else}
-  <Card size="none" class="w-full min-w-0 border border-stone-300 bg-white shadow-sm">
+  <section class="w-full min-w-0 border border-stone-300 bg-white p-3 shadow-sm">
     <header class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
       <section>
         <h2 class="text-base font-semibold text-stone-900">{title}</h2>
@@ -90,5 +90,5 @@
     </header>
 
     {@render chartBody()}
-  </Card>
+  </section>
 {/if}

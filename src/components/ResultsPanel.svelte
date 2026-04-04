@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { Alert, Badge, Card } from "flowbite-svelte";
-
   import { inputMetaById } from "../models/inputSlots";
 
   let {
@@ -23,24 +21,26 @@
   }
 </script>
 
-<Card size="none" class={`w-full min-w-0 bg-white ${embedded ? "border-0 p-0 shadow-none" : "border border-stone-300 shadow-sm"}`}>
+<div class={`w-full min-w-0 bg-white ${embedded ? "border-0 p-0 shadow-none" : "border border-stone-300 p-3 shadow-sm"}`}>
   {#if !embedded}
     <header class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
       <h2 class="text-base font-semibold text-stone-900">Results</h2>
       <p class="flex items-center gap-2">
-        <Badge color={isLoading ? "yellow" : "success"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
+        <span class={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${isLoading ? "bg-yellow-100 border-yellow-200 text-yellow-700" : "bg-green-100 border-green-200 text-green-700"}`}>
+          {isLoading ? "Refreshing" : "Ready"}
+        </span>
       </p>
     </header>
 
     {#if errorMessage}
-      <Alert color="red" class="mt-3 rounded-md text-sm">
+      <div class="mt-3 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
         {errorMessage}
-      </Alert>
+      </div>
     {/if}
   {/if}
 
   <section class={embedded ? "bg-white" : "mt-3 bg-white"}>
-    <section class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
+    <div class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
       {#each resultSections as section}
         <article class="px-1 py-1.5">
           <h3 class="text-sm font-medium text-sky-700">{section.title}</h3>
@@ -58,6 +58,6 @@
           </ul>
         </article>
       {/each}
-    </section>
+    </div>
   </section>
-</Card>
+</div>

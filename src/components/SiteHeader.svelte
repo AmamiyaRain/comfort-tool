@@ -1,7 +1,4 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
-  import { Button, NavBrand, NavLi, Navbar, NavUl } from "flowbite-svelte";
   import { onDestroy } from "svelte";
 
   import { siteBrand, siteHeaderLinks } from "../models/siteShellConfig";
@@ -84,24 +81,29 @@
   });
 </script>
 
-<Navbar class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
-  <section class="mx-auto flex w-full max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    <NavBrand href="#overview" class="min-w-0 !gap-4">
+<header class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+  <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <a href="#overview" class="flex min-w-0 items-center gap-4 hover:opacity-90">
       <figure class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#124f7f] p-2">
         <img src={siteBrand.headerLogoSrc} alt={siteBrand.eyebrow} class="h-full w-full object-contain" />
       </figure>
 
-      <section class="min-w-0">
+      <div class="min-w-0">
         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">{siteBrand.eyebrow}</p>
         <h1 class="truncate text-lg font-semibold tracking-tight text-stone-950 sm:text-xl">{siteBrand.title}</h1>
-      </section>
-    </NavBrand>
+      </div>
+    </a>
 
     <nav class="flex flex-wrap items-center gap-2" aria-label="Site actions">
-      <Button
-        pill
-        color={exportStatus === "copied" ? "green" : exportStatus === "error" ? "red" : "alternative"}
-        class="!rounded-full !px-4 !py-2 !text-sm !font-semibold"
+      <button
+        type="button"
+        class={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold border transition-colors shadow-sm ${
+          exportStatus === "copied" 
+            ? "bg-green-50 border-green-200 text-green-700" 
+            : exportStatus === "error" 
+            ? "bg-red-50 border-red-200 text-red-700" 
+            : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50 hover:border-stone-300"
+        }`}
         onclick={() => void handleExportLink()}
       >
         <svg class="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
@@ -109,23 +111,25 @@
           <path d="m12.5 9.5-5 5A2.5 2.5 0 1 1 4 11l5-5"></path>
         </svg>
         {getExportLabel()}
-      </Button>
+      </button>
 
       {#if siteHeaderLinks.length > 0}
-        <NavUl hidden={false} divClass="w-auto" ulClass="!mt-0 flex flex-wrap items-center gap-2 !p-0">
+        <ul class="flex flex-wrap items-center gap-2">
           {#each siteHeaderLinks as link}
-            <NavLi
-              href={link.href}
-              target={getLinkTarget(link.external)}
-              rel={getLinkRel(link.external)}
-              activeClass="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700"
-              nonActiveClass="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-stone-300 hover:text-stone-950"
-            >
-              {link.label}
-            </NavLi>
+            <li>
+              <a
+                href={link.href}
+                target={getLinkTarget(link.external)}
+                rel={getLinkRel(link.external)}
+                class="inline-block rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-stone-300 hover:text-stone-950 transition-colors shadow-sm"
+              >
+                {link.label}
+              </a>
+            </li>
           {/each}
-        </NavUl>
+        </ul>
       {/if}
     </nav>
-  </section>
-</Navbar>
+  </div>
+</header>
+

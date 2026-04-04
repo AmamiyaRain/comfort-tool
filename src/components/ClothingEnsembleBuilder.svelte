@@ -1,8 +1,4 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
-  import { Button, Input } from "flowbite-svelte";
-
   import { inputMetaById, InputId, type InputId as InputIdType } from "../models/inputSlots";
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/fieldMeta";
@@ -211,26 +207,25 @@
 
   {#if activeToolMode === ClothingToolMode.Predict}
     <section class="grid gap-4">
-      <section class="grid gap-2">
+      <div class="grid gap-2">
         <label for={predictiveTemperatureInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
           Outdoor air temperature at 6 a.m. ({temperatureDisplayUnits})
         </label>
-        <Input
+        <input
           id={predictiveTemperatureInputId}
           value={predictiveOutdoorTemperature}
           type="number"
-          size="sm"
           step={temperatureStep}
           placeholder={`Enter temperature in ${temperatureDisplayUnits}`}
-          class="bg-white"
+          class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
           oninput={(event) => {
             predictiveOutdoorTemperature = event.currentTarget.value;
           }}
         />
-      </section>
+      </div>
 
       <article class="rounded-2xl bg-stone-50 px-4 py-4">
-        <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <header class="min-w-0">
             <p class="text-sm font-medium text-stone-900">Estimated Clothing</p>
             <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{predictedClothingDisplayValue} clo</p>
@@ -243,32 +238,37 @@
           </header>
 
           <footer class="flex shrink-0 items-center gap-2">
-            <Button color="blue" size="sm" onclick={applyPredictedClothingValue} disabled={predictedClothingValue === null}>
+            <button
+              type="button"
+              class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              onclick={applyPredictedClothingValue}
+              disabled={predictedClothingValue === null}
+            >
               Apply
-            </Button>
+            </button>
           </footer>
-        </section>
+        </div>
       </article>
     </section>
   {:else}
     <section class="grid gap-4">
-      <section class="grid gap-2">
+      <div class="grid gap-2">
         <label for={garmentSearchInputId} class="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
           Search garments
         </label>
-        <Input
+        <input
           id={garmentSearchInputId}
           value={searchQuery}
-          size="sm"
+          type="text"
           placeholder="Search the original CBE garment list"
-          class="bg-white"
+          class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
           oninput={(event) => {
             searchQuery = event.currentTarget.value;
           }}
         />
-      </section>
+      </div>
 
-      <section class="max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white">
+      <div class="max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white">
         {#if filteredGarments.length === 0}
           <p class="px-4 py-8 text-sm text-stone-500">No garments match this search.</p>
         {:else}
@@ -285,10 +285,10 @@
             </label>
           {/each}
         {/if}
-      </section>
+      </div>
 
       <article class="rounded-2xl bg-stone-50 px-4 py-4">
-        <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <header class="min-w-0">
             <p class="text-sm font-medium text-stone-900">{selectionSummaryLabel}</p>
             <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{customClothingValue.toFixed(2)} clo</p>
@@ -301,13 +301,25 @@
           </header>
 
           <footer class="flex shrink-0 items-center gap-2">
-            <Button color="light" size="sm" onclick={clearSelection}>Clear</Button>
-            <Button color="blue" size="sm" onclick={() => applyClothingValue(customClothingValue)} disabled={selectedGarmentIds.length === 0}>
+            <button
+              type="button"
+              class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
+              onclick={clearSelection}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              onclick={() => applyClothingValue(customClothingValue)}
+              disabled={selectedGarmentIds.length === 0}
+            >
               Apply
-            </Button>
+            </button>
           </footer>
-        </section>
+        </div>
       </article>
     </section>
   {/if}
 </section>
+

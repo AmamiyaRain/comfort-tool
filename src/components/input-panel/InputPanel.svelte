@@ -1,7 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { Card, Modal } from "flowbite-svelte";
+
 
   import ClothingEnsembleBuilder from "../ClothingEnsembleBuilder.svelte";
   import InputFieldRow from "./InputFieldRow.svelte";
@@ -17,6 +17,15 @@
   } = $props();
 
   let clothingBuilderOpen = $state(false);
+  let dialogElement: HTMLDialogElement | undefined = $state();
+
+  $effect(() => {
+    if (clothingBuilderOpen) {
+      dialogElement?.showModal();
+    } else {
+      dialogElement?.close();
+    }
+  });
 
   function handleApplyClothingValue(inputId, value) {
     toolState.actions.setActiveInputId(inputId);
@@ -35,14 +44,14 @@
   }
 </script>
 
-<Card size="none" class="w-full border border-stone-300 bg-white shadow-sm">
+<section class="w-full border border-stone-300 bg-white p-3 shadow-sm">
   <header class="flex items-start justify-between gap-3 pb-2">
     <h2 class="text-base font-semibold text-stone-900">Inputs</h2>
   </header>
 
   <ToolControls {toolState} />
 
-  <section class="mt-4 bg-white">
+  <div class="mt-4 bg-white">
     {#if toolState.state.ui.compareEnabled}
       <fieldset class="px-1 pb-2">
         <legend class="sr-only">Visible compare inputs</legend>
@@ -62,7 +71,7 @@
       </fieldset>
     {/if}
 
-    <section class="grid gap-1" aria-label="Input fields">
+    <div class="grid gap-1" aria-label="Input fields">
       {#each toolState.selectors.getInputControls() as control}
         <InputFieldRow
           {toolState}
@@ -72,38 +81,42 @@
           }}
         />
       {/each}
-    </section>
-  </section>
-</Card>
+    </div>
+  </div>
+</section>
 
-<Modal
-  open={clothingBuilderOpen}
-  size="md"
-  placement="center"
-  outsideclose={true}
-  class="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-2xl shadow-stone-900/10"
-  classBackdrop="fixed inset-0 z-40 bg-stone-950/35 backdrop-blur-sm"
-  classHeader="border-b border-stone-100 px-5 py-4"
-  classBody="space-y-0 p-0"
+<dialog
+  bind:this={dialogElement}
   onclose={() => {
     clothingBuilderOpen = false;
   }}
+  class="backdrop:bg-stone-950/35 backdrop:backdrop-blur-sm overflow-hidden rounded-2xl border border-stone-200 bg-white p-0 shadow-2xl max-w-md w-full"
 >
-  <svelte:fragment slot="header">
-    <header>
+  <div class="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+    <div>
       <h3 class="text-lg font-semibold text-stone-900">Clothing Tools</h3>
       <p class="mt-1 text-sm text-stone-500">Predict clo quickly or build a garment ensemble from the CBE list.</p>
-    </header>
-  </svelte:fragment>
+    </div>
+    <button
+      type="button"
+      onclick={() => (clothingBuilderOpen = false)}
+      class="text-stone-400 hover:text-stone-900 text-xl"
+      aria-label="Close"
+    >
+      ✕
+    </button>
+  </div>
 
-  <ClothingEnsembleBuilder
-    activeInputId={toolState.state.ui.activeInputId}
-    visibleInputIds={toolState.selectors.getVisibleInputIds()}
-    unitSystem={toolState.state.ui.unitSystem}
-    onSelectInput={toolState.actions.setActiveInputId}
-    onApplyClothingValue={handleApplyClothingValue}
-    onClose={() => {
-      clothingBuilderOpen = false;
-    }}
-  />
-</Modal>
+  <div class="p-0">
+    <ClothingEnsembleBuilder
+      activeInputId={toolState.state.ui.activeInputId}
+      visibleInputIds={toolState.selectors.getVisibleInputIds()}
+      unitSystem={toolState.state.ui.unitSystem}
+      onSelectInput={toolState.actions.setActiveInputId}
+      onApplyClothingValue={handleApplyClothingValue}
+      onClose={() => {
+        clothingBuilderOpen = false;
+      }}
+    />
+  </div>
+</dialog>
