@@ -1,10 +1,8 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
-  import { Dropdown, DropdownItem } from "flowbite-svelte";
-
+  import { Dropdown, DropdownItem, Input, Label } from "flowbite-svelte";
   import PresetNumericInput from "../PresetNumericInput.svelte";
   import { inputMetaById } from "../../models/inputSlots";
+  import type { InputId as InputIdType } from "../../models/inputSlots";
   import type { InputControlViewModel } from "../../models/inputControls";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
@@ -18,7 +16,6 @@
     onOpenClothingBuilder: () => void;
   } = $props();
 
-  let menuOpen = $state(false);
   let menu = $derived(control.menu);
 
   function getVisibleInputIds() {
@@ -33,12 +30,12 @@
     return `repeat(${getVisibleInputIds().length}, minmax(0, 1fr))`;
   }
 
-  function handleFieldInput(inputId, value) {
+  function handleFieldInput(inputId: InputIdType, value: string) {
     toolState.actions.setActiveInputId(inputId);
     toolState.actions.updateInput(inputId, control.id, value);
   }
 
-  function handleApplyPresetValue(inputId, value) {
+  function handleApplyPresetValue(inputId: InputIdType, value: number) {
     toolState.actions.setActiveInputId(inputId);
     toolState.actions.updateInput(inputId, control.id, value.toFixed(control.presetDecimals));
   }
@@ -46,10 +43,10 @@
 
 <section class="px-1 py-0.5">
   <header class="flex items-start justify-between gap-3">
-    <section class="flex min-w-0 flex-wrap items-center gap-2">
-      <p class="text-sm font-medium text-sky-700">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
+      <Label class="text-sm font-medium text-sky-700">
         {control.label} ({control.displayUnits})
-      </p>
+      </Label>
 
       {#if menu}
         <button
@@ -61,19 +58,11 @@
           <span class="text-[10px]">▼</span>
         </button>
 
-        <Dropdown
-          bind:open={menuOpen}
-          triggeredBy={`#${getAdvancedMenuTriggerId()}`}
-          placement="bottom-start"
-          arrow={false}
-          class="w-72 py-1"
-          containerClass="z-30 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-lg shadow-stone-200/70"
-          headerClass="border-b border-stone-100 px-4 py-2"
-        >
-          <svelte:fragment slot="header">
-            <p class="text-[11px] uppercase tracking-[0.16em] text-stone-500">{menu.title}</p>
-          </svelte:fragment>
-          {#each menu.sections as section, sectionIndex}
+        <Dropdown triggeredBy={`#${getAdvancedMenuTriggerId()}`} class="w-72 overflow-hidden rounded-xl py-1 shadow-lg">
+          <p slot="header" class="border-b border-stone-100 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
+            {menu.title}
+          </p>
+          {#each menu.sections as section}
             {#if section.title}
               <p class="px-4 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
                 {section.title}
@@ -82,10 +71,9 @@
 
             {#each section.items as item}
               <DropdownItem
-                class="flex flex-col items-start gap-0.5 text-left text-stone-700 hover:bg-stone-50"
+                class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
                 onclick={() => {
                   toolState.actions.setModelOption(item.optionKey, item.value);
-                  menuOpen = false;
                 }}
               >
                 <span class={item.active ? "font-semibold text-stone-900" : ""}>
@@ -94,16 +82,13 @@
                 <span class="text-xs text-stone-500">{item.description}</span>
               </DropdownItem>
             {/each}
-
-            {#if sectionIndex < menu.sections.length - 1}
-              <div class="my-1 border-t border-stone-100"></div>
-            {/if}
           {/each}
         </Dropdown>
       {/if}
 
       {#if control.showClothingBuilder}
         <button
+          id={`clothing-builder-trigger-${control.id}`}
           type="button"
           onclick={onOpenClothingBuilder}
           class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
@@ -112,7 +97,7 @@
           <span class="text-[10px]">▼</span>
         </button>
       {/if}
-    </section>
+    </div>
 
     {#if control.rangeText}
       <small class="shrink-0 text-[11px] text-stone-500">
@@ -137,18 +122,21 @@
             onCommit={(value) => handleApplyPresetValue(inputId, value)}
           />
         {:else}
-          <input
+          <Input
             id={`${inputId}-${control.id}`}
             type="number"
             step={control.step}
+            size="sm"
             value={control.displayValuesByInput[inputId] ?? ""}
             aria-label={`${inputMetaById[inputId].label} ${control.label}`}
             onfocus={() => toolState.actions.setActiveInputId(inputId)}
             oninput={(event) => handleFieldInput(inputId, event.currentTarget.value)}
-            class="w-full rounded-sm border border-stone-300 bg-white px-2 py-1.5 text-sm text-stone-900 focus:border-sky-600 focus:outline-none"
+            class="rounded-sm border-stone-300 bg-white"
           />
         {/if}
       </li>
     {/each}
   </ul>
 </section>
+
+

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Alert, Badge, Card } from "flowbite-svelte";
-
   import { inputMetaById } from "../models/inputSlots";
 
   let {
@@ -23,12 +22,12 @@
   }
 </script>
 
-<Card size="none" class={`w-full min-w-0 bg-white ${embedded ? "border-0 p-0 shadow-none" : "border border-stone-300 shadow-sm"}`}>
+{#snippet content()}
   {#if !embedded}
     <header class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
       <h2 class="text-base font-semibold text-stone-900">Results</h2>
       <p class="flex items-center gap-2">
-        <Badge color={isLoading ? "yellow" : "success"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
+        <Badge color={isLoading ? "yellow" : "green"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
       </p>
     </header>
 
@@ -40,7 +39,7 @@
   {/if}
 
   <section class={embedded ? "bg-white" : "mt-3 bg-white"}>
-    <section class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
+    <div class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
       {#each resultSections as section}
         <article class="px-1 py-1.5">
           <h3 class="text-sm font-medium text-sky-700">{section.title}</h3>
@@ -58,6 +57,14 @@
           </ul>
         </article>
       {/each}
-    </section>
+    </div>
   </section>
-</Card>
+{/snippet}
+
+{#if embedded}
+  {@render content()}
+{:else}
+  <Card size="none" class="w-full min-w-0 bg-white border-stone-300 p-3 shadow-sm">
+    {@render content()}
+  </Card>
+{/if}
