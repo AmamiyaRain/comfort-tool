@@ -8,7 +8,9 @@ import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType 
 import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
+import { allFieldOrder } from "../../models/fieldMeta";
 import { getComfortModelConfig } from "./modelConfigs";
+import type { ComfortToolStateSlice } from "./types";
 
 export interface ShareStateSnapshot {
   version: 6;
@@ -33,6 +35,10 @@ const comfortModelValues = new Set<ComfortModelType>(Object.values(ComfortModel)
 const inputIdValues = new Set<InputIdType>(Object.values(InputId));
 const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
 const fieldKeyValues = Object.values(FieldKey);
+
+function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
+  return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
+}
 
 function toUrl(source: URL | Location | string): URL {
   if (source instanceof URL) {
@@ -141,51 +147,103 @@ export function serializeShareState(snapshot: ShareStateSnapshot): string {
   return encodeBase64Url(JSON.stringify(snapshot));
 }
 
+function parseShareStateSnapshotV6(parsed: Record<string, unknown>): ShareStateSnapshot | null {
+  if (
+    !comfortModelValues.has(parsed.selectedModel as ComfortModelType) ||
+    typeof parsed.compareEnabled !== "boolean" ||
+    !Array.isArray(parsed.compareInputIds) ||
+    !parsed.compareInputIds.every((inputId) => inputIdValues.has(inputId as InputIdType)) ||
+    !inputIdValues.has(parsed.activeInputId as InputIdType) ||
+    !unitSystemValues.has(parsed.unitSystem as UnitSystemType)
+  ) {
+    return null;
+  }
+
+  const models = parseModelSnapshots(parsed.models);
+  if (!models) {
+    return null;
+  }
+
+  const inputsByInput = parseInputsByInput(parsed.inputsByInput);
+  if (!inputsByInput) {
+    return null;
+  }
+
+  return {
+    version: SHARE_STATE_VERSION,
+    selectedModel: parsed.selectedModel as ComfortModelType,
+    models,
+    compareEnabled: parsed.compareEnabled,
+    compareInputIds: parsed.compareInputIds as InputIdType[],
+    activeInputId: parsed.activeInputId as InputIdType,
+    unitSystem: parsed.unitSystem as UnitSystemType,
+    inputsByInput,
+  };
+}
+
+export function parseShareStateSnapshot(value: unknown): ShareStateSnapshot | null {
+  if (!isRecord(value) || typeof value.version !== "number") {
+    return null;
+  }
+
+  if (value.version === SHARE_STATE_VERSION) {
+    return parseShareStateSnapshotV6(value);
+  }
+
+  return null;
+}
+
 export function deserializeShareState(encodedSnapshot: string): ShareStateSnapshot | null {
   try {
-    const parsed = JSON.parse(decodeBase64Url(encodedSnapshot));
-    if (!isRecord(parsed)) {
-      return null;
-    }
-
-    if (parsed.version !== SHARE_STATE_VERSION) {
-      return null;
-    }
-
-    if (
-      !comfortModelValues.has(parsed.selectedModel as ComfortModelType) ||
-      typeof parsed.compareEnabled !== "boolean" ||
-      !Array.isArray(parsed.compareInputIds) ||
-      !parsed.compareInputIds.every((inputId) => inputIdValues.has(inputId as InputIdType)) ||
-      !inputIdValues.has(parsed.activeInputId as InputIdType) ||
-      !unitSystemValues.has(parsed.unitSystem as UnitSystemType)
-    ) {
-      return null;
-    }
-
-    const models = parseModelSnapshots(parsed.models);
-    if (!models) {
-      return null;
-    }
-
-    const inputsByInput = parseInputsByInput(parsed.inputsByInput);
-    if (!inputsByInput) {
-      return null;
-    }
-
-    return {
-      version: SHARE_STATE_VERSION,
-      selectedModel: parsed.selectedModel as ComfortModelType,
-      models,
-      compareEnabled: parsed.compareEnabled,
-      compareInputIds: parsed.compareInputIds as InputIdType[],
-      activeInputId: parsed.activeInputId as InputIdType,
-      unitSystem: parsed.unitSystem as UnitSystemType,
-      inputsByInput,
-    };
+    return parseShareStateSnapshot(JSON.parse(decodeBase64Url(encodedSnapshot)));
   } catch {
     return null;
   }
+}
+
+export function createShareStateSnapshot(state: ComfortToolStateSlice): ShareStateSnapshot {
+  return {
+    version: SHARE_STATE_VERSION,
+    selectedModel: state.ui.selectedModel,
+    models: comfortModelOrder.reduce((accumulator, modelId) => {
+      accumulator[modelId] = {
+        selectedChart: state.ui.selectedChartByModel[modelId],
+        options: { ...state.ui.modelOptionsByModel[modelId] },
+      };
+      return accumulator;
+    }, {} as ShareStateSnapshot["models"]),
+    compareEnabled: state.ui.compareEnabled,
+    compareInputIds: [...state.ui.compareInputIds],
+    activeInputId: state.ui.activeInputId,
+    unitSystem: state.ui.unitSystem,
+    inputsByInput: inputOrder.reduce((accumulator, inputId) => {
+      accumulator[inputId] = allFieldOrder.reduce((inputAccumulator, fieldKey) => {
+        inputAccumulator[fieldKey] = state.inputsByInput[inputId][fieldKey];
+        return inputAccumulator;
+      }, {} as ShareStateSnapshot["inputsByInput"][typeof inputId]);
+      return accumulator;
+    }, {} as ShareStateSnapshot["inputsByInput"]),
+  };
+}
+
+export function applyShareSnapshotToState(state: ComfortToolStateSlice, snapshot: ShareStateSnapshot) {
+  state.ui.selectedModel = snapshot.selectedModel;
+  comfortModelOrder.forEach((modelId) => {
+    state.ui.selectedChartByModel[modelId] = snapshot.models[modelId].selectedChart;
+    state.ui.modelOptionsByModel[modelId] = { ...snapshot.models[modelId].options };
+  });
+  state.ui.compareEnabled = snapshot.compareEnabled;
+  state.ui.compareInputIds = normalizeCompareInputIds(snapshot.compareInputIds);
+  state.ui.activeInputId = snapshot.compareEnabled && state.ui.compareInputIds.includes(snapshot.activeInputId)
+    ? snapshot.activeInputId
+    : InputId.Input1;
+  state.ui.unitSystem = snapshot.unitSystem;
+
+  inputOrder.forEach((inputId) => {
+    allFieldOrder.forEach((fieldKey) => {
+      state.inputsByInput[inputId][fieldKey] = snapshot.inputsByInput[inputId][fieldKey];
+    });
+  });
 }
 
 export function buildShareUrl(snapshot: ShareStateSnapshot, locationSource: URL | Location | string): string {

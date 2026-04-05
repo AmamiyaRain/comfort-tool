@@ -2,8 +2,8 @@
   import { Card } from "flowbite-svelte";
   import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
-  import type { ChartResult } from "../../models/chartResults";
   import type { ChartId } from "../../models/chartOptions";
+  import type { PlotlyChartResponseDto } from "../../models/dto";
 
   let {
     title,
@@ -19,7 +19,7 @@
   }: {
     title: string;
     description: string;
-    chartResult: ChartResult | null;
+    chartResult: PlotlyChartResponseDto | null;
     isLoading: boolean;
     emptyMessage: string;
     heightClass: string;

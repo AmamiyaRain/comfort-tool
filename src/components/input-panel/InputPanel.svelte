@@ -5,7 +5,8 @@
 
   import ClothingEnsembleBuilder from "../ClothingEnsembleBuilder.svelte";
   import InputFieldRow from "./InputFieldRow.svelte";
-  import { inputMetaById, inputOrder, type InputId as InputIdType } from "../../models/inputSlots";
+  import { inputOrder, type InputId as InputIdType } from "../../models/inputSlots";
+  import { inputDisplayMetaById } from "../../models/inputSlotPresentation";
   import { InputControlId } from "../../models/inputControls";
   import ToolControls from "./ToolControls.svelte";
   import type { ComfortToolController } from "../../state/comfortTool/types";
@@ -28,7 +29,7 @@
   }
 
   function getCompareToggleClasses(inputId: InputIdType) {
-    const inputUi = inputMetaById[inputId].ui;
+    const inputUi = inputDisplayMetaById[inputId].ui;
     return isInputVisible(inputId)
       ? `border-solid bg-white ${inputUi.inputToggleVisibleClass}`
       : `border-dashed bg-stone-50 ${inputUi.inputToggleHiddenClass}`;
@@ -54,7 +55,7 @@
                 class={`min-w-0 rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(inputId)}`}
                 onclick={() => toolState.actions.toggleCompareInputVisibility(inputId)}
               >
-                <span class="text-sm font-semibold">{inputMetaById[inputId].label}</span>
+                <span class="text-sm font-semibold">{inputDisplayMetaById[inputId].label}</span>
               </button>
             </li>
           {/each}
@@ -98,4 +99,3 @@
     }}
   />
 </Modal>
-

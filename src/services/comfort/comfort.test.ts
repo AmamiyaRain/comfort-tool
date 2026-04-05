@@ -1,12 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { InputId } from "../../models/inputSlots";
+import { inputDefaultsById, InputId } from "../../models/inputSlots";
+import { AirSpeedInputMode, HumidityInputMode, OptionKey } from "../../models/inputModes";
+import { DerivedInputId, FieldKey } from "../../models/fieldKeys";
 import { UnitSystem } from "../../models/units";
 import { buildComparePsychrometricChart } from "./charts/pmvCharts";
 import { buildUtciTemperatureChart } from "./charts/utciCharts";
 import { calculateComfortZone } from "./comfortZone";
-import { predictClothingInsulationFromOutdoorTemperature } from "./inputDerivations";
+import {
+  deriveRelativeAirSpeedFromMeasured,
+  deriveRelativeHumidityFromDewPoint,
+  predictClothingInsulationFromOutdoorTemperature,
+  synchronizeControlInputState,
+} from "./inputDerivations";
 import { calculatePmv } from "./pmv";
+import { clothingGarmentOptions, clothingTypicalEnsembles, metabolicActivityOptions } from "./referenceValues";
 import { calculateUtci } from "./utci";
 
 const pmvPayload = {
@@ -85,7 +93,7 @@ describe("comfort services", () => {
           tdbMax: 40,
           tdbPoints: 121,
           humidityRatioMin: 0,
-          humidityRatioMax: 30,
+          humidityRatioMax: 0.03,
         },
         rhCurves: [10, 20, 30, 40, 50, 60],
       },
@@ -111,10 +119,88 @@ describe("comfort services", () => {
     expect(utciChart.annotations).toHaveLength(1);
   });
 
+  it("rebuilds chart labels and hover text for IP units", () => {
+    const comfortZone = calculateComfortZone(comfortZonePayload);
+    const psychrometricChart = buildComparePsychrometricChart(
+      {
+        inputs: {
+          [InputId.Input1]: comfortZonePayload,
+        },
+        chartRange: {
+          tdbMin: 10,
+          tdbMax: 40,
+          tdbPoints: 121,
+          humidityRatioMin: 0,
+          humidityRatioMax: 0.03,
+        },
+        rhCurves: [10, 20, 30, 40, 50, 60],
+      },
+      {
+        [InputId.Input1]: comfortZone,
+      },
+      UnitSystem.IP,
+    );
+
+    const utciResult = calculateUtci(utciPayload);
+    const utciChart = buildUtciTemperatureChart(
+      {
+        inputs: {
+          [InputId.Input1]: utciPayload,
+        },
+      },
+      {
+        [InputId.Input1]: utciResult,
+      },
+      UnitSystem.IP,
+    );
+
+    expect(String(psychrometricChart.layout.xaxis.title)).toContain("°F");
+    expect(String(psychrometricChart.layout.yaxis.title)).toContain("gr/lb");
+    expect(psychrometricChart.traces[0].hovertemplate).toContain("°F");
+    expect(String(utciChart.layout.xaxis.title)).toContain("°F");
+    expect(String(utciChart.layout.yaxis.title)).toContain("°F");
+    expect(utciChart.traces[0].hovertemplate).toContain("°F");
+  });
+
   it("normalizes clothing prediction results from jsthermalcomfort", () => {
     const predictedClothing = predictClothingInsulationFromOutdoorTemperature(10, UnitSystem.SI);
 
     expect(predictedClothing).toBeTypeOf("number");
     expect(predictedClothing).toBeGreaterThan(0);
+  });
+
+  it("sources met and clo option values from jsthermalcomfort", () => {
+    expect(metabolicActivityOptions.find((option) => option.label === "Sleeping")?.met).toBe(0.7);
+    expect(metabolicActivityOptions.find((option) => option.label === "Basketball")?.met).toBe(6.3);
+    expect(clothingTypicalEnsembles.find((option) => option.label === "Trousers, long-sleeve shirt")?.clo).toBe(0.61);
+    expect(clothingGarmentOptions.find((option) => option.article === "Metal chair")?.clo).toBe(0);
+    expect(clothingGarmentOptions.find((option) => option.article === "Double-breasted coat (thick)")?.clo).toBe(0.48);
+  });
+
+  it("synchronizes canonical inputs from measured air speed and dew point overrides", () => {
+    const synchronizedState = synchronizeControlInputState(
+      {
+        ...inputDefaultsById[InputId.Input1],
+        [FieldKey.DryBulbTemperature]: 26,
+        [FieldKey.MetabolicRate]: 1.8,
+      },
+      {
+        [OptionKey.AirSpeedInputMode]: AirSpeedInputMode.Measured,
+        [OptionKey.HumidityInputMode]: HumidityInputMode.DewPoint,
+      },
+      {
+        [DerivedInputId.MeasuredAirSpeed]: 0.6,
+        [DerivedInputId.DewPoint]: 12,
+      },
+    );
+
+    expect(synchronizedState.inputState[FieldKey.RelativeAirSpeed]).toBeCloseTo(
+      deriveRelativeAirSpeedFromMeasured(0.6, 1.8),
+      6,
+    );
+    expect(synchronizedState.inputState[FieldKey.RelativeHumidity]).toBeCloseTo(
+      deriveRelativeHumidityFromDewPoint(26, 12),
+      6,
+    );
   });
 });

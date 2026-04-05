@@ -1,4 +1,6 @@
-import { inputChartStyleById, inputMetaById } from "../../../models/inputSlots";
+import { inputChartStyleById, inputDisplayMetaById } from "../../../models/inputSlotPresentation";
+import { FieldKey } from "../../../models/fieldKeys";
+import { fieldMetaByKey } from "../../../models/fieldMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
 import {
   utciStressBands,
@@ -12,6 +14,8 @@ import type {
   UtciResponseDto,
   UtciChartInputsRequestDto,
 } from "../../../models/dto";
+import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
+import { convertFieldValueFromSi } from "../../units";
 import { calculateUtci } from "../utci";
 import {
   formatSignedTemperature,
@@ -32,33 +36,40 @@ function getUtciResultForInput(
 export function buildUtciStressChart(
   payload: UtciChartInputsRequestDto,
   cachedResultsByInput: UtciChartResultsByInput = {},
+  unitSystem: UnitSystemType = UnitSystem.SI,
 ): PlotlyChartResponseDto {
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
   const markerPositions = inputs.length > 1 ? [0.78, 0.5, 0.22] : [0.5];
   const traces: PlotTraceDto[] = [];
   const annotations: PlotAnnotationDto[] = [];
+  const temperatureDisplayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
+  const stressRange: [number, number] = [
+    convertFieldValueFromSi(FieldKey.DryBulbTemperature, -50, unitSystem),
+    convertFieldValueFromSi(FieldKey.DryBulbTemperature, 55, unitSystem),
+  ];
 
   inputs.forEach(({ inputId, payload: inputPayload }, index) => {
     const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
     const inputStyle = inputChartStyleById[inputId];
-    const inputLabel = inputMetaById[inputId].label;
+    const inputLabel = inputDisplayMetaById[inputId].label;
     const yPosition = markerPositions[index];
+    const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
     traces.push({
       type: "scatter",
       mode: "markers",
       name: inputLabel,
-      x: [roundValue(result.utci)],
+      x: [displayUtci],
       y: [yPosition],
       showlegend: showInputLegend,
       line: {},
       marker: { color: inputStyle.marker, size: 14 },
-      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} C<br>${result.stressCategory}<extra></extra>`,
+      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
     });
 
     annotations.push({
-      x: roundValue(result.utci),
+      x: displayUtci,
       y: yPosition + 0.12,
       text: `${inputLabel}<br>${result.stressCategory}`,
       showarrow: false,
@@ -68,7 +79,10 @@ export function buildUtciStressChart(
 
   utciStressBands.forEach((band, index) => {
     annotations.push({
-      x: (band.minimum + band.maximum) / 2,
+      x: (
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem) +
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem)
+      ) / 2,
       y: index % 2 === 0 ? 0.05 : 0.16,
       text: utciStressShortLabelByCategory[band.category],
       showarrow: false,
@@ -85,8 +99,8 @@ export function buildUtciStressChart(
       showlegend: showInputLegend,
       margin: { l: 40, r: 24, t: 48, b: 96 },
       xaxis: {
-        title: "UTCI (C)",
-        range: [-50, 55],
+        title: `UTCI (${temperatureDisplayUnits})`,
+        range: stressRange,
         gridcolor: "#e2e8f0",
       },
       yaxis: {
@@ -99,8 +113,8 @@ export function buildUtciStressChart(
         type: "rect",
         xref: "x",
         yref: "paper",
-        x0: band.minimum,
-        x1: band.maximum,
+        x0: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+        x1: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
         y0: 0,
         y1: 1,
         fillcolor: band.color,
@@ -118,36 +132,55 @@ export function buildUtciStressChart(
 export function buildUtciTemperatureChart(
   payload: UtciChartInputsRequestDto,
   cachedResultsByInput: UtciChartResultsByInput = {},
+  unitSystem: UnitSystemType = UnitSystem.SI,
 ): PlotlyChartResponseDto {
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
   const traces: PlotTraceDto[] = [];
   const annotations: PlotAnnotationDto[] = [];
-  const dryBulbTemperatures = inputs.map(({ payload: inputPayload }) => inputPayload.tdb);
-  const xRange = getPaddedAxisRange(dryBulbTemperatures, [-50, 55]);
+  const temperatureDisplayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
+  const dryBulbTemperatures = inputs.map(({ payload: inputPayload }) => (
+    convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)
+  ));
+  const xRange = getPaddedAxisRange(
+    dryBulbTemperatures,
+    [
+      convertFieldValueFromSi(FieldKey.DryBulbTemperature, -50, unitSystem),
+      convertFieldValueFromSi(FieldKey.DryBulbTemperature, 55, unitSystem),
+    ],
+  );
+  const utciAxisRange: [number, number] = [
+    convertFieldValueFromSi(FieldKey.DryBulbTemperature, -50, unitSystem),
+    convertFieldValueFromSi(FieldKey.DryBulbTemperature, 55, unitSystem),
+  ];
 
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
     const inputStyle = inputChartStyleById[inputId];
-    const inputLabel = inputMetaById[inputId].label;
+    const inputLabel = inputDisplayMetaById[inputId].label;
     const temperatureOffset = result.utci - inputPayload.tdb;
+    const displayDryBulb = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem));
+    const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
     traces.push({
       type: "scatter",
       mode: "markers",
       name: inputLabel,
-      x: [roundValue(inputPayload.tdb)],
-      y: [roundValue(result.utci)],
+      x: [displayDryBulb],
+      y: [displayUtci],
       showlegend: showInputLegend,
       line: {},
       marker: { color: inputStyle.marker, size: 13 },
-      hovertemplate: `${inputLabel}<br>Dry bulb %{x:.1f} C<br>UTCI %{y:.1f} C<br>Offset ${formatSignedTemperature(temperatureOffset)}<br>${result.stressCategory}<extra></extra>`,
+      hovertemplate:
+        `${inputLabel}<br>Dry bulb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+        `UTCI %{y:.1f} ${temperatureDisplayUnits}<br>` +
+        `Offset ${formatSignedTemperature(temperatureOffset, unitSystem)}<br>${result.stressCategory}<extra></extra>`,
     });
 
     annotations.push({
-      x: roundValue(inputPayload.tdb),
-      y: roundValue(result.utci),
-      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset)}`,
+      x: displayDryBulb,
+      y: displayUtci,
+      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
       showarrow: true,
       font: { size: 11, color: inputStyle.line },
     });
@@ -162,13 +195,13 @@ export function buildUtciTemperatureChart(
       showlegend: showInputLegend,
       margin: { l: 56, r: 24, t: 48, b: 56 },
       xaxis: {
-        title: "Dry bulb temperature (°C)",
+        title: `Dry bulb temperature (${temperatureDisplayUnits})`,
         range: xRange,
         gridcolor: "#e2e8f0",
       },
       yaxis: {
-        title: "UTCI (C)",
-        range: [-50, 55],
+        title: `UTCI (${temperatureDisplayUnits})`,
+        range: utciAxisRange,
         gridcolor: "#e2e8f0",
       },
       shapes: [
@@ -178,8 +211,8 @@ export function buildUtciTemperatureChart(
           yref: "y",
           x0: 0,
           x1: 1,
-          y0: band.minimum,
-          y1: band.maximum,
+          y0: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+          y1: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
           fillcolor: band.color,
           line: { width: 0 },
           opacity: 0.12,

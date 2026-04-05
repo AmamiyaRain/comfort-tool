@@ -5,7 +5,7 @@ import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/unit
  * Centralized unit conversion helpers.
  * Canonical shared state stays in SI; these helpers map values to and from the active UI unit system.
  */
-type DisplayQuantityMeta = {
+export type DisplayQuantityMeta = {
   displayUnits: string;
   step: number;
   decimals: number;

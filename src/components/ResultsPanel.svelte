@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Alert, Badge, Card } from "flowbite-svelte";
-  import { inputMetaById } from "../models/inputSlots";
+  import { inputDisplayMetaById } from "../models/inputSlotPresentation";
 
   let {
     activeInputId,
@@ -16,9 +16,21 @@
   }
 
   function getResultCellClasses(inputId) {
-    const inputUi = inputMetaById[inputId].ui;
+    const inputUi = inputDisplayMetaById[inputId].ui;
     const activeClasses = activeInputId === inputId ? inputUi.resultActiveRingClass : "";
     return `rounded-md border px-2 py-1.5 ${inputUi.resultCellClass} ${activeClasses}`.trim();
+  }
+
+  function getResultToneClass(tone) {
+    if (tone === "success") {
+      return "font-semibold text-emerald-700";
+    }
+
+    if (tone === "danger") {
+      return "font-semibold text-red-600";
+    }
+
+    return "text-base font-semibold text-stone-900";
   }
 </script>
 
@@ -48,7 +60,7 @@
               {@const resultCell = section.valuesByInput[inputId]}
               <li class={getResultCellClasses(inputId)}>
                 {#if resultCell}
-                  <span class={resultCell.toneClass ?? "text-base font-semibold text-stone-900"}>{resultCell.text}</span>
+                  <span class={getResultToneClass(resultCell.tone)}>{resultCell.text}</span>
                 {:else}
                   <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
                 {/if}

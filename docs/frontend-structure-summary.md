@@ -53,7 +53,7 @@ The current active application is the repository root version.
 
 `src/state/comfortTool/`
 - Main shared controller for the application.
-- Owns UI state, input state, derived state, model configuration, and share-state logic.
+- Owns UI state, canonical input state, model configuration, and share-state logic.
 
 `src/views/`
 - Page-level composition only.
@@ -66,15 +66,13 @@ The current active application is the repository root version.
 `src/state/comfortTool/createComfortToolState.svelte.ts`
 - Main controller for the tool.
 - Creates canonical input state and UI state.
+- Recomputes derived input view data from canonical inputs via Svelte `$derived.by()`.
 - Exposes actions and selectors used by the interface.
-- Schedules calculations and stores results.
+- Tracks per-model calculation caches with explicit `empty` / `stale` / `ready` status.
+- Invalidates model caches without wiping raw results and rebuilds presentation from selectors.
 
 `src/state/comfortTool/types.ts`
-- Central type definitions for controller state, actions, selectors, and result structures.
-
-`src/state/comfortTool/derivedState.ts`
-- Maintains derived values for each input set.
-- Refreshes psychrometric and related calculated input values.
+- Central type definitions for controller state, model cache state, actions, selectors, and presentation view models.
 
 `src/state/comfortTool/modelConfigs/index.ts`
 - Registry of supported comfort models.
@@ -82,14 +80,14 @@ The current active application is the repository root version.
 
 `src/state/comfortTool/modelConfigs/pmv.ts`
 - PMV model definition.
-- Declares PMV controls, PMV calculations, chart generation, and result formatting.
+- Declares PMV controls, typed PMV calculations, SI chart-source generation, and PMV presentation builders.
 
 `src/state/comfortTool/modelConfigs/utci.ts`
 - UTCI model definition.
-- Declares UTCI controls, UTCI calculations, chart generation, and result formatting.
+- Declares UTCI controls, typed UTCI calculations, SI chart-source generation, and UTCI presentation builders.
 
 `src/state/comfortTool/shareState.ts`
-- Serializes and restores shareable application state through the URL.
+- Owns share snapshot typing, version dispatch, serialization, deserialization, and state-apply helpers.
 
 `src/services/comfort/pmv.ts`
 - Wrapper around PMV-related thermal comfort calculations.
@@ -97,20 +95,23 @@ The current active application is the repository root version.
 `src/services/comfort/utci.ts`
 - Wrapper around UTCI calculations.
 
+`src/services/comfort/referenceValues.ts`
+- Adapts library-backed `met` and `clo` reference datasets into UI-ready option metadata.
+
 `src/services/comfort/comfortZone.ts`
 - Computes comfort-zone boundaries used in chart visualizations.
 
 `src/services/comfort/inputDerivations.ts`
-- Handles derived values such as dew point, humidity ratio, wet-bulb temperature, vapor pressure, operative temperature, and relative air speed transformations.
+- Handles derived values such as dew point, humidity ratio, wet-bulb temperature, vapor pressure, operative temperature, relative air speed transformations, and derived-by-input aggregation.
 
 `src/services/comfort/charts/pmvCharts.ts`
-- Builds PMV chart data such as psychrometric visualizations.
+- Builds PMV chart presentation from canonical SI chart source and the active display unit system.
 
 `src/services/comfort/charts/sharedCharts.ts`
-- Holds chart helpers shared across related chart views.
+- Holds shared chart presentation builders that convert SI source data into display-unit payloads.
 
 `src/services/comfort/charts/utciCharts.ts`
-- Builds UTCI chart data.
+- Builds UTCI chart presentation from cached SI source data and cached raw UTCI results.
 
 `src/services/units/index.ts`
 - Centralized unit conversion helpers.
@@ -123,6 +124,7 @@ The current active application is the repository root version.
 `src/components/input-panel/InputFieldRow.svelte`
 - Renders one logical input row across one or more visible input sets.
 - Handles numeric entry, presets, and advanced option menus.
+- Canonical state is updated on committed number-field changes instead of every keystroke.
 
 `src/components/input-panel/ToolControls.svelte`
 - Handles model selection, compare mode, and unit-system switching.
@@ -145,14 +147,23 @@ The current active application is the repository root version.
 ## Current Design Principles
 
 - Canonical shared state is stored in SI units.
+- Derived input display values are recomputed from canonical inputs instead of being stored as mutable controller state.
+- Raw calculation caches are stored in SI and kept separate from result/chart presentation.
+- Result sections, chart payloads, units, and tone styling are derived in selectors or presentation builders, not stored in canonical state.
 - Calculation formulas stay in `src/services/comfort/`, not in UI components.
+- Library reference datasets such as metabolic tasks and clothing presets are adapted in `src/services/comfort/`.
 - Views handle composition.
 - Components handle rendering and interaction.
-- State coordinates inputs, selections, scheduling, and results.
+- State coordinates inputs, selections, cache invalidation, scheduling, and share-state application.
 - Metadata in `src/models/` provides stable identifiers and configuration.
+- Input identifiers/defaults are separated from input display/theme metadata.
+- Share URLs remain versioned and must evolve through explicit snapshot parsing and migration entrypoints.
 
 ## What Was Improved Recently
 
-- The state structure was made more generic so it is easier to extend without adding more hardcoded model-specific fields.
-- More chart and derivation logic was kept in service and model-configuration layers instead of UI components.
+- Per-model caches now preserve typed raw results instead of storing `unknown` buckets and preformatted UI payloads.
+- Unit switching now rebuilds result and chart presentation consistently from SI source data.
+- Share-state ownership is centralized in one module with explicit version dispatch.
+- Numeric input fields now commit on change/blur so blank values are not committed as `0`.
+- `met` and `clo` option values now come from `jsthermalcomfort` through a comfort-service adapter instead of duplicated model data.
 - Shared calculation flow remains validated through automated tests and a successful production build.

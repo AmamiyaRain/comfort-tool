@@ -1,33 +1,65 @@
 /**
  * Canonical comfort-tool state types.
- * `inputsByInput` and `derivedByInput` are SI-based domain records, while `ui` stores serializable UI selections,
+ * `inputsByInput` stays canonical in SI units, while `ui` stores serializable selections,
  * chart state, and calculation lifecycle flags.
  */
 import type { InputId as InputIdType } from "../../models/inputSlots";
 import type { ComfortModel as ComfortModelType } from "../../models/comfortModels";
-import type { PlotlyChartResponseDto } from "../../models/dto";
-import type { DerivedInputId as DerivedInputIdType, FieldKey as FieldKeyType } from "../../models/fieldKeys";
+import type {
+  PlotlyChartResponseDto,
+  PmvChartSourceDto,
+  PmvResponseDto,
+  UtciChartSourceDto,
+  UtciResponseDto,
+} from "../../models/dto";
+import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
 import type { InputControlId as InputControlIdType, InputControlViewModel } from "../../models/inputControls";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import type { UnitSystem as UnitSystemType } from "../../models/units";
+import { ComfortModel } from "../../models/comfortModels";
 import type { ShareStateSnapshot } from "./shareState";
 
 export type InputState = Record<FieldKeyType, number>;
 export type InputsByInputState = Record<InputIdType, InputState>;
-export type DerivedInputState = Partial<Record<DerivedInputIdType, number>>;
-export type DerivedByInputState = Record<InputIdType, DerivedInputState>;
 export type ModelOptionsState = Partial<Record<OptionKeyType, string>>;
 export type ModelOptionsByModelState = Record<ComfortModelType, ModelOptionsState>;
 export type SelectedChartByModelState = Record<ComfortModelType, ChartIdType>;
-export type ModelResultsState = Record<InputIdType, unknown | null>;
-export type ResultsByModelState = Record<ComfortModelType, ModelResultsState>;
-export type ResultSectionsByModelState = Record<ComfortModelType, ResultSection[]>;
+export type ResultTone = "default" | "success" | "danger";
 
-export type ChartResultsByModelState = Record<
-  ComfortModelType,
-  Partial<Record<ChartIdType, PlotlyChartResponseDto | null>>
->;
+export type ResultCellViewModel = {
+  text: string;
+  tone?: ResultTone;
+};
+
+export type ResultSectionViewModel = {
+  title: string;
+  valuesByInput: Partial<Record<InputIdType, ResultCellViewModel | null>>;
+};
+
+export type CalculationCacheStatus = "empty" | "stale" | "ready";
+export type PmvResultsState = Record<InputIdType, PmvResponseDto | null>;
+export type UtciResultsState = Record<InputIdType, UtciResponseDto | null>;
+
+type ModelCalculationCacheBase = {
+  status: CalculationCacheStatus;
+  lastVisibleInputIds: InputIdType[];
+};
+
+export type PmvCalculationCache = ModelCalculationCacheBase & {
+  resultsByInput: PmvResultsState;
+  chartSource: PmvChartSourceDto | null;
+};
+
+export type UtciCalculationCache = ModelCalculationCacheBase & {
+  resultsByInput: UtciResultsState;
+  chartSource: UtciChartSourceDto | null;
+};
+
+export type ModelCalculationCacheByModelState = {
+  [ComfortModel.Pmv]: PmvCalculationCache;
+  [ComfortModel.Utci]: UtciCalculationCache;
+};
 
 export type UiState = {
   selectedModel: ComfortModelType;
@@ -39,25 +71,12 @@ export type UiState = {
   unitSystem: UnitSystemType;
   isLoading: boolean;
   errorMessage: string;
-  resultsByModel: ResultsByModelState;
-  resultSectionsByModel: ResultSectionsByModelState;
-  chartResultsByModel: ChartResultsByModelState;
+  calculationCacheByModel: ModelCalculationCacheByModelState;
 };
 
 export type ComfortToolStateSlice = {
   inputsByInput: InputsByInputState;
-  derivedByInput: DerivedByInputState;
   ui: UiState;
-};
-
-export type ResultCellPresentation = {
-  text: string;
-  toneClass?: string;
-};
-
-export type ResultSection = {
-  title: string;
-  valuesByInput: Partial<Record<InputIdType, ResultCellPresentation | null>>;
 };
 
 export type ComfortToolActions = {
@@ -77,12 +96,13 @@ export type ComfortToolActions = {
 export type ComfortToolSelectors = {
   getVisibleInputIds: () => InputIdType[];
   getInputControls: () => InputControlViewModel[];
-  getResultSections: () => ResultSection[];
+  getResultSections: () => ResultSectionViewModel[];
   getCurrentChartResult: () => PlotlyChartResponseDto | null;
   getCurrentChartEmptyMessage: () => string;
   getCurrentChartOptions: () => Array<{ name: string; value: ChartIdType }>;
   getCurrentSelectedChart: () => ChartIdType;
   getCurrentChartHeightClass: () => string;
+  getCurrentCacheStatus: () => CalculationCacheStatus;
 };
 
 export type ComfortToolController = {

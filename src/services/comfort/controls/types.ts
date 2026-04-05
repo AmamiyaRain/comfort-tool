@@ -16,8 +16,7 @@ type DerivedByInputRecord = Record<InputIdType, Partial<Record<DerivedInputIdTyp
 export type ModelOptionsRecord = Partial<Record<OptionKeyType, string>>;
 
 export type BehaviorPatch = {
-  inputsPatch?: Partial<Record<InputIdType, Partial<Record<FieldKeyType, number>>>>;
-  derivedPatch?: Partial<Record<InputIdType, Partial<Record<DerivedInputIdType, number>>>>;
+  inputsPatch?: Partial<Record<InputIdType, Record<FieldKeyType, number>>>;
   optionsPatch?: ModelOptionsRecord;
 };
 
@@ -49,36 +48,13 @@ export type InputControlDefinition = {
   behavior: InputControlBehavior;
 };
 
-export function mergeBehaviorPatches(currentPatch: BehaviorPatch, nextPatch: BehaviorPatch): BehaviorPatch {
-  return {
-    inputsPatch: {
-      ...currentPatch.inputsPatch,
-      ...nextPatch.inputsPatch,
-    },
-    derivedPatch: {
-      ...currentPatch.derivedPatch,
-      ...nextPatch.derivedPatch,
-    },
-    optionsPatch: {
-      ...currentPatch.optionsPatch,
-      ...nextPatch.optionsPatch,
-    },
-  };
-}
-
 export function createSingleInputPatch(
   inputId: InputIdType,
   inputState: Record<FieldKeyType, number>,
-  derivedState?: Partial<Record<DerivedInputIdType, number>>,
 ): BehaviorPatch {
   return {
     inputsPatch: {
       [inputId]: inputState,
     },
-    ...(derivedState ? {
-      derivedPatch: {
-        [inputId]: derivedState,
-      },
-    } : {}),
   };
 }

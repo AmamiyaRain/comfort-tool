@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Button, ButtonGroup, Input, Label, Checkbox, Badge } from "flowbite-svelte";
-  import { inputMetaById, InputId, type InputId as InputIdType } from "../models/inputSlots";
+  import { InputId, type InputId as InputIdType } from "../models/inputSlots";
+  import { inputDisplayMetaById } from "../models/inputSlotPresentation";
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/fieldMeta";
-  import { clothingGarmentOptions } from "../models/clothingEnsembles";
-  import type { ClothingGarmentOption } from "../models/clothingEnsembles";
   import type { UnitSystem as UnitSystemType } from "../models/units";
   import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort/inputDerivations";
+  import { clothingGarmentOptions, type ClothingGarmentOption } from "../services/comfort/referenceValues";
 
   let {
     activeInputId,
@@ -150,9 +150,9 @@
               color={inputId === targetInputId ? "primary" : "alternative"}
               size="xs"
               onclick={() => handleSelectTargetInput(inputId)}
-              title={inputMetaById[inputId].label}
+              title={inputDisplayMetaById[inputId].label}
             >
-              {inputMetaById[inputId].shortLabel}
+              {inputDisplayMetaById[inputId].shortLabel}
             </Button>
           {/each}
         </ButtonGroup>
