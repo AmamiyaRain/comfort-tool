@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Card } from "flowbite-svelte";
-  import ChartResultView from "./ChartResultView.svelte";
+  import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
   import type { ChartResult } from "../../models/chartResults";
-  import type { ChartId, ChartOptions } from "../../models/chartOptions";
+  import type { ChartId } from "../../models/chartOptions";
 
   let {
     title,
@@ -23,11 +23,13 @@
     isLoading: boolean;
     emptyMessage: string;
     heightClass: string;
-    chartOptions: ChartOptions;
+    chartOptions: Array<{ name: string; value: ChartId }>;
     selectedChart: ChartId;
     onSelectChart: (chartId: ChartId) => void;
     embedded?: boolean;
   } = $props();
+
+  let exportChart: ((type: "png" | "svg") => void) | undefined = $state(undefined);
 </script>
 
 {#snippet content()}
@@ -46,11 +48,18 @@
       {selectedChart}
       activeChartId={selectedChart}
       onSelectChart={onSelectChart}
+      onExport={(type) => exportChart?.(type)}
     />
   </header>
 
   <div class={`mt-4 ${heightClass} relative overflow-hidden rounded-lg bg-stone-50/50`}>
-    <ChartResultView {chartResult} {isLoading} {emptyMessage} />
+    <PlotlyCanvas
+      {chartResult}
+      {isLoading}
+      {emptyMessage}
+      {heightClass}
+      onRegisterExport={(handler) => (exportChart = handler)}
+    />
   </div>
 {/snippet}
 

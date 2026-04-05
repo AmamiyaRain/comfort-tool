@@ -1,21 +1,23 @@
 <script lang="ts">
   import { Button, Dropdown, DropdownItem } from "flowbite-svelte";
-  import { chartMetaById, chartOrder } from "../../models/chartOptions";
-  import type { ChartId, ChartOptions } from "../../models/chartOptions";
+  import { chartMetaById } from "../../models/chartOptions";
+  import type { ChartId } from "../../models/chartOptions";
 
   let {
     chartOptions,
     selectedChart,
     activeChartId,
     onSelectChart,
+    onExport,
   }: {
-    chartOptions: ChartOptions;
+    chartOptions: Array<{ name: string; value: ChartId }>;
     selectedChart: ChartId;
     activeChartId: ChartId;
     onSelectChart: (chartId: ChartId) => void;
+    onExport: (type: "png" | "svg") => void;
   } = $props();
 
-  const currentChartLabel = $derived(chartMetaById[activeChartId].label);
+  const currentChartLabel = $derived(chartMetaById[activeChartId].name);
 </script>
 
 <div class="relative inline-block text-left">
@@ -36,13 +38,13 @@
     <header class="border-b border-stone-100 px-4 py-2">
       <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Select Chart</p>
     </header>
-    {#each chartOrder as chartId}
+    {#each chartOptions as option}
       <DropdownItem
-        onclick={() => onSelectChart(chartId)}
+        onclick={() => onSelectChart(option.value)}
         class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
       >
-        <span class={selectedChart === chartId ? "font-bold text-teal-700" : "text-stone-700"}>
-          {chartMetaById[chartId].label}
+        <span class={selectedChart === option.value ? "font-bold text-teal-700" : "text-stone-700"}>
+          {option.name}
         </span>
       </DropdownItem>
     {/each}
@@ -50,15 +52,11 @@
     <header class="mt-2 border-b border-stone-100 px-4 py-2">
       <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Export options</p>
     </header>
-    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => chartOptions.actions.exportAsCsv()}>
-      Export data (CSV)
-    </DropdownItem>
-    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => chartOptions.actions.exportAsJson()}>
-      Export data (JSON)
-    </DropdownItem>
-    <div class="my-1 border-t border-stone-100"></div>
-    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => chartOptions.actions.exportAsImage()}>
+    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => onExport("png")}>
       Export as image (PNG)
+    </DropdownItem>
+    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => onExport("svg")}>
+      Export as vector (SVG)
     </DropdownItem>
   </Dropdown>
 </div>
