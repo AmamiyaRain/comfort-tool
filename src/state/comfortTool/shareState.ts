@@ -137,10 +137,20 @@ function parseModelSnapshots(value: unknown): ShareStateSnapshot["models"] | nul
   return parsed;
 }
 
+/**
+ * Compresses a state snapshot into a Base64URL-encoded string.
+ * @param snapshot The data structure to serialize.
+ * @returns A compact, URL-safe representation of the state.
+ */
 export function serializeShareState(snapshot: ShareStateSnapshot): string {
   return encodeBase64Url(JSON.stringify(snapshot));
 }
 
+/**
+ * Decompresses and validates a state snapshot from a Base64URL string.
+ * @param encodedSnapshot The string to decode.
+ * @returns A validated ShareStateSnapshot object, or null if the input is invalid or has a version mismatch.
+ */
 export function deserializeShareState(encodedSnapshot: string): ShareStateSnapshot | null {
   try {
     const parsed = JSON.parse(decodeBase64Url(encodedSnapshot));
@@ -188,12 +198,23 @@ export function deserializeShareState(encodedSnapshot: string): ShareStateSnapsh
   }
 }
 
+/**
+ * Creates a sharable URL containing the current state snapshot.
+ * @param snapshot The state snapshot to include in the URL.
+ * @param locationSource The current location context (to preserve the base URL).
+ * @returns A fully qualified URL with the 'state' parameter appended.
+ */
 export function buildShareUrl(snapshot: ShareStateSnapshot, locationSource: URL | Location | string): string {
   const url = toUrl(locationSource);
   url.searchParams.set(SHARE_STATE_PARAM, serializeShareState(snapshot));
   return url.toString();
 }
 
+/**
+ * Attempts to extract and deserialize a state snapshot from the provided URL.
+ * @param locationSource The URL string or object to parse.
+ * @returns The deserialized snapshot if successful, otherwise null.
+ */
 export function readShareStateFromUrl(locationSource: URL | Location | string): ShareStateSnapshot | null {
   const url = toUrl(locationSource);
   const encodedSnapshot = url.searchParams.get(SHARE_STATE_PARAM);
