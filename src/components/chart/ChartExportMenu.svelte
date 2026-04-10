@@ -20,42 +20,43 @@
   const currentChartLabel = $derived(chartMetaById[activeChartId].name);
 </script>
 
-<Button
-  id={`chart-select-trigger-${activeChartId}`}
-  color="light"
-  pill
-  size="xs"
->
-  {currentChartLabel}
-  <svg class="ms-2 h-3 w-3" aria-hidden="true" fill="none" viewBox="0 0 10 6">
-    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
-  </svg>
-</Button>
+<div class="relative inline-block text-left">
+  <Button
+    id={`chart-select-trigger-${activeChartId}`}
+    color="light"
+    pill
+    size="xs"
+    class="flex items-center gap-2 border-stone-200 bg-white px-3 py-1.5 font-semibold text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+  >
+    {currentChartLabel}
+    <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+    </svg>
+  </Button>
 
-<Dropdown triggeredBy={`#chart-select-trigger-${activeChartId}`} class="w-48">
-  <div slot="header" class="px-4 py-2 text-xs font-medium text-stone-500 uppercase tracking-wider">
-    Select Chart
-  </div>
-  <!-- Chart Selection Section -->
-  {#each chartOptions as option}
-    <DropdownItem
-      onclick={() => onSelectChart(option.value)}
-      class="text-left"
-    >
-      <span class={selectedChart === option.value ? "font-bold text-teal-700" : ""}>
-        {option.name}
-      </span>
+  <Dropdown triggeredBy={`#chart-select-trigger-${activeChartId}`} class="w-56 overflow-hidden rounded-xl py-1 shadow-lg">
+    <header class="border-b border-stone-100 px-4 py-2">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Select Chart</p>
+    </header>
+    {#each chartOptions as option}
+      <DropdownItem
+        onclick={() => onSelectChart(option.value)}
+        class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+      >
+        <span class={selectedChart === option.value ? "font-bold text-teal-700" : "text-stone-700"}>
+          {option.name}
+        </span>
+      </DropdownItem>
+    {/each}
+
+    <header class="mt-2 border-b border-stone-100 px-4 py-2">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Export options</p>
+    </header>
+    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => onExport("png")}>
+      Export as image (PNG)
     </DropdownItem>
-  {/each}
-
-  <!-- Export Section Divider & Label -->
-  <div class="px-4 py-2 text-xs font-medium text-stone-500 border-t border-stone-100 mt-1 uppercase tracking-wider">
-    Export options
-  </div>
-  <DropdownItem onclick={() => onExport("png")}>
-    Export as image (PNG)
-  </DropdownItem>
-  <DropdownItem onclick={() => onExport("svg")}>
-    Export as vector (SVG)
-  </DropdownItem>
-</Dropdown>
+    <DropdownItem class="px-4 py-2 text-left text-sm text-stone-700" onclick={() => onExport("svg")}>
+      Export as vector (SVG)
+    </DropdownItem>
+  </Dropdown>
+</div>

@@ -143,11 +143,6 @@ function parseModelSnapshots(value: unknown): ShareStateSnapshot["models"] | nul
   return parsed;
 }
 
-/**
- * Compresses a state snapshot into a Base64URL-encoded string.
- * @param snapshot The data structure to serialize.
- * @returns A compact, URL-safe representation of the state.
- */
 export function serializeShareState(snapshot: ShareStateSnapshot): string {
   return encodeBase64Url(JSON.stringify(snapshot));
 }
@@ -197,6 +192,7 @@ export function parseShareStateSnapshot(value: unknown): ShareStateSnapshot | nu
 
   return null;
 }
+
 export function deserializeShareState(encodedSnapshot: string): ShareStateSnapshot | null {
   try {
     return parseShareStateSnapshot(JSON.parse(decodeBase64Url(encodedSnapshot)));
@@ -249,17 +245,13 @@ export function applyShareSnapshotToState(state: ComfortToolStateSlice, snapshot
     });
   });
 }
+
 export function buildShareUrl(snapshot: ShareStateSnapshot, locationSource: URL | Location | string): string {
   const url = toUrl(locationSource);
   url.searchParams.set(SHARE_STATE_PARAM, serializeShareState(snapshot));
   return url.toString();
 }
 
-/**
- * Attempts to extract and deserialize a state snapshot from the provided URL.
- * @param locationSource The URL string or object to parse.
- * @returns The deserialized snapshot if successful, otherwise null.
- */
 export function readShareStateFromUrl(locationSource: URL | Location | string): ShareStateSnapshot | null {
   const url = toUrl(locationSource);
   const encodedSnapshot = url.searchParams.get(SHARE_STATE_PARAM);
