@@ -33,6 +33,11 @@ import type {
   ComfortToolStateSlice,
 } from "./types";
 
+/**
+ * Creates an initial input state for a specific input slot.
+ * @param inputId The input slot ID to initialize.
+ * @returns A record of field keys to their default numeric values.
+ */
 function createInputState(inputId: InputIdType): InputState {
   return allFieldOrder.reduce((accumulator, fieldKey) => {
     accumulator[fieldKey] = inputDefaultsById[inputId][fieldKey] ?? fieldMetaByKey[fieldKey].defaultValue;
@@ -40,6 +45,10 @@ function createInputState(inputId: InputIdType): InputState {
   }, {} as InputState);
 }
 
+/**
+ * Creates the initial multi-input state record.
+ * @returns A record of all input slots initialized with their default states.
+ */
 function createInputsByInput() {
   return inputOrder.reduce((accumulator, inputId) => {
     accumulator[inputId] = createInputState(inputId);
@@ -47,14 +56,27 @@ function createInputsByInput() {
   }, {} as ComfortToolStateSlice["inputsByInput"]);
 }
 
+/**
+ * Returns a default set of input IDs to be visible when comparison mode is first enabled.
+ * @returns An array containing the IDs for Input 1 and Input 2.
+ */
 function createDefaultCompareInputIds(): InputIdType[] {
   return [InputId.Input1, InputId.Input2];
 }
 
+/**
+ * Normalizes an array of input IDs ensuring Input 1 is always present and in order.
+ * @param inputIds The unsorted or incomplete list of input IDs.
+ * @returns A sanitized and ordered array of input IDs.
+ */
 function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
   return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
 }
 
+/**
+ * Creates the initial record of selected charts for each comfort model.
+ * @returns A record mapping models to their default chart IDs.
+ */
 function createSelectedChartByModel(): SelectedChartByModelState {
   return comfortModelOrder.reduce((accumulator, modelId) => {
     accumulator[modelId] = comfortModelConfigs[modelId].defaultChartId;
@@ -101,6 +123,10 @@ function getTimerApi() {
   return typeof window !== "undefined" ? window : globalThis;
 }
 
+/**
+ * Yields execution to the next animation frame if in a browser environment.
+ * Useful for ensuring the UI remains responsive during heavy calculations.
+ */
 async function yieldToNextFrame() {
   if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
     await Promise.resolve();
@@ -112,6 +138,11 @@ async function yieldToNextFrame() {
   });
 }
 
+/**
+ * Factory function that creates the stateful comfort tool controller.
+ * Manages calculations, UI state, and user actions using Svelte's runes.
+ * @returns A controller object containing state, actions, and selectors.
+ */
 export function createComfortToolState(): ComfortToolController {
   const inputsByInput = $state(createInputsByInput());
   const derivedByInput = $derived.by(() => deriveInputsDerivedState(inputsByInput));
@@ -153,6 +184,9 @@ export function createComfortToolState(): ComfortToolController {
     });
   }
 
+  /**
+   * Returns IDs of all currently visible input slots.
+   */
   function getVisibleInputIds(): InputIdType[] {
     if (!state.ui.compareEnabled) {
       return [InputId.Input1];
@@ -244,6 +278,9 @@ export function createComfortToolState(): ComfortToolController {
   let calculationTimerId: ReturnType<typeof setTimeout> | null = null;
   let latestCalculationToken = 0;
 
+  /**
+   * Cancels any currently pending calculation.
+   */
   function clearScheduledCalculation() {
     if (calculationTimerId !== null) {
       getTimerApi().clearTimeout(calculationTimerId as never);
@@ -251,6 +288,10 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
+  /**
+   * Performs the actual comfort calculation via the active model configuration.
+   * @param calculationToken A token used to identify and cancel stale calculations.
+   */
   async function calculate(calculationToken: number) {
     const selectedModel = state.ui.selectedModel;
     const visibleInputIds = getVisibleInputIds();
@@ -317,12 +358,20 @@ export function createComfortToolState(): ComfortToolController {
     calculationTimerId = getTimerApi().setTimeout(runCalculation, 180);
   }
 
+  /**
+   * Updates the active comfort model.
+   * @param nextModel The ID of the model to select.
+   */
   function setSelectedModel(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
     state.ui.errorMessage = "";
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Updates the active chart for the current model.
+   * @param nextChart The ID of the chart to select.
+   */
   function setSelectedChart(nextChart: ChartIdType) {
     if (!getActiveModelConfig().chartIds.includes(nextChart)) {
       return;
@@ -331,6 +380,11 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
   }
 
+  /**
+   * Updates a model-specific configuration option.
+   * @param optionKey The option key to change.
+   * @param nextValue The new value for the option.
+   */
   function setModelOption(optionKey: OptionKeyType, nextValue: string) {
     const modelConfig = getActiveModelConfig();
     const context = getModelContext(state.ui.selectedModel);
@@ -345,6 +399,10 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Enables or disables input comparison mode.
+   * @param enabled Whether comparison mode should be active.
+   */
   function setCompareEnabled(enabled: boolean) {
     state.ui.compareEnabled = enabled;
     if (enabled) {
@@ -362,6 +420,10 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Updates the currently active input slot for editing.
+   * @param nextInputId The ID of the input slot to activate.
+   */
   function setActiveInputId(nextInputId: InputIdType) {
     state.ui.activeInputId = nextInputId;
   }
@@ -384,10 +446,19 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Toggles the UI unit system between SI and IP.
+   */
   function toggleUnitSystem() {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
 
+  /**
+   * Updates a specific environmental or personal input value.
+   * @param inputId The ID of the input slot being updated.
+   * @param controlId The ID of the control behavior managing the field.
+   * @param rawValue The new string value from the UI.
+   */
   function updateInput(inputId: InputIdType, controlId: InputControlIdType, rawValue: string) {
     const control = getActiveModelConfig().controls.find((item) => item.id === controlId);
     if (!control?.behavior.applyInput) {
