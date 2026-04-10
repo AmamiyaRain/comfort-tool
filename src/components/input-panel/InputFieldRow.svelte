@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Dropdown, DropdownItem, Input, Label } from "flowbite-svelte";
   import PresetNumericInput from "../PresetNumericInput.svelte";
-  import { inputMetaById } from "../../models/inputSlots";
+  import { inputDisplayMetaById } from "../../models/inputSlotPresentation";
   import type { InputId as InputIdType } from "../../models/inputSlots";
   import type { InputControlViewModel } from "../../models/inputControls";
   import type { ComfortToolController } from "../../state/comfortTool/types";
@@ -30,9 +30,16 @@
     return `repeat(${getVisibleInputIds().length}, minmax(0, 1fr))`;
   }
 
-  function handleFieldInput(inputId: InputIdType, value: string) {
+  function commitFieldValue(inputId: InputIdType, inputElement: HTMLInputElement) {
+    const rawValue = inputElement.value.trim();
     toolState.actions.setActiveInputId(inputId);
-    toolState.actions.updateInput(inputId, control.id, value);
+
+    if (!rawValue || !Number.isFinite(Number(rawValue))) {
+      inputElement.value = control.displayValuesByInput[inputId] ?? "";
+      return;
+    }
+
+    toolState.actions.updateInput(inputId, control.id, rawValue);
   }
 
   function handleApplyPresetValue(inputId: InputIdType, value: number) {
@@ -117,7 +124,7 @@
             valueSuffix={control.displayUnits}
             placeholder={`Enter ${control.displayUnits} or search preset`}
             searchPlaceholder={`Search ${control.label.toLowerCase()} presets`}
-            ariaLabel={`${inputMetaById[inputId].label} ${control.label}`}
+            ariaLabel={`${inputDisplayMetaById[inputId].label} ${control.label}`}
             onActivate={() => toolState.actions.setActiveInputId(inputId)}
             onCommit={(value) => handleApplyPresetValue(inputId, value)}
           />
@@ -128,9 +135,27 @@
             step={control.step}
             size="sm"
             value={control.displayValuesByInput[inputId] ?? ""}
-            aria-label={`${inputMetaById[inputId].label} ${control.label}`}
+            aria-label={`${inputDisplayMetaById[inputId].label} ${control.label}`}
             onfocus={() => toolState.actions.setActiveInputId(inputId)}
-            oninput={(event) => handleFieldInput(inputId, event.currentTarget.value)}
+            onchange={(event) => commitFieldValue(inputId, event.currentTarget)}
+            onblur={(event) => {
+              if (!event.currentTarget.value.trim()) {
+                event.currentTarget.value = control.displayValuesByInput[inputId] ?? "";
+              }
+            }}
+            onkeydown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+                return;
+              }
+
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.value = control.displayValuesByInput[inputId] ?? "";
+                event.currentTarget.blur();
+              }
+            }}
             class="rounded-sm border-stone-300 bg-white"
           />
         {/if}
@@ -138,5 +163,3 @@
     {/each}
   </ul>
 </section>
-
-

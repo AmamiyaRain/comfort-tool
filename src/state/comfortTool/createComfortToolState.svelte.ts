@@ -16,17 +16,19 @@ import type { InputControlId as InputControlIdType } from "../../models/inputCon
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem } from "../../models/units";
 import type { BehaviorPatch, ControlBehaviorContext } from "../../services/comfort/controls/types";
-import { mergeBehaviorPatches } from "../../services/comfort/controls/types";
-import { refreshAllDerivedState, createEmptyDerivedByInput } from "./derivedState";
+import { deriveInputsDerivedState } from "../../services/comfort/inputDerivations";
 import { comfortModelConfigs, getComfortModelConfig } from "./modelConfigs";
-import type { ShareStateSnapshot } from "./shareState";
+import {
+  applyShareSnapshotToState,
+  createShareStateSnapshot,
+  type ShareStateSnapshot,
+} from "./shareState";
 import type {
-  ChartResultsByModelState,
+  CalculationCacheStatus,
   ComfortToolController,
   InputState,
+  ModelCalculationCacheByModelState,
   ModelOptionsByModelState,
-  ResultSectionsByModelState,
-  ResultsByModelState,
   SelectedChartByModelState,
   ComfortToolStateSlice,
 } from "./types";
@@ -96,86 +98,29 @@ function createEmptyInputResultRecord<T>(): Record<InputIdType, T | null> {
   }, {} as Record<InputIdType, T | null>);
 }
 
-function createResultsByModel(): ResultsByModelState {
-  return comfortModelOrder.reduce((accumulator, modelId) => {
-    accumulator[modelId] = createEmptyInputResultRecord();
-    return accumulator;
-  }, {} as ResultsByModelState);
-}
-
-function createResultSectionsByModel(): ResultSectionsByModelState {
-  return comfortModelOrder.reduce((accumulator, modelId) => {
-    accumulator[modelId] = [];
-    return accumulator;
-  }, {} as ResultSectionsByModelState);
-}
-
-function createChartResultsByModel(): ChartResultsByModelState {
-  return comfortModelOrder.reduce((accumulator, modelId) => {
-    accumulator[modelId] = comfortModelConfigs[modelId].chartIds.reduce((chartAccumulator, chartId) => {
-      chartAccumulator[chartId] = null;
-      return chartAccumulator;
-    }, {} as ChartResultsByModelState[ComfortModelType]);
-    return accumulator;
-  }, {} as ChartResultsByModelState);
-}
-
-function exportShareSnapshot(state: ComfortToolStateSlice): ShareStateSnapshot {
+function createEmptyCalculationCache<ResultType>(): {
+  status: CalculationCacheStatus;
+  lastVisibleInputIds: InputIdType[];
+  resultsByInput: Record<InputIdType, ResultType | null>;
+  chartSource: null;
+} {
   return {
-    version: 6,
-    selectedModel: state.ui.selectedModel,
-    models: comfortModelOrder.reduce((accumulator, modelId) => {
-      accumulator[modelId] = {
-        selectedChart: state.ui.selectedChartByModel[modelId],
-        options: { ...state.ui.modelOptionsByModel[modelId] },
-      };
-      return accumulator;
-    }, {} as ShareStateSnapshot["models"]),
-    compareEnabled: state.ui.compareEnabled,
-    compareInputIds: [...state.ui.compareInputIds],
-    activeInputId: state.ui.activeInputId,
-    unitSystem: state.ui.unitSystem,
-    inputsByInput: inputOrder.reduce((accumulator, inputId) => {
-      accumulator[inputId] = allFieldOrder.reduce((inputAccumulator, fieldKey) => {
-        inputAccumulator[fieldKey] = state.inputsByInput[inputId][fieldKey];
-        return inputAccumulator;
-      }, {} as ShareStateSnapshot["inputsByInput"][typeof inputId]);
-      return accumulator;
-    }, {} as ShareStateSnapshot["inputsByInput"]),
+    status: "empty",
+    lastVisibleInputIds: [InputId.Input1],
+    resultsByInput: createEmptyInputResultRecord(),
+    chartSource: null,
   };
 }
 
-type ApplyShareSnapshotCallbacks = {
-  clearResults: (options?: { keepErrorMessage?: boolean }) => void;
-  scheduleCalculation: (options?: { immediate?: boolean }) => void;
-};
+function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
+  return {
+    [ComfortModel.Pmv]: createEmptyCalculationCache(),
+    [ComfortModel.Utci]: createEmptyCalculationCache(),
+  } as ModelCalculationCacheByModelState;
+}
 
-function applyShareSnapshot(
-  state: ComfortToolStateSlice,
-  snapshot: ShareStateSnapshot,
-  callbacks: ApplyShareSnapshotCallbacks,
-) {
-  state.ui.selectedModel = snapshot.selectedModel;
-  comfortModelOrder.forEach((modelId) => {
-    state.ui.selectedChartByModel[modelId] = snapshot.models[modelId].selectedChart;
-    state.ui.modelOptionsByModel[modelId] = { ...snapshot.models[modelId].options };
-  });
-  state.ui.compareEnabled = snapshot.compareEnabled;
-  state.ui.compareInputIds = normalizeCompareInputIds(snapshot.compareInputIds);
-  state.ui.activeInputId = snapshot.compareEnabled && state.ui.compareInputIds.includes(snapshot.activeInputId)
-    ? snapshot.activeInputId
-    : InputId.Input1;
-  state.ui.unitSystem = snapshot.unitSystem;
-
-  inputOrder.forEach((inputId) => {
-    allFieldOrder.forEach((fieldKey) => {
-      state.inputsByInput[inputId][fieldKey] = snapshot.inputsByInput[inputId][fieldKey];
-    });
-  });
-
-  refreshAllDerivedState(state);
-  callbacks.clearResults();
-  callbacks.scheduleCalculation({ immediate: true });
+function getTimerApi() {
+  return typeof window !== "undefined" ? window : globalThis;
 }
 
 /**
@@ -200,7 +145,7 @@ async function yieldToNextFrame() {
  */
 export function createComfortToolState(): ComfortToolController {
   const inputsByInput = $state(createInputsByInput());
-  const derivedByInput = $state(createEmptyDerivedByInput());
+  const derivedByInput = $derived.by(() => deriveInputsDerivedState(inputsByInput));
   const ui = $state({
     selectedModel: ComfortModel.Pmv,
     selectedChartByModel: createSelectedChartByModel(),
@@ -211,30 +156,32 @@ export function createComfortToolState(): ComfortToolController {
     unitSystem: UnitSystem.SI,
     isLoading: false,
     errorMessage: "",
-    resultsByModel: createResultsByModel(),
-    resultSectionsByModel: createResultSectionsByModel(),
-    chartResultsByModel: createChartResultsByModel(),
+    calculationCacheByModel: createCalculationCacheByModel(),
   });
 
   const state: ComfortToolStateSlice = {
     inputsByInput,
-    derivedByInput,
     ui,
   };
 
-  refreshAllDerivedState(state);
-
-  /**
-   * Clears current calculation results and chart data.
-   * @param options Configuration for reset behavior.
-   */
-  function clearResults(options?: { keepErrorMessage?: boolean }) {
+  function invalidateModel(modelId: ComfortModelType, options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
       state.ui.errorMessage = "";
     }
-    state.ui.resultsByModel = createResultsByModel();
-    state.ui.resultSectionsByModel = createResultSectionsByModel();
-    state.ui.chartResultsByModel = createChartResultsByModel();
+
+    const nextStatus = state.ui.calculationCacheByModel[modelId].chartSource ? "stale" : "empty";
+    state.ui.calculationCacheByModel[modelId] = {
+      ...state.ui.calculationCacheByModel[modelId],
+      status: nextStatus,
+    };
+  }
+
+  function invalidateAllModels(options?: { keepErrorMessage?: boolean }) {
+    comfortModelOrder.forEach((modelId, index) => {
+      invalidateModel(modelId, {
+        keepErrorMessage: options?.keepErrorMessage || index !== 0,
+      });
+    });
   }
 
   /**
@@ -251,7 +198,7 @@ export function createComfortToolState(): ComfortToolController {
   function getModelContext(modelId: ComfortModelType): ControlBehaviorContext {
     return {
       inputsByInput: state.inputsByInput,
-      derivedByInput: state.derivedByInput,
+      derivedByInput,
       options: state.ui.modelOptionsByModel[modelId],
       unitSystem: state.ui.unitSystem,
       visibleInputIds: getVisibleInputIds(),
@@ -267,10 +214,14 @@ export function createComfortToolState(): ComfortToolController {
     return state.ui.selectedChartByModel[state.ui.selectedModel];
   }
 
-  function applyBehaviorPatch(patch: BehaviorPatch) {
+  function getCurrentModelCache() {
+    return state.ui.calculationCacheByModel[state.ui.selectedModel];
+  }
+
+  function applyBehaviorPatch(modelId: ComfortModelType, patch: BehaviorPatch) {
     if (patch.optionsPatch) {
-      state.ui.modelOptionsByModel[state.ui.selectedModel] = {
-        ...state.ui.modelOptionsByModel[state.ui.selectedModel],
+      state.ui.modelOptionsByModel[modelId] = {
+        ...state.ui.modelOptionsByModel[modelId],
         ...patch.optionsPatch,
       };
     }
@@ -286,19 +237,6 @@ export function createComfortToolState(): ComfortToolController {
         });
       });
     }
-
-    if (patch.derivedPatch) {
-      Object.entries(patch.derivedPatch).forEach(([inputId, derivedPatch]) => {
-        if (!derivedPatch) {
-          return;
-        }
-
-        state.derivedByInput[inputId as InputIdType] = {
-          ...state.derivedByInput[inputId as InputIdType],
-          ...derivedPatch,
-        };
-      });
-    }
   }
 
   const selectors = {
@@ -309,8 +247,24 @@ export function createComfortToolState(): ComfortToolController {
         .map((control) => control.behavior.buildViewModel(context))
         .filter((control) => !control.hidden);
     },
-    getResultSections: () => state.ui.resultSectionsByModel[state.ui.selectedModel],
-    getCurrentChartResult: () => state.ui.chartResultsByModel[state.ui.selectedModel][getCurrentSelectedChartId()] ?? null,
+    getResultSections: () => {
+      const cache = getCurrentModelCache();
+      if (cache.status === "empty") {
+        return [];
+      }
+
+      return getActiveModelConfig().buildResultSections(
+        cache.resultsByInput,
+        getVisibleInputIds(),
+        state.ui.unitSystem,
+      );
+    },
+    getCurrentChartResult: () => getActiveModelConfig().buildChartResult(
+      getCurrentSelectedChartId(),
+      getCurrentModelCache().chartSource,
+      getCurrentModelCache().resultsByInput,
+      state.ui.unitSystem,
+    ),
     getCurrentChartEmptyMessage: () => chartMetaById[getCurrentSelectedChartId()].emptyMessage,
     getCurrentChartOptions: () => getActiveModelConfig().chartIds.map((chartId) => ({
       name: chartMetaById[chartId].name,
@@ -318,17 +272,18 @@ export function createComfortToolState(): ComfortToolController {
     })),
     getCurrentSelectedChart: () => getCurrentSelectedChartId(),
     getCurrentChartHeightClass: () => chartMetaById[getCurrentSelectedChartId()].heightClass,
+    getCurrentCacheStatus: () => getCurrentModelCache().status,
   };
 
-  let calculationTimerId: number | null = null;
+  let calculationTimerId: ReturnType<typeof setTimeout> | null = null;
   let latestCalculationToken = 0;
 
   /**
    * Cancels any currently pending calculation.
    */
   function clearScheduledCalculation() {
-    if (calculationTimerId !== null && typeof window !== "undefined") {
-      window.clearTimeout(calculationTimerId);
+    if (calculationTimerId !== null) {
+      getTimerApi().clearTimeout(calculationTimerId as never);
       calculationTimerId = null;
     }
   }
@@ -339,6 +294,7 @@ export function createComfortToolState(): ComfortToolController {
    */
   async function calculate(calculationToken: number) {
     const selectedModel = state.ui.selectedModel;
+    const visibleInputIds = getVisibleInputIds();
 
     state.ui.isLoading = true;
     state.ui.errorMessage = "";
@@ -351,13 +307,14 @@ export function createComfortToolState(): ComfortToolController {
 
     try {
       const modelConfig = getComfortModelConfig(selectedModel);
-      const calculationOutputs = modelConfig.calculate(state, getVisibleInputIds());
+      const calculationOutputs = modelConfig.calculate(state, visibleInputIds);
 
-      state.ui.resultsByModel[selectedModel] = calculationOutputs.resultsByInput;
-      state.ui.resultSectionsByModel[selectedModel] = calculationOutputs.resultSections;
-      state.ui.chartResultsByModel[selectedModel] = {
-        ...state.ui.chartResultsByModel[selectedModel],
-        ...calculationOutputs.chartResults,
+      state.ui.calculationCacheByModel[selectedModel] = {
+        ...state.ui.calculationCacheByModel[selectedModel],
+        status: "ready",
+        lastVisibleInputIds: [...visibleInputIds],
+        resultsByInput: calculationOutputs.resultsByInput,
+        chartSource: calculationOutputs.chartSource,
       };
 
       if (calculationToken !== latestCalculationToken) {
@@ -368,7 +325,10 @@ export function createComfortToolState(): ComfortToolController {
         return;
       }
 
-      clearResults({ keepErrorMessage: true });
+      state.ui.calculationCacheByModel[selectedModel] = {
+        ...state.ui.calculationCacheByModel[selectedModel],
+        status: state.ui.calculationCacheByModel[selectedModel].chartSource ? "stale" : "empty",
+      };
       state.ui.errorMessage = error instanceof Error ? error.message : "Calculation failed.";
     } finally {
       if (calculationToken === latestCalculationToken) {
@@ -377,12 +337,8 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
-  /**
-   * Schedules a calculation to run after a short debounce period.
-   * @param options Configuration for the scheduled task.
-   */
-  function scheduleCalculation(options?: { immediate?: boolean }) {
-    if (typeof window === "undefined") {
+  function scheduleCalculationInternal(options?: { immediate?: boolean; force?: boolean }) {
+    if (!options?.force && getCurrentModelCache().status === "ready") {
       return;
     }
 
@@ -399,7 +355,7 @@ export function createComfortToolState(): ComfortToolController {
       return;
     }
 
-    calculationTimerId = window.setTimeout(runCalculation, 180);
+    calculationTimerId = getTimerApi().setTimeout(runCalculation, 180);
   }
 
   /**
@@ -408,8 +364,8 @@ export function createComfortToolState(): ComfortToolController {
    */
   function setSelectedModel(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
-    clearResults();
-    scheduleCalculation({ immediate: true });
+    state.ui.errorMessage = "";
+    scheduleCalculationInternal({ immediate: true });
   }
 
   /**
@@ -432,21 +388,15 @@ export function createComfortToolState(): ComfortToolController {
   function setModelOption(optionKey: OptionKeyType, nextValue: string) {
     const modelConfig = getActiveModelConfig();
     const context = getModelContext(state.ui.selectedModel);
-    const patch = modelConfig.controls.reduce<BehaviorPatch | null>((accumulator, control) => {
-      const nextPatch = control.behavior.applyOptionChange?.(context, optionKey, nextValue);
-      if (!nextPatch) {
-        return accumulator;
-      }
-
-      return accumulator ? mergeBehaviorPatches(accumulator, nextPatch) : nextPatch;
-    }, null);
+    const patch = modelConfig.optionHandlersByKey[optionKey]?.(context, nextValue) ?? null;
 
     if (!patch) {
       return;
     }
 
-    applyBehaviorPatch(patch);
-    scheduleCalculation({ immediate: true });
+    applyBehaviorPatch(state.ui.selectedModel, patch);
+    invalidateModel(state.ui.selectedModel);
+    scheduleCalculationInternal({ immediate: true });
   }
 
   /**
@@ -466,8 +416,8 @@ export function createComfortToolState(): ComfortToolController {
     } else {
       state.ui.activeInputId = InputId.Input1;
     }
-    clearResults();
-    scheduleCalculation({ immediate: true });
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
   }
 
   /**
@@ -492,8 +442,8 @@ export function createComfortToolState(): ComfortToolController {
       state.ui.compareInputIds = normalizeCompareInputIds([...state.ui.compareInputIds, inputId]);
     }
 
-    clearResults();
-    scheduleCalculation({ immediate: true });
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
   }
 
   /**
@@ -520,8 +470,9 @@ export function createComfortToolState(): ComfortToolController {
       return;
     }
 
-    applyBehaviorPatch(patch);
-    scheduleCalculation();
+    applyBehaviorPatch(state.ui.selectedModel, patch);
+    invalidateAllModels();
+    scheduleCalculationInternal();
   }
 
   const actions = {
@@ -532,13 +483,14 @@ export function createComfortToolState(): ComfortToolController {
     setActiveInputId,
     toggleCompareInputVisibility,
     toggleUnitSystem,
-    exportShareSnapshot: () => exportShareSnapshot(state),
-    applyShareSnapshot: (snapshot: ShareStateSnapshot) => applyShareSnapshot(state, snapshot, {
-      clearResults,
-      scheduleCalculation,
-    }),
+    exportShareSnapshot: () => createShareStateSnapshot(state),
+    applyShareSnapshot: (snapshot: ShareStateSnapshot) => {
+      applyShareSnapshotToState(state, snapshot);
+      invalidateAllModels();
+      scheduleCalculationInternal({ immediate: true, force: true });
+    },
     updateInput,
-    scheduleCalculation,
+    scheduleCalculation: (scheduleOptions) => scheduleCalculationInternal(scheduleOptions),
   };
 
   return {

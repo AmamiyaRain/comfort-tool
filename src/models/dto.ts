@@ -70,10 +70,19 @@ export interface PmvChartInputsRequestDto {
   rhCurves: number[];
 }
 
+export interface PmvChartSourceDto {
+  chartRequest: PmvChartInputsRequestDto;
+  comfortZonesByInput: CompareInputMap<ComfortZoneResponseDto>;
+}
+
 export interface RelativeHumidityChartRequestDto extends PmvChartInputsRequestDto {}
 
 export interface UtciChartInputsRequestDto {
   inputs: CompareInputMap<UtciRequestDto>;
+}
+
+export interface UtciChartSourceDto {
+  chartRequest: UtciChartInputsRequestDto;
 }
 
 export interface PlotTraceDto {

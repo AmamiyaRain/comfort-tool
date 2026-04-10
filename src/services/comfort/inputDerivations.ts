@@ -5,6 +5,7 @@ import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
 import { v_relative } from "jsthermalcomfort/lib/esm/utilities/utilities.js";
 
 import { DerivedInputId, FieldKey, type DerivedInputId as DerivedInputIdType, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
+import { inputOrder, type InputId as InputIdType } from "../../models/inputSlots";
 import {
   AirSpeedInputMode,
   defaultPmvOptions,
@@ -105,6 +106,15 @@ export function deriveInputDerivedState(inputState: CanonicalInputState): Canoni
   };
 }
 
+export function deriveInputsDerivedState(
+  inputsByInput: Record<InputIdType, CanonicalInputState>,
+): Record<InputIdType, CanonicalDerivedState> {
+  return inputOrder.reduce((accumulator, inputId) => {
+    accumulator[inputId] = deriveInputDerivedState(inputsByInput[inputId]);
+    return accumulator;
+  }, {} as Record<InputIdType, CanonicalDerivedState>);
+}
+
 function solveRelativeHumidity(
   dryBulbTemperature: number,
   targetValue: number,
@@ -177,25 +187,28 @@ export function deriveOperativeTemperature(
   return t_o(dryBulbTemperature, meanRadiantTemperature, airSpeed, "ASHRAE");
 }
 
-function getDerivedInputValue(
+function resolveDerivedInputState(
   inputState: CanonicalInputState,
-  derivedState: CanonicalDerivedState,
-  derivedInputId: DerivedInputIdType,
-): number {
-  return derivedState[derivedInputId] ?? deriveInputDerivedState(inputState)[derivedInputId] ?? 0;
+  derivedInputOverrides: CanonicalDerivedState = {},
+): CanonicalDerivedState {
+  return {
+    ...deriveInputDerivedState(inputState),
+    ...derivedInputOverrides,
+  };
 }
 
 export function synchronizePmvInputState(
   inputState: CanonicalInputState,
-  derivedState: CanonicalDerivedState,
   options: ModelOptionsRecord,
-): { inputState: CanonicalInputState; derivedState: CanonicalDerivedState } {
+  derivedInputOverrides: CanonicalDerivedState = {},
+): { inputState: CanonicalInputState } {
   const normalizedOptions = normalizePmvOptions(options);
+  const resolvedDerivedState = resolveDerivedInputState(inputState, derivedInputOverrides);
   const nextInputState = { ...inputState };
 
   if (normalizedOptions[OptionKey.AirSpeedInputMode] === AirSpeedInputMode.Measured) {
     nextInputState[FieldKey.RelativeAirSpeed] = deriveRelativeAirSpeedFromMeasured(
-      getDerivedInputValue(inputState, derivedState, DerivedInputId.MeasuredAirSpeed),
+      resolvedDerivedState[DerivedInputId.MeasuredAirSpeed] ?? 0,
       nextInputState[FieldKey.MetabolicRate],
     );
   }
@@ -206,28 +219,27 @@ export function synchronizePmvInputState(
   if (humidityMode === HumidityInputMode.DewPoint) {
     nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
       dryBulbTemperature,
-      getDerivedInputValue(inputState, derivedState, DerivedInputId.DewPoint),
+      resolvedDerivedState[DerivedInputId.DewPoint] ?? 0,
     );
   } else if (humidityMode === HumidityInputMode.HumidityRatio) {
     nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
       dryBulbTemperature,
-      getDerivedInputValue(inputState, derivedState, DerivedInputId.HumidityRatio),
+      resolvedDerivedState[DerivedInputId.HumidityRatio] ?? 0,
     );
   } else if (humidityMode === HumidityInputMode.WetBulb) {
     nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
       dryBulbTemperature,
-      getDerivedInputValue(inputState, derivedState, DerivedInputId.WetBulb),
+      resolvedDerivedState[DerivedInputId.WetBulb] ?? 0,
     );
   } else if (humidityMode === HumidityInputMode.VaporPressure) {
     nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
       dryBulbTemperature,
-      getDerivedInputValue(inputState, derivedState, DerivedInputId.VaporPressure),
+      resolvedDerivedState[DerivedInputId.VaporPressure] ?? 0,
     );
   }
 
   return {
     inputState: nextInputState,
-    derivedState: deriveInputDerivedState(nextInputState),
   };
 }
 
@@ -235,12 +247,13 @@ export const synchronizeControlInputState = synchronizePmvInputState;
 
 export function applyOperativeTemperatureMode(
   inputState: CanonicalInputState,
-  derivedState: CanonicalDerivedState,
   options: ModelOptionsRecord,
-): { inputState: CanonicalInputState; derivedState: CanonicalDerivedState } {
+  derivedInputOverrides: CanonicalDerivedState = {},
+): { inputState: CanonicalInputState } {
   const normalizedOptions = normalizePmvOptions(options);
+  const resolvedDerivedState = resolveDerivedInputState(inputState, derivedInputOverrides);
   const airSpeed = normalizedOptions[OptionKey.AirSpeedInputMode] === AirSpeedInputMode.Measured
-    ? getDerivedInputValue(inputState, derivedState, DerivedInputId.MeasuredAirSpeed)
+    ? resolvedDerivedState[DerivedInputId.MeasuredAirSpeed] ?? 0
     : inputState[FieldKey.RelativeAirSpeed];
   const operativeTemperature = deriveOperativeTemperature(
     inputState[FieldKey.DryBulbTemperature],
@@ -254,8 +267,8 @@ export function applyOperativeTemperatureMode(
       [FieldKey.DryBulbTemperature]: operativeTemperature,
       [FieldKey.MeanRadiantTemperature]: operativeTemperature,
     },
-    derivedState,
     options,
+    derivedInputOverrides,
   );
 }
 

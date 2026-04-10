@@ -7,20 +7,30 @@ import { ComfortModel, type ComfortModel as ComfortModelType } from "../../../mo
 import type { PlotlyChartResponseDto } from "../../../models/dto";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
 import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
-import type { InputControlDefinition } from "../../../services/comfort/controls/types";
-import type { ComfortToolStateSlice, ModelOptionsState, ResultSection } from "../types";
+import type {
+  BehaviorPatch,
+  ControlBehaviorContext,
+  InputControlDefinition,
+} from "../../../services/comfort/controls/types";
+import type { UnitSystem as UnitSystemType } from "../../../models/units";
+import type { ComfortToolStateSlice, ModelOptionsState, ResultSectionViewModel } from "../types";
 import { pmvModelConfig } from "./pmv";
 import { utciModelConfig } from "./utci";
 
-export type ModelCalculationOutputs<ResultType> = {
+export type ModelCalculationOutputs<ResultType, ChartSourceType> = {
   resultsByInput: Record<InputIdType, ResultType | null>;
-  chartResults: Partial<Record<ChartIdType, PlotlyChartResponseDto | null>>;
-  resultSections: ResultSection[];
+  chartSource: ChartSourceType;
 };
 
-export interface ComfortModelDefinition<ResultType> {
+export type ModelOptionChangeHandler = (
+  context: ControlBehaviorContext,
+  nextValue: string,
+) => BehaviorPatch | null;
+
+export interface ComfortModelDefinition<ResultType, ChartSourceType> {
   id: ComfortModelType;
   controls: InputControlDefinition[];
+  optionHandlersByKey: Partial<Record<OptionKeyType, ModelOptionChangeHandler>>;
   chartIds: ChartIdType[];
   defaultChartId: ChartIdType;
   defaultOptions: Partial<Record<OptionKeyType, string>>;
@@ -28,7 +38,18 @@ export interface ComfortModelDefinition<ResultType> {
   calculate: (
     state: ComfortToolStateSlice,
     visibleInputIds: InputIdType[],
-  ) => ModelCalculationOutputs<ResultType>;
+  ) => ModelCalculationOutputs<ResultType, ChartSourceType>;
+  buildResultSections: (
+    resultsByInput: Record<InputIdType, ResultType | null>,
+    visibleInputIds: InputIdType[],
+    unitSystem: UnitSystemType,
+  ) => ResultSectionViewModel[];
+  buildChartResult: (
+    chartId: ChartIdType,
+    chartSource: ChartSourceType | null,
+    resultsByInput: Record<InputIdType, ResultType | null>,
+    unitSystem: UnitSystemType,
+  ) => PlotlyChartResponseDto | null;
 }
 
 export const comfortModelConfigs = {

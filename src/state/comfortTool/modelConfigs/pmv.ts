@@ -2,13 +2,12 @@
  * PMV model definition.
  * Shared input semantics live in pure behavior modules; this file only composes controls and calculation outputs.
  */
-import { clothingTypicalEnsembles } from "../../../models/clothingEnsembles";
 import { ChartId, type ChartId as ChartIdType } from "../../../models/chartOptions";
 import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel } from "../../../models/comfortModels";
 import type {
   ComfortZoneRequestDto,
-  PlotlyChartResponseDto,
+  PmvChartSourceDto,
   PmvChartInputsRequestDto,
   PmvResponseDto,
 } from "../../../models/dto";
@@ -19,11 +18,11 @@ import {
   AirSpeedInputMode,
   HumidityInputMode,
   OptionKey,
+  type OptionKey as OptionKeyType,
   TemperatureMode,
   defaultPmvOptions,
 } from "../../../models/inputModes";
-import { metabolicActivityOptions } from "../../../models/metabolicActivities";
-import { UnitSystem } from "../../../models/units";
+import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import {
   type ComfortZonesByInput,
 } from "../../../services/comfort/helpers";
@@ -41,7 +40,8 @@ import {
   createHumidityControlBehavior,
   createTemperatureControlBehavior,
 } from "../../../services/comfort/controls/controlBehaviors";
-import { createSingleInputPatch } from "../../../services/comfort/controls/types";
+import { createSingleInputPatch, type InputControlBehavior } from "../../../services/comfort/controls/types";
+import { clothingTypicalEnsembles, metabolicActivityOptions } from "../../../services/comfort/referenceValues";
 import type { ComfortModelDefinition } from "./index";
 
 const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
@@ -148,7 +148,7 @@ function toPmvChartInputsRequest(
       tdbMax: 40,
       tdbPoints: 121,
       humidityRatioMin: 0,
-      humidityRatioMax: 30,
+      humidityRatioMax: 0.03,
     },
     rhCurves: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
   };
@@ -157,6 +157,7 @@ function toPmvChartInputsRequest(
 function buildPmvResultSections(
   results: Record<InputIdType, PmvResponseDto | null>,
   visibleInputIds: InputIdType[],
+  _unitSystem: UnitSystemType,
 ) {
   return [
     {
@@ -166,7 +167,7 @@ function buildPmvResultSections(
         accumulator[inputId] = result
           ? {
               text: result.acceptable80 ? "Compliant" : "Out of range",
-              toneClass: result.acceptable80 ? "font-semibold text-emerald-700" : "font-semibold text-red-600",
+              tone: result.acceptable80 ? "success" : "danger",
             }
           : null;
         return accumulator;
@@ -177,7 +178,7 @@ function buildPmvResultSections(
       valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
         const result = results[inputId];
         accumulator[inputId] = result
-          ? { text: result.pmv.toFixed(2), toneClass: "text-base font-semibold text-stone-900" }
+          ? { text: result.pmv.toFixed(2), tone: "default" }
           : null;
         return accumulator;
       }, {}),
@@ -187,7 +188,7 @@ function buildPmvResultSections(
       valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
         const result = results[inputId];
         accumulator[inputId] = result
-          ? { text: `${result.ppd.toFixed(1)}%`, toneClass: "text-base font-semibold text-stone-900" }
+          ? { text: `${result.ppd.toFixed(1)}%`, tone: "default" }
           : null;
         return accumulator;
       }, {}),
@@ -197,7 +198,7 @@ function buildPmvResultSections(
       valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
         const result = results[inputId];
         accumulator[inputId] = result
-          ? { text: `${(100 - result.ppd).toFixed(1)}%`, toneClass: "text-base font-semibold text-stone-900" }
+          ? { text: `${(100 - result.ppd).toFixed(1)}%`, tone: "default" }
           : null;
         return accumulator;
       }, {}),
@@ -205,12 +206,43 @@ function buildPmvResultSections(
   ];
 }
 
-export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
+function buildPmvChartResult(
+  chartId: ChartIdType,
+  chartSource: PmvChartSourceDto | null,
+  unitSystem: UnitSystemType,
+) {
+  if (!chartSource) {
+    return null;
+  }
+
+  if (chartId === ChartId.Psychrometric) {
+    return buildComparePsychrometricChart(chartSource.chartRequest, chartSource.comfortZonesByInput, unitSystem);
+  }
+
+  if (chartId === ChartId.RelativeHumidity) {
+    return buildRelativeHumidityChart(chartSource.chartRequest, chartSource.comfortZonesByInput, unitSystem);
+  }
+
+  return null;
+}
+
+function createOptionHandler(
+  behavior: InputControlBehavior,
+  optionKey: OptionKeyType,
+) {
+  return (context, nextValue: string) => behavior.applyOptionChange?.(context, optionKey, nextValue) ?? null;
+}
+
+const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temperature);
+const airSpeedBehavior = createAirSpeedControlBehavior(InputControlId.AirSpeed);
+const humidityBehavior = createHumidityControlBehavior(InputControlId.Humidity);
+
+export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto, PmvChartSourceDto> = {
   id: ComfortModel.Pmv,
   controls: [
     {
       id: InputControlId.Temperature,
-      behavior: createTemperatureControlBehavior(InputControlId.Temperature),
+      behavior: temperatureBehavior,
     },
     {
       id: InputControlId.RadiantTemperature,
@@ -224,11 +256,11 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
     },
     {
       id: InputControlId.AirSpeed,
-      behavior: createAirSpeedControlBehavior(InputControlId.AirSpeed),
+      behavior: airSpeedBehavior,
     },
     {
       id: InputControlId.Humidity,
-      behavior: createHumidityControlBehavior(InputControlId.Humidity),
+      behavior: humidityBehavior,
     },
     {
       id: InputControlId.MetabolicRate,
@@ -243,10 +275,10 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
           };
           const synchronizedState = synchronizePmvInputState(
             nextInputState,
-            context.derivedByInput[inputId],
             context.options,
+            context.derivedByInput[inputId],
           );
-          return createSingleInputPatch(inputId, synchronizedState.inputState, synchronizedState.derivedState);
+          return createSingleInputPatch(inputId, synchronizedState.inputState);
         },
       }),
     },
@@ -261,6 +293,12 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
       }),
     },
   ],
+  optionHandlersByKey: {
+    [OptionKey.TemperatureMode]: createOptionHandler(temperatureBehavior, OptionKey.TemperatureMode),
+    [OptionKey.AirSpeedControlMode]: createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedControlMode),
+    [OptionKey.AirSpeedInputMode]: createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedInputMode),
+    [OptionKey.HumidityInputMode]: createOptionHandler(humidityBehavior, OptionKey.HumidityInputMode),
+  },
   chartIds: pmvChartIds,
   defaultChartId: ChartId.Psychrometric,
   defaultOptions: { ...defaultPmvOptions },
@@ -279,17 +317,14 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto> = {
 
     return {
       resultsByInput,
-      chartResults: {
-        [ChartId.Psychrometric]: buildComparePsychrometricChart(
-          compareChartRequest,
-          comfortZonesByInput,
-        ) as PlotlyChartResponseDto,
-        [ChartId.RelativeHumidity]: buildRelativeHumidityChart(
-          compareChartRequest,
-          comfortZonesByInput,
-        ) as PlotlyChartResponseDto,
+      chartSource: {
+        chartRequest: compareChartRequest,
+        comfortZonesByInput,
       },
-      resultSections: buildPmvResultSections(resultsByInput, visibleInputIds),
     };
   },
+  buildResultSections: buildPmvResultSections,
+  buildChartResult: (chartId, chartSource, _resultsByInput, unitSystem) => (
+    buildPmvChartResult(chartId, chartSource, unitSystem)
+  ),
 };

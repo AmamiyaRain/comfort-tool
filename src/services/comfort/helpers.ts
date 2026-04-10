@@ -2,6 +2,8 @@ import {
   inputOrder,
   type InputId as InputIdType,
 } from "../../models/inputSlots";
+import { FieldKey } from "../../models/fieldKeys";
+import { fieldMetaByKey } from "../../models/fieldMeta";
 import type {
   CompareInputMap,
   ComfortZoneRequestDto,
@@ -9,6 +11,8 @@ import type {
   UtciRequestDto,
   UtciResponseDto,
 } from "../../models/dto";
+import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
+import { convertFieldValueFromSi } from "../units";
 
 export const PMV_COMFORT_LIMIT = 0.5;
 
@@ -27,9 +31,10 @@ export function ensureFiniteValue(label: string, value: number): number {
   return value;
 }
 
-export function formatSignedTemperature(value: number): string {
-  const rounded = roundValue(value, 1);
-  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} C`;
+export function formatSignedTemperature(value: number, unitSystem: UnitSystemType = UnitSystem.SI): string {
+  const convertedValue = convertFieldValueFromSi(FieldKey.DryBulbTemperature, value, unitSystem);
+  const rounded = roundValue(convertedValue, 1);
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}`;
 }
 
 export function getPaddedAxisRange(
