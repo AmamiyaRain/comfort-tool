@@ -17,6 +17,12 @@ function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
   return matchedCategory;
 }
 
+/**
+ * Main entry point for UTCI (Universal Thermal Climate Index) calculations.
+ * Returns the UTCI value and its associated stress category.
+ * @param payload The UTCI request parameters.
+ * @returns An object containing the UTCI temperature and stress category.
+ */
 export function calculateUtci(payload: UtciRequestDto): UtciResponseDto {
   const result = utci(payload.tdb, payload.tr, payload.v, payload.rh, payload.units, true, false);
 

@@ -53,6 +53,11 @@ function normalizePredictedClothingValue(result: CloToutResult): number {
   throw new Error("Clothing prediction did not return a numeric clo value.");
 }
 
+/**
+ * Normalizes PMV-specific model options, applying defaults for missing values.
+ * @param options A partial record of model options.
+ * @returns A fully populated PmvModelOptions object.
+ */
 export function normalizePmvOptions(options: ModelOptionsRecord): PmvModelOptions {
   return {
     ...defaultPmvOptions,
@@ -62,6 +67,12 @@ export function normalizePmvOptions(options: ModelOptionsRecord): PmvModelOption
 
 export const normalizeControlOptions = normalizePmvOptions;
 
+/**
+ * Calculates psychrometric values (dew point, vapor pressure, etc.) from dry bulb temperature and relative humidity.
+ * @param dryBulbTemperature The air temperature in SI units.
+ * @param relativeHumidity The relative humidity as a percentage (0-100).
+ * @returns An object containing calculated dew point, humidity ratio, wet bulb, and vapor pressure.
+ */
 export function derivePsychrometricStateFromRelativeHumidity(
   dryBulbTemperature: number,
   relativeHumidity: number,
@@ -76,6 +87,12 @@ export function derivePsychrometricStateFromRelativeHumidity(
   };
 }
 
+/**
+ * Calculates the measured air speed given the relative air speed and metabolic rate.
+ * @param relativeAirSpeed The air speed relative to the moving body.
+ * @param metabolicRate The metabolic rate (met).
+ * @returns The absolute measured air speed.
+ */
 export function deriveMeasuredAirSpeedFromRelative(relativeAirSpeed: number, metabolicRate: number): number {
   if (metabolicRate <= 1) {
     return relativeAirSpeed;
@@ -88,6 +105,11 @@ export function deriveRelativeAirSpeedFromMeasured(measuredAirSpeed: number, met
   return v_relative(measuredAirSpeed, metabolicRate);
 }
 
+/**
+ * Calculates all derived environmental values for a single input state.
+ * @param inputState The canonical SI input values.
+ * @returns A record of derived values (dew point, measured air speed, etc.).
+ */
 export function deriveInputDerivedState(inputState: CanonicalInputState): CanonicalDerivedState {
   const psychrometricState = derivePsychrometricStateFromRelativeHumidity(
     inputState[FieldKey.DryBulbTemperature],
@@ -115,6 +137,13 @@ export function deriveInputsDerivedState(
   }, {} as Record<InputIdType, CanonicalDerivedState>);
 }
 
+/**
+ * Iteratively solves for relative humidity given a target value and a selection helper.
+ * @param dryBulbTemperature Air temperature.
+ * @param targetValue The target value to solve for (e.g., dew point, humidity ratio).
+ * @param selector A function that extracts the comparison value from psychrometric results.
+ * @returns The solved relative humidity (0-100).
+ */
 function solveRelativeHumidity(
   dryBulbTemperature: number,
   targetValue: number,
@@ -197,6 +226,14 @@ function resolveDerivedInputState(
   };
 }
 
+/**
+ * Synchronizes the canonical input state to match the currently enabled model options.
+ * For example, if 'Dew Point' mode is enabled, it updates Relative Humidity to match the dew point.
+ * @param inputState The current canonical input state.
+ * @param options The active model options.
+ * @param derivedInputOverrides Optional overrides for derived values.
+ * @returns The updated canonical input state.
+ */
 export function synchronizePmvInputState(
   inputState: CanonicalInputState,
   options: ModelOptionsRecord,
@@ -274,6 +311,13 @@ export function applyOperativeTemperatureMode(
 
 export const applyOperativeTemperatureControlMode = applyOperativeTemperatureMode;
 
+/**
+ * Predicts the required clothing insulation (clo) from the mean outdoor temperature.
+ * Uses the dynamic predicted clothing model from jsthermalcomfort.
+ * @param outdoorTemperature The average outdoor temperature.
+ * @param unitSystem Current unit system (SI/IP).
+ * @returns The predicted clothing insulation level.
+ */
 export function predictClothingInsulationFromOutdoorTemperature(
   outdoorTemperature: number,
   unitSystem: UnitSystemType,
