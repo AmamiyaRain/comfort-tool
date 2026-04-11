@@ -21,12 +21,12 @@
 </script>
 
 <main id="overview" class="bg-stone-50 px-4 py-4 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-7xl grid items-start gap-4 xl:grid-cols-[minmax(0,25rem),minmax(0,1fr)]">
+  <div class="mx-auto max-w-7xl grid gap-4 xl:grid-cols-[25rem_1fr]">
     <aside id="inputs-panel" class="scroll-mt-32">
       <InputPanel {toolState} />
     </aside>
 
-    <div class="min-w-0 grid gap-4">
+    <section class="grid gap-4">
       <Card size="none" class="p-3 shadow-sm scroll-mt-32 border-stone-300">
         <ResultsPanel
           activeInputId={toolState.state.ui.activeInputId}
@@ -49,7 +49,7 @@
           embedded={true}
         />
       </Card>
-    </div>
+    </section>
   </div>
 </main>
 

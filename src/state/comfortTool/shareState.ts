@@ -36,10 +36,20 @@ const inputIdValues = new Set<InputIdType>(Object.values(InputId));
 const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
 const fieldKeyValues = Object.values(FieldKey);
 
+/**
+ * Normalizes an array of input IDs to ensure Input1 is always present and the list is in canonical order.
+ * @param inputIds The unsorted or incomplete list of input IDs.
+ * @returns A sanitized and ordered array of input IDs.
+ */
 function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
   return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
 }
 
+/**
+ * Coerces various location-like types into a standard URL object.
+ * @param source The URL, Location, or string to convert.
+ * @returns A native URL object.
+ */
 function toUrl(source: URL | Location | string): URL {
   if (source instanceof URL) {
     return new URL(source.toString());
@@ -143,6 +153,11 @@ function parseModelSnapshots(value: unknown): ShareStateSnapshot["models"] | nul
   return parsed;
 }
 
+/**
+ * Serializes a tool state snapshot into a Base64URL encoded string.
+ * @param snapshot The data structure to serialize.
+ * @returns A URL-safe string representation of the state.
+ */
 export function serializeShareState(snapshot: ShareStateSnapshot): string {
   return encodeBase64Url(JSON.stringify(snapshot));
 }
@@ -193,6 +208,11 @@ export function parseShareStateSnapshot(value: unknown): ShareStateSnapshot | nu
   return null;
 }
 
+/**
+ * Decompresses and validates a state snapshot from a Base64URL string.
+ * @param encodedSnapshot The string to decode.
+ * @returns A validated ShareStateSnapshot object, or null if the input is invalid.
+ */
 export function deserializeShareState(encodedSnapshot: string): ShareStateSnapshot | null {
   try {
     return parseShareStateSnapshot(JSON.parse(decodeBase64Url(encodedSnapshot)));
@@ -246,12 +266,23 @@ export function applyShareSnapshotToState(state: ComfortToolStateSlice, snapshot
   });
 }
 
+/**
+ * Generates a fully qualified URL containing the serialized tool state.
+ * @param snapshot The state to include in the URL.
+ * @param locationSource The current location context (to preserve the base URL).
+ * @returns The shareable URL string.
+ */
 export function buildShareUrl(snapshot: ShareStateSnapshot, locationSource: URL | Location | string): string {
   const url = toUrl(locationSource);
   url.searchParams.set(SHARE_STATE_PARAM, serializeShareState(snapshot));
   return url.toString();
 }
 
+/**
+ * Attempts to extract and deserialize a state snapshot from the provided URL.
+ * @param locationSource The URL string or object to read from.
+ * @returns The deserialized snapshot if successful, otherwise null.
+ */
 export function readShareStateFromUrl(locationSource: URL | Location | string): ShareStateSnapshot | null {
   const url = toUrl(locationSource);
   const encodedSnapshot = url.searchParams.get(SHARE_STATE_PARAM);

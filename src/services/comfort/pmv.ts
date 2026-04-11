@@ -186,6 +186,14 @@ function findTemperatureBracket(
   return null;
 }
 
+/**
+ * Solves for the dry bulb temperature that results in a target PMV value at a given RH.
+ * Uses a recursive refinement strategy (bisection-like) for root finding.
+ * @param targetPmv The target PMV value to solve for (e.g., -0.5, +0.5).
+ * @param rh The relative humidity (0-100).
+ * @param payload The base comfort request parameters.
+ * @returns The solved dry bulb temperature, or null if no solution is found within range.
+ */
 export function solveDryBulbForTargetPmv(
   targetPmv: number,
   rh: number,
@@ -234,6 +242,12 @@ export function solveDryBulbForTargetPmv(
   return (currentBracket.low + currentBracket.high) / 2;
 }
 
+/**
+ * Main entry point for PMV/PPD calculations.
+ * Returns the PMV, PPD, and ASHRAE standard compliance status.
+ * @param payload The thermal comfort request payload.
+ * @returns An object containing PMV results and metadata.
+ */
 export function calculatePmv(payload: PmvRequestDto): PmvResponseDto {
   const result = calculatePmvValues(payload);
   const isWithinAshraeLimits = isPmvInputWithinAshraeLimits(payload);

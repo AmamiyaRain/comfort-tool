@@ -33,6 +33,11 @@ import type {
   ComfortToolStateSlice,
 } from "./types";
 
+/**
+ * Creates a default input state for a specific input ID.
+ * @param inputId The ID of the input slot (e.g., Input1, Input2).
+ * @returns A record of field keys mapping to their default numeric values.
+ */
 function createInputState(inputId: InputIdType): InputState {
   return allFieldOrder.reduce((accumulator, fieldKey) => {
     accumulator[fieldKey] = inputDefaultsById[inputId][fieldKey] ?? fieldMetaByKey[fieldKey].defaultValue;
@@ -40,6 +45,10 @@ function createInputState(inputId: InputIdType): InputState {
   }, {} as InputState);
 }
 
+/**
+ * Initializes the initial inputs for all available input slots.
+ * @returns A record mapping each InputId to its default state.
+ */
 function createInputsByInput() {
   return inputOrder.reduce((accumulator, inputId) => {
     accumulator[inputId] = createInputState(inputId);
@@ -47,10 +56,19 @@ function createInputsByInput() {
   }, {} as ComfortToolStateSlice["inputsByInput"]);
 }
 
+/**
+ * Returns the default set of visible input IDs used for comparisons.
+ * @returns Array containing Input1 and Input2.
+ */
 function createDefaultCompareInputIds(): InputIdType[] {
   return [InputId.Input1, InputId.Input2];
 }
 
+/**
+ * Ensures that the list of compared input IDs is valid and sorted.
+ * @param inputIds The unsorted or incomplete list of input IDs.
+ * @returns A normalized array of input IDs.
+ */
 function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
   return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
 }
@@ -97,10 +115,18 @@ function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
   } as ModelCalculationCacheByModelState;
 }
 
+/**
+ * Helper to get the correct timer API (window or globalThis) for browser/node compatibility.
+ * @returns The global timer context.
+ */
 function getTimerApi() {
   return typeof window !== "undefined" ? window : globalThis;
 }
 
+/**
+ * Yields execution to the next animation frame to keep the UI responsive.
+ * Falls back to a resolved promise if not in a browser environment.
+ */
 async function yieldToNextFrame() {
   if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
     await Promise.resolve();
@@ -133,6 +159,11 @@ export function createComfortToolState(): ComfortToolController {
     ui,
   };
 
+  /**
+   * Invalidates the calculation cache for a specific model, marking it as stale or empty.
+   * @param modelId The ID of the model to invalidate.
+   * @param options Configuration for invalidation (e.g., whether to keep error messages).
+   */
   function invalidateModel(modelId: ComfortModelType, options?: { keepErrorMessage?: boolean }) {
     if (!options?.keepErrorMessage) {
       state.ui.errorMessage = "";
@@ -145,6 +176,10 @@ export function createComfortToolState(): ComfortToolController {
     };
   }
 
+  /**
+   * Invalidates the calculation cache for all comfort models.
+   * @param options Configuration for invalidation.
+   */
   function invalidateAllModels(options?: { keepErrorMessage?: boolean }) {
     comfortModelOrder.forEach((modelId, index) => {
       invalidateModel(modelId, {
@@ -153,6 +188,10 @@ export function createComfortToolState(): ComfortToolController {
     });
   }
 
+  /**
+   * Returns the IDs of the input slots that should currently be visible in the UI.
+   * @returns Array of Input IDs.
+   */
   function getVisibleInputIds(): InputIdType[] {
     if (!state.ui.compareEnabled) {
       return [InputId.Input1];
@@ -184,6 +223,11 @@ export function createComfortToolState(): ComfortToolController {
     return state.ui.calculationCacheByModel[state.ui.selectedModel];
   }
 
+  /**
+   * Applies a state patch calculated by a control behavior to the canonical state.
+   * @param modelId The model context for the patch.
+   * @param patch The state changes to apply.
+   */
   function applyBehaviorPatch(modelId: ComfortModelType, patch: BehaviorPatch) {
     if (patch.optionsPatch) {
       state.ui.modelOptionsByModel[modelId] = {
@@ -244,6 +288,9 @@ export function createComfortToolState(): ComfortToolController {
   let calculationTimerId: ReturnType<typeof setTimeout> | null = null;
   let latestCalculationToken = 0;
 
+  /**
+   * Clears any currently scheduled calculation timers.
+   */
   function clearScheduledCalculation() {
     if (calculationTimerId !== null) {
       getTimerApi().clearTimeout(calculationTimerId as never);
@@ -251,6 +298,11 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
+  /**
+   * Performs the comfort calculation for the current state.
+   * Handles loading states, frame yielding, and error reporting.
+   * @param calculationToken A unique token to cancel stale asynchronous calculations.
+   */
   async function calculate(calculationToken: number) {
     const selectedModel = state.ui.selectedModel;
     const visibleInputIds = getVisibleInputIds();
@@ -296,6 +348,10 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
+  /**
+   * Schedules a calculation to run after a short debounce period.
+   * @param options Configuration for the calculation (immediate or forced).
+   */
   function scheduleCalculationInternal(options?: { immediate?: boolean; force?: boolean }) {
     if (!options?.force && getCurrentModelCache().status === "ready") {
       return;
@@ -317,12 +373,20 @@ export function createComfortToolState(): ComfortToolController {
     calculationTimerId = getTimerApi().setTimeout(runCalculation, 180);
   }
 
+  /**
+   * Switches the active comfort model (e.g., PMV, UTCI) and triggers a re-calculation.
+   * @param nextModel The ID of the model to select.
+   */
   function setSelectedModel(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
     state.ui.errorMessage = "";
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Updates the selected chart for the current model.
+   * @param nextChart The ID of the chart to display.
+   */
   function setSelectedChart(nextChart: ChartIdType) {
     if (!getActiveModelConfig().chartIds.includes(nextChart)) {
       return;
@@ -331,6 +395,11 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
   }
 
+  /**
+   * Updates a specific model configuration option and triggers a re-calculation.
+   * @param optionKey The key of the option to change.
+   * @param nextValue The new string value for the option.
+   */
   function setModelOption(optionKey: OptionKeyType, nextValue: string) {
     const modelConfig = getActiveModelConfig();
     const context = getModelContext(state.ui.selectedModel);
@@ -345,6 +414,10 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Enables or disables multi-input comparison mode.
+   * @param enabled Whether comparison mode is active.
+   */
   function setCompareEnabled(enabled: boolean) {
     state.ui.compareEnabled = enabled;
     if (enabled) {
@@ -362,10 +435,18 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Sets the currently active input slot for editing.
+   * @param nextInputId The ID of the input to activate.
+   */
   function setActiveInputId(nextInputId: InputIdType) {
     state.ui.activeInputId = nextInputId;
   }
 
+  /**
+   * Toggles the visibility of a specific input slot in comparison mode.
+   * @param inputId The ID of the input slot to toggle.
+   */
   function toggleCompareInputVisibility(inputId: InputIdType) {
     if (!state.ui.compareEnabled || inputId === InputId.Input1) {
       return;
@@ -384,10 +465,19 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  /**
+   * Toggles the global unit system (SI vs IP).
+   */
   function toggleUnitSystem() {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
 
+  /**
+   * Updates a specific environmental or personal input variable.
+   * @param inputId The ID of the input slot being modified.
+   * @param controlId The ID of the control behavior producing the update.
+   * @param rawValue The new string value from the UI control.
+   */
   function updateInput(inputId: InputIdType, controlId: InputControlIdType, rawValue: string) {
     const control = getActiveModelConfig().controls.find((item) => item.id === controlId);
     if (!control?.behavior.applyInput) {

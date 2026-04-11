@@ -37,6 +37,13 @@ const vaporPressureDisplayMetaByUnitSystem: Record<UnitSystemType, DisplayQuanti
   },
 };
 
+/**
+ * Converts a canonical SI field value into its display unit equivalent for the active unit system.
+ * @param key The field key identifying the quantity type.
+ * @param value The value in SI.
+ * @param unitSystem The target unit system (SI/IP).
+ * @returns The converted value.
+ */
 export function convertFieldValueFromSi(
   key: FieldKeyType,
   value: number,
@@ -57,6 +64,13 @@ export function convertFieldValueFromSi(
   return value;
 }
 
+/**
+ * Converts a UI display value back into its canonical SI equivalent.
+ * @param key The field key identifying the quantity type.
+ * @param value The raw display value.
+ * @param unitSystem The current UI unit system (SI/IP).
+ * @returns The converted SI value.
+ */
 export function convertFieldValueToSi(
   key: FieldKeyType,
   value: number,
@@ -93,10 +107,20 @@ export function convertVaporPressureToSi(value: number, unitSystem: UnitSystemTy
   return unitSystem === UnitSystem.IP ? value * 3386.389 : value * 1000;
 }
 
+/**
+ * Returns metadata (units, step, decimals) for a specific humidity ratio unit system.
+ * @param unitSystem Current unit system.
+ * @returns DisplayQuantityMeta object.
+ */
 export function getHumidityRatioDisplayMeta(unitSystem: UnitSystemType): DisplayQuantityMeta {
   return humidityRatioDisplayMetaByUnitSystem[unitSystem];
 }
 
+/**
+ * Returns metadata for a specific vapor pressure unit system.
+ * @param unitSystem Current unit system.
+ * @returns DisplayQuantityMeta object.
+ */
 export function getVaporPressureDisplayMeta(unitSystem: UnitSystemType): DisplayQuantityMeta {
   return vaporPressureDisplayMetaByUnitSystem[unitSystem];
 }
