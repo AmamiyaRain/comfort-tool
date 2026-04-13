@@ -5,9 +5,9 @@
 import { ChartId, type ChartId as ChartIdType } from "../../../models/chartOptions";
 import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel } from "../../../models/comfortModels";
-import type { UtciChartInputsRequestDto, UtciChartSourceDto, UtciResponseDto } from "../../../models/dto";
+import type { UtciChartInputsRequestDto, UtciChartSourceDto, UtciResponseDto } from "../../../models/comfortDtos";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { InputControlId } from "../../../models/inputControls";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { createControlBehavior } from "../../../services/comfort/controls/controlBehaviors";
@@ -18,16 +18,7 @@ import type { ComfortModelDefinition } from "./index";
 
 const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
 
-function createEmptyUtciResults(): Record<InputIdType, UtciResponseDto | null> {
-  return inputOrder.reduce((accumulator, inputId) => {
-    accumulator[inputId] = null;
-    return accumulator;
-  }, {} as Record<InputIdType, UtciResponseDto | null>);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
 function normalizeUtciOptions(value: unknown) {
   return isRecord(value) ? {} : null;
@@ -64,32 +55,17 @@ function buildUtciResultSections(
   const temperatureUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
 
   return [
-    {
-      title: "UTCI",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? {
-              text: `${formatDisplayValue(
-                convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem),
-                fieldMetaByKey[FieldKey.DryBulbTemperature].decimals,
-              )} ${temperatureUnits}`,
-              tone: "default",
-            }
-          : null;
-        return accumulator;
-      }, {}),
-    },
-    {
-      title: "Stress Category",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? { text: result.stressCategory, tone: "default" }
-          : null;
-        return accumulator;
-      }, {}),
-    },
+    buildResultSection("UTCI", results, visibleInputIds, (result) => ({
+      text: `${formatDisplayValue(
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem),
+        fieldMetaByKey[FieldKey.DryBulbTemperature].decimals,
+      )} ${temperatureUnits}`,
+      tone: "default",
+    })),
+    buildResultSection("Stress Category", results, visibleInputIds, (result) => ({
+      text: result.stressCategory,
+      tone: "default",
+    })),
   ];
 }
 
@@ -114,45 +90,40 @@ function buildUtciChartResult(
   return null;
 }
 
-export const utciModelConfig: ComfortModelDefinition<UtciResponseDto, UtciChartSourceDto> = {
-  id: ComfortModel.Utci,
-  controls: [
-    {
-      id: InputControlId.Temperature,
-      behavior: createControlBehavior({
-        controlId: InputControlId.Temperature,
-        fieldKey: FieldKey.DryBulbTemperature,
-      }),
-    },
-    {
-      id: InputControlId.RadiantTemperature,
-      behavior: createControlBehavior({
-        controlId: InputControlId.RadiantTemperature,
-        fieldKey: FieldKey.MeanRadiantTemperature,
-      }),
-    },
-    {
-      id: InputControlId.WindSpeed,
-      behavior: createControlBehavior({
-        controlId: InputControlId.WindSpeed,
-        fieldKey: FieldKey.WindSpeed,
-      }),
-    },
-    {
-      id: InputControlId.Humidity,
-      behavior: createControlBehavior({
-        controlId: InputControlId.Humidity,
-        fieldKey: FieldKey.RelativeHumidity,
-      }),
-    },
-  ],
-  optionHandlersByKey: {},
-  chartIds: utciChartIds,
-  defaultChartId: ChartId.Stress,
-  defaultOptions: {},
-  normalizeOptions: normalizeUtciOptions,
-  calculate: (state, visibleInputIds) => {
-    const resultsByInput = createEmptyUtciResults();
+export const utciModelConfig = new ComfortModelBuilder<UtciResponseDto, UtciChartSourceDto>(ComfortModel.Utci)
+  .addControl({
+    id: InputControlId.Temperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.Temperature,
+      fieldKey: FieldKey.DryBulbTemperature,
+    }),
+  })
+  .addControl({
+    id: InputControlId.RadiantTemperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.RadiantTemperature,
+      fieldKey: FieldKey.MeanRadiantTemperature,
+    }),
+  })
+  .addControl({
+    id: InputControlId.WindSpeed,
+    behavior: createControlBehavior({
+      controlId: InputControlId.WindSpeed,
+      fieldKey: FieldKey.WindSpeed,
+    }),
+  })
+  .addControl({
+    id: InputControlId.Humidity,
+    behavior: createControlBehavior({
+      controlId: InputControlId.Humidity,
+      fieldKey: FieldKey.RelativeHumidity,
+    }),
+  })
+  .setDefaultChart(ChartId.Stress, utciChartIds)
+  .setDefaultOptions({})
+  .setOptionNormalizer(normalizeUtciOptions)
+  .setCalculator((state, visibleInputIds) => {
+    const resultsByInput = createEmptyResults<UtciResponseDto>();
     visibleInputIds.forEach((inputId) => {
       resultsByInput[inputId] = calculateUtci(toUtciRequest(state, inputId));
     });
@@ -165,7 +136,7 @@ export const utciModelConfig: ComfortModelDefinition<UtciResponseDto, UtciChartS
         chartRequest,
       },
     };
-  },
-  buildResultSections: buildUtciResultSections,
-  buildChartResult: buildUtciChartResult,
-};
+  })
+  .setResultBuilder(buildUtciResultSections)
+  .setChartBuilder(buildUtciChartResult)
+  .build();

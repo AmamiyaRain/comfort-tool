@@ -3,7 +3,7 @@
   import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
   import type { ChartId } from "../../models/chartOptions";
-  import type { PlotlyChartResponseDto } from "../../models/dto";
+  import type { PlotlyChartResponseDto } from "../../models/comfortDtos";
 
   let {
     title,

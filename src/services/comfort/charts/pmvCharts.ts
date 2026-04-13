@@ -3,14 +3,14 @@ import {
   inputDisplayMetaById,
 } from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import type {
   PlotlyChartResponseDto,
   PlotTraceDto,
   PmvChartInputsRequestDto,
-} from "../../../models/dto";
+} from "../../../models/comfortDtos";
 import {
   convertFieldValueFromSi,
   convertHumidityRatioFromSi,
@@ -23,7 +23,7 @@ import {
   roundValue,
   type ComfortZonesByInput,
 } from "../helpers";
-import { derivePsychrometricStateFromRelativeHumidity } from "../inputDerivations";
+import { derivePsychrometricStateFromRelativeHumidity } from "../derivations";
 
 function getComfortZoneForInput(inputId, payload, comfortZonesByInput: ComfortZonesByInput) {
   return comfortZonesByInput[inputId] ?? calculateComfortZone(payload);

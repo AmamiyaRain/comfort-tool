@@ -1,6 +1,6 @@
 import { inputChartStyleById, inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
 import {
   utciStressBands,
@@ -13,7 +13,7 @@ import type {
   UtciRequestDto,
   UtciResponseDto,
   UtciChartInputsRequestDto,
-} from "../../../models/dto";
+} from "../../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { convertFieldValueFromSi } from "../../units";
 import { calculateUtci } from "../utci";

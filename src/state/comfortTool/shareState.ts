@@ -8,7 +8,7 @@ import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType 
 import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
-import { allFieldOrder } from "../../models/fieldMeta";
+import { allFieldOrder } from "../../models/inputFieldsMeta";
 import { getComfortModelConfig } from "./modelConfigs";
 import type { ComfortToolStateSlice } from "./types";
 

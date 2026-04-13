@@ -10,7 +10,7 @@ import type {
   PmvChartSourceDto,
   PmvChartInputsRequestDto,
   PmvResponseDto,
-} from "../../../models/dto";
+} from "../../../models/comfortDtos";
 import { FieldKey } from "../../../models/fieldKeys";
 import { InputControlId } from "../../../models/inputControls";
 import {
@@ -33,7 +33,7 @@ import { calculatePmv } from "../../../services/comfort/pmv";
 import {
   normalizePmvOptions,
   synchronizePmvInputState,
-} from "../../../services/comfort/inputDerivations";
+} from "../../../services/comfort/syncState";
 import {
   createAirSpeedControlBehavior,
   createControlBehavior,
@@ -63,16 +63,7 @@ const airSpeedControlModeValues = new Set<string>(Object.values(AirSpeedControlM
 const airSpeedInputModeValues = new Set<string>(Object.values(AirSpeedInputMode));
 const humidityInputModeValues = new Set<string>(Object.values(HumidityInputMode));
 
-function createEmptyPmvResults(): Record<InputIdType, PmvResponseDto | null> {
-  return inputOrder.reduce((accumulator, inputId) => {
-    accumulator[inputId] = null;
-    return accumulator;
-  }, {} as Record<InputIdType, PmvResponseDto | null>);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
 function normalizePmvOptionsSnapshot(value: unknown) {
   if (!isRecord(value)) {
@@ -160,49 +151,22 @@ function buildPmvResultSections(
   _unitSystem: UnitSystemType,
 ) {
   return [
-    {
-      title: "Compliance",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? {
-              text: result.acceptable80 ? "Compliant" : "Out of range",
-              tone: result.acceptable80 ? "success" : "danger",
-            }
-          : null;
-        return accumulator;
-      }, {}),
-    },
-    {
-      title: "PMV",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? { text: result.pmv.toFixed(2), tone: "default" }
-          : null;
-        return accumulator;
-      }, {}),
-    },
-    {
-      title: "PPD",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? { text: `${result.ppd.toFixed(1)}%`, tone: "default" }
-          : null;
-        return accumulator;
-      }, {}),
-    },
-    {
-      title: "Acceptability",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? { text: `${(100 - result.ppd).toFixed(1)}%`, tone: "default" }
-          : null;
-        return accumulator;
-      }, {}),
-    },
+    buildResultSection("Compliance", results, visibleInputIds, (result) => ({
+      text: result.acceptable80 ? "Compliant" : "Out of range",
+      tone: result.acceptable80 ? "success" : "danger",
+    })),
+    buildResultSection("PMV", results, visibleInputIds, (result) => ({
+      text: result.pmv.toFixed(2),
+      tone: "default",
+    })),
+    buildResultSection("PPD", results, visibleInputIds, (result) => ({
+      text: `${result.ppd.toFixed(1)}%`,
+      tone: "default",
+    })),
+    buildResultSection("Acceptability", results, visibleInputIds, (result) => ({
+      text: `${(100 - result.ppd).toFixed(1)}%`,
+      tone: "default",
+    })),
   ];
 }
 
@@ -237,75 +201,69 @@ const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temp
 const airSpeedBehavior = createAirSpeedControlBehavior(InputControlId.AirSpeed);
 const humidityBehavior = createHumidityControlBehavior(InputControlId.Humidity);
 
-export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto, PmvChartSourceDto> = {
-  id: ComfortModel.Pmv,
-  controls: [
-    {
-      id: InputControlId.Temperature,
-      behavior: temperatureBehavior,
-    },
-    {
-      id: InputControlId.RadiantTemperature,
-      behavior: createControlBehavior({
-        controlId: InputControlId.RadiantTemperature,
-        fieldKey: FieldKey.MeanRadiantTemperature,
-        hidden: (context) => (
-          normalizePmvOptions(context.options)[OptionKey.TemperatureMode] === TemperatureMode.Operative
-        ),
-      }),
-    },
-    {
-      id: InputControlId.AirSpeed,
-      behavior: airSpeedBehavior,
-    },
-    {
-      id: InputControlId.Humidity,
-      behavior: humidityBehavior,
-    },
-    {
-      id: InputControlId.MetabolicRate,
-      behavior: createControlBehavior({
-        controlId: InputControlId.MetabolicRate,
-        fieldKey: FieldKey.MetabolicRate,
-        presetOptions: metabolicPresetOptions,
-        applyInput: (context, inputId, nextValue) => {
-          const nextInputState = {
-            ...context.inputsByInput[inputId],
-            [FieldKey.MetabolicRate]: nextValue,
-          };
-          const synchronizedState = synchronizePmvInputState(
-            nextInputState,
-            context.options,
-            context.derivedByInput[inputId],
-          );
-          return createSingleInputPatch(inputId, synchronizedState.inputState);
-        },
-      }),
-    },
-    {
-      id: InputControlId.ClothingInsulation,
-      behavior: createControlBehavior({
-        controlId: InputControlId.ClothingInsulation,
-        fieldKey: FieldKey.ClothingInsulation,
-        presetOptions: clothingPresetOptions,
-        presetDecimals: 2,
-        showClothingBuilder: true,
-      }),
-    },
-  ],
-  optionHandlersByKey: {
-    [OptionKey.TemperatureMode]: createOptionHandler(temperatureBehavior, OptionKey.TemperatureMode),
-    [OptionKey.AirSpeedControlMode]: createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedControlMode),
-    [OptionKey.AirSpeedInputMode]: createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedInputMode),
-    [OptionKey.HumidityInputMode]: createOptionHandler(humidityBehavior, OptionKey.HumidityInputMode),
-  },
-  chartIds: pmvChartIds,
-  defaultChartId: ChartId.Psychrometric,
-  defaultOptions: { ...defaultPmvOptions },
-  normalizeOptions: normalizePmvOptionsSnapshot,
-  calculate: (state, visibleInputIds) => {
+export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSourceDto>(ComfortModel.Pmv)
+  .addControl({
+    id: InputControlId.Temperature,
+    behavior: temperatureBehavior,
+  })
+  .addControl({
+    id: InputControlId.RadiantTemperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.RadiantTemperature,
+      fieldKey: FieldKey.MeanRadiantTemperature,
+      hidden: (context) => (
+        normalizePmvOptions(context.options)[OptionKey.TemperatureMode] === TemperatureMode.Operative
+      ),
+    }),
+  })
+  .addControl({
+    id: InputControlId.AirSpeed,
+    behavior: airSpeedBehavior,
+  })
+  .addControl({
+    id: InputControlId.Humidity,
+    behavior: humidityBehavior,
+  })
+  .addControl({
+    id: InputControlId.MetabolicRate,
+    behavior: createControlBehavior({
+      controlId: InputControlId.MetabolicRate,
+      fieldKey: FieldKey.MetabolicRate,
+      presetOptions: metabolicPresetOptions,
+      applyInput: (context, inputId, nextValue) => {
+        const nextInputState = {
+          ...context.inputsByInput[inputId],
+          [FieldKey.MetabolicRate]: nextValue,
+        };
+        const synchronizedState = synchronizePmvInputState(
+          nextInputState,
+          context.options,
+          context.derivedByInput[inputId],
+        );
+        return createSingleInputPatch(inputId, synchronizedState.inputState);
+      },
+    }),
+  })
+  .addControl({
+    id: InputControlId.ClothingInsulation,
+    behavior: createControlBehavior({
+      controlId: InputControlId.ClothingInsulation,
+      fieldKey: FieldKey.ClothingInsulation,
+      presetOptions: clothingPresetOptions,
+      presetDecimals: 2,
+      showClothingBuilder: true,
+    }),
+  })
+  .addOptionHandler(OptionKey.TemperatureMode, createOptionHandler(temperatureBehavior, OptionKey.TemperatureMode))
+  .addOptionHandler(OptionKey.AirSpeedControlMode, createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedControlMode))
+  .addOptionHandler(OptionKey.AirSpeedInputMode, createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedInputMode))
+  .addOptionHandler(OptionKey.HumidityInputMode, createOptionHandler(humidityBehavior, OptionKey.HumidityInputMode))
+  .setDefaultChart(ChartId.Psychrometric, pmvChartIds)
+  .setDefaultOptions({ ...defaultPmvOptions })
+  .setOptionNormalizer(normalizePmvOptionsSnapshot)
+  .setCalculator((state, visibleInputIds) => {
     const compareChartRequest = toPmvChartInputsRequest(state, visibleInputIds);
-    const resultsByInput = createEmptyPmvResults();
+    const resultsByInput = createEmptyResults<PmvResponseDto>();
     const comfortZonesByInput = visibleInputIds.reduce((accumulator, inputId) => {
       accumulator[inputId] = calculateComfortZone(toComfortZoneRequest(state, inputId));
       return accumulator;
@@ -322,9 +280,9 @@ export const pmvModelConfig: ComfortModelDefinition<PmvResponseDto, PmvChartSour
         comfortZonesByInput,
       },
     };
-  },
-  buildResultSections: buildPmvResultSections,
-  buildChartResult: (chartId, chartSource, _resultsByInput, unitSystem) => (
+  })
+  .setResultBuilder(buildPmvResultSections)
+  .setChartBuilder((chartId, chartSource, _resultsByInput, unitSystem) => (
     buildPmvChartResult(chartId, chartSource, unitSystem)
-  ),
-};
+  ))
+  .build();

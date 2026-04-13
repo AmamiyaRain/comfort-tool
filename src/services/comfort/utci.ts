@@ -5,7 +5,7 @@ import {
   utciStressCategoryOrder,
   type UtciStressCategory as UtciStressCategoryType,
 } from "../../models/utciStress";
-import type { UtciRequestDto, UtciResponseDto } from "../../models/dto";
+import type { UtciRequestDto, UtciResponseDto } from "../../models/comfortDtos";
 import { ensureFiniteValue } from "./helpers";
 
 function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
@@ -20,6 +20,8 @@ function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
 /**
  * Main entry point for UTCI (Universal Thermal Climate Index) calculations.
  * Returns the UTCI value and its associated stress category.
+ * Note: UTCI is evaluated directly and does not require local minimum/maximum temperature search brackets 
+ * for solving comfort zones, unlike PMV. Its visualization bounds are defined independently.
  * @param payload The UTCI request parameters.
  * @returns An object containing the UTCI temperature and stress category.
  */

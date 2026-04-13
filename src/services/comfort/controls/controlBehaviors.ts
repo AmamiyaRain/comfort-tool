@@ -4,7 +4,7 @@ import {
   FieldKey,
   type FieldKey as FieldKeyType,
 } from "../../../models/fieldKeys";
-import { fieldMetaByKey, type FieldMeta } from "../../../models/fieldMeta";
+import { fieldMetaByKey, type FieldMeta } from "../../../models/inputFieldsMeta";
 import type {
   AdvancedOptionMenu,
   AdvancedOptionSection,
@@ -45,7 +45,7 @@ import {
   applyOperativeTemperatureControlMode,
   normalizeControlOptions,
   synchronizeControlInputState,
-} from "../inputDerivations";
+} from "../syncState";
 import type { BehaviorPatch, ControlBehaviorContext, InputControlBehavior } from "./types";
 import { createSingleInputPatch } from "./types";
 

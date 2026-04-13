@@ -3,9 +3,8 @@ import type {
   ComfortPointDto,
   ComfortZoneRequestDto,
   ComfortZoneResponseDto,
-} from "../../models/dto";
-import { PMV_COMFORT_LIMIT } from "./helpers";
-import { solveDryBulbForTargetPmv } from "./pmv";
+} from "../../models/comfortDtos";
+import { solveDryBulbForTargetPmv, PMV_COMFORT_LIMIT } from "./pmv";
 
 export function calculateComfortZone(payload: ComfortZoneRequestDto): ComfortZoneResponseDto {
   const rhMinimum = Math.min(payload.rhMin, payload.rhMax);

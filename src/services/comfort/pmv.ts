@@ -4,10 +4,14 @@ import { pmv_calculation } from "jsthermalcomfort/lib/esm/models/pmv_ppd.js";
 import { check_standard_compliance_array, units_converter } from "jsthermalcomfort/lib/esm/utilities/utilities.js";
 
 import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
-import type { PmvRequestDto, PmvResponseDto } from "../../models/dto";
+import type { PmvRequestDto, PmvResponseDto } from "../../models/comfortDtos";
 import { UnitSystem } from "../../models/units";
-import { ensureFiniteValue, PMV_COMFORT_LIMIT } from "./helpers";
+import { ensureFiniteValue } from "./helpers";
 
+export const PMV_COMFORT_LIMIT = 0.5;
+
+// The exact bounds are used primarily as a search bracket for finding PMV roots (comfort zone boundaries).
+// They represent the limits of the comfort zone solver, not the actual mathematical limits of the PMV model.
 const COMFORT_ZONE_MIN_DRY_BULB = 10;
 const COMFORT_ZONE_MAX_DRY_BULB = 40;
 const ROOT_SCAN_POINTS = 81;
@@ -16,8 +20,8 @@ const ROOT_MAX_REFINEMENTS = 9;
 const ROOT_TOLERANCE = 5e-4;
 
 type TemperatureBracket =
-  | { exactTemperature: number }
-  | { low: number; high: number };
+  | { exactTemperature: number } // Found a specific dry bulb temperature that meets the target PMV within expected tolerance.
+  | { low: number; high: number }; // Found a temperature range bracket where the target PMV root exists.
 
 function normalizePmvPayloadToSi(payload: PmvRequestDto): PmvRequestDto {
   if (payload.units === UnitSystem.SI) {

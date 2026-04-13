@@ -1,8 +1,8 @@
 import { inputChartStyleById, inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
-import type { ComfortPointDto, CompareInputMap, PlotAnnotationDto, PlotlyChartResponseDto, PlotTraceDto } from "../../../models/dto";
+import type { ComfortPointDto, CompareInputMap, PlotAnnotationDto, PlotlyChartResponseDto, PlotTraceDto } from "../../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { convertFieldValueFromSi } from "../../units";
 import { getCompareInputs, roundValue, type ComfortZonesByInput } from "../helpers";
