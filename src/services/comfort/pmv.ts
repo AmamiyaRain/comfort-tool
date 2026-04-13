@@ -1,6 +1,4 @@
-import { cooling_effect } from "jsthermalcomfort/lib/esm/models/cooling_effect.js";
 import { pmv_ppd_ashrae } from "jsthermalcomfort/lib/esm/models/pmv_ppd_ashrae.js";
-import { pmv_calculation } from "jsthermalcomfort/lib/esm/models/pmv_ppd.js";
 import { check_standard_compliance_array, units_converter } from "jsthermalcomfort/lib/esm/utilities/utilities.js";
 
 import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
@@ -100,35 +98,7 @@ function calculateRawPmvValue(payload: PmvRequestDto): number {
     return NaN;
   }
 
-  const coolingEffect = normalizedPayload.vr > 0.1
-    ? cooling_effect(
-        normalizedPayload.tdb,
-        normalizedPayload.tr,
-        normalizedPayload.vr,
-        normalizedPayload.rh,
-        normalizedPayload.met,
-        normalizedPayload.clo,
-        normalizedPayload.wme,
-        normalizedPayload.units,
-      ).ce
-    : 0;
-
-  const adjustedDryBulbTemperature = normalizedPayload.tdb - coolingEffect;
-  const adjustedMeanRadiantTemperature = normalizedPayload.tr - coolingEffect;
-  const adjustedRelativeAirSpeed = coolingEffect > 0 ? 0.1 : normalizedPayload.vr;
-
-  return ensureFiniteValue(
-    "PMV",
-    pmv_calculation(
-      adjustedDryBulbTemperature,
-      adjustedMeanRadiantTemperature,
-      adjustedRelativeAirSpeed,
-      normalizedPayload.rh,
-      normalizedPayload.met,
-      normalizedPayload.clo,
-      normalizedPayload.wme,
-    ),
-  );
+  return calculatePmvValues(normalizedPayload).pmv;
 }
 
 function clonePmvPayload(
@@ -151,6 +121,12 @@ function getPmvDeltaAtTemperature(
   return Number.isFinite(pmv) ? pmv - targetPmv : null;
 }
 
+/**
+ * Scans a range of temperatures sequentially to locate a bracket where the target PMV root crosses zero.
+ * Note: A simple bisection search cannot be used from the very beginning because the ASHRAE definition
+ * bounds cause the PMV function to frequently return NaN at edge temperatures. The sequential scan
+ * ensures we can safely walk over these "holes" (invalid compliance zones) in the domain.
+ */
 function findTemperatureBracket(
   targetPmv: number,
   rh: number,
@@ -249,6 +225,7 @@ export function solveDryBulbForTargetPmv(
 /**
  * Main entry point for PMV/PPD calculations.
  * Returns the PMV, PPD, and ASHRAE standard compliance status.
+ * This is primarily used by the model definitions in the Reactivity state (e.g. `pmvModelConfig`) to bridge purely mathematical functions into user-accessible UI variables.
  * @param payload The thermal comfort request payload.
  * @returns An object containing PMV results and metadata.
  */

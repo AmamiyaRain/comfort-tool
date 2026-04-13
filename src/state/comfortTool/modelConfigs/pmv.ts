@@ -65,6 +65,12 @@ const humidityInputModeValues = new Set<string>(Object.values(HumidityInputMode)
 
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
+/**
+ * Normalizes an unknown option snapshot into a valid PMV options record.
+ * Strips unknown properties and ensures enum values strictly comply.
+ * @param value The unvalidated options object structure.
+ * @returns A fully normalized options map, or null if critically invalid.
+ */
 function normalizePmvOptionsSnapshot(value: unknown) {
   if (!isRecord(value)) {
     return null;
@@ -100,6 +106,13 @@ function normalizePmvOptionsSnapshot(value: unknown) {
   };
 }
 
+/**
+ * Bundles the internal canonical application state into a PmvRequestDto mapped
+ * uniquely to a particular UI Input Slot calculation request.
+ * @param state The total canonical Model state map.
+ * @param inputId The assigned Input Slot target.
+ * @returns An isolated PmvRequestDto containing SI physical parameters.
+ */
 function toPmvRequest(state, inputId: InputIdType) {
   const inputs = state.inputsByInput[inputId];
   const options = normalizePmvOptions(state.ui.modelOptionsByModel[ComfortModel.Pmv]);
@@ -116,6 +129,13 @@ function toPmvRequest(state, inputId: InputIdType) {
   };
 }
 
+/**
+ * Constructs a bounded ComfortZoneRequestDto expanding upon the isolated PMV request constraints
+ * in order to iteratively calculate comfort bounds dynamically.
+ * @param state The canonical state.
+ * @param inputId Target Input Slot.
+ * @returns A ComfortZoneRequestDto defining search boundaries.
+ */
 function toComfortZoneRequest(state, inputId: InputIdType): ComfortZoneRequestDto {
   return {
     ...toPmvRequest(state, inputId),
@@ -125,6 +145,13 @@ function toComfortZoneRequest(state, inputId: InputIdType): ComfortZoneRequestDt
   };
 }
 
+/**
+ * Assembles a fully composite request configuring charting pipelines for the PMV Model.
+ * Provides the psychrometric dimensions and required relative humidity curves mappings.
+ * @param state Application global state.
+ * @param visibleInputIds All currently visible Input slots requesting to exist on the chart.
+ * @returns Chart inputs container.
+ */
 function toPmvChartInputsRequest(
   state,
   visibleInputIds: InputIdType[],
@@ -145,6 +172,14 @@ function toPmvChartInputsRequest(
   };
 }
 
+/**
+ * Builds the visual tabular result sections for the PMV module display outputs.
+ * Parses compliant parameters into colored strings.
+ * @param results A record of all computed results indexed by InputId.
+ * @param visibleInputIds Renderable Input identities.
+ * @param _unitSystem (Ignored) Current standard unit system block.
+ * @returns Array representing mapped table output sections.
+ */
 function buildPmvResultSections(
   results: Record<InputIdType, PmvResponseDto | null>,
   visibleInputIds: InputIdType[],
@@ -170,6 +205,14 @@ function buildPmvResultSections(
   ];
 }
 
+/**
+ * Delegates active Chart renderings specifically for PMV models.
+ * Returns either a Psychrometric UI trace or Relative Humidity chart UI trace setup.
+ * @param chartId Requested Chart ID schema.
+ * @param chartSource Valid source inputs configuration.
+ * @param unitSystem Client unit rendering strategy.
+ * @returns Configured Plotly traces and layouts, or null.
+ */
 function buildPmvChartResult(
   chartId: ChartIdType,
   chartSource: PmvChartSourceDto | null,
@@ -190,6 +233,12 @@ function buildPmvChartResult(
   return null;
 }
 
+/**
+ * Binds an InputControlBehavior to update a dynamic `OptionKey`.
+ * @param behavior The canonical Input control pipeline behavior.
+ * @param optionKey The Option string mapping enum value.
+ * @returns Intersected state function mutator.
+ */
 function createOptionHandler(
   behavior: InputControlBehavior,
   optionKey: OptionKeyType,
@@ -201,6 +250,11 @@ const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temp
 const airSpeedBehavior = createAirSpeedControlBehavior(InputControlId.AirSpeed);
 const humidityBehavior = createHumidityControlBehavior(InputControlId.Humidity);
 
+/**
+ * Standard ComfortModelBuilder defining the PMV implementation.
+ * Connects required behavior controls (Temperature, AirSpeed, etc.) and provides option maps.
+ * This builder is directly consumed inside the Reactivity root state (e.g., `createComfortToolState.svelte.ts`) to form the application's overall PMV behavior model.
+ */
 export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSourceDto>(ComfortModel.Pmv)
   .addControl({
     id: InputControlId.Temperature,

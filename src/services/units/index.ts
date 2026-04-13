@@ -38,6 +38,31 @@ const vaporPressureDisplayMetaByUnitSystem: Record<UnitSystemType, DisplayQuanti
 };
 
 /**
+ * These conversion constants represent standardized mathematical offsets and multipliers, 
+ * used to maintain accuracy and precision across the application.
+ */
+/** Multiplier ratio for Fahrenheit to Celsius mapping */
+const FAHRENHEIT_MULTIPLIER = 9 / 5;
+
+/** Offset shift utilized in temperature mapping protocols */
+const FAHRENHEIT_OFFSET = 32;
+
+/** Baseline scaling factor converting meters to feet mappings securely */
+const METER_TO_FEET = 0.3048;
+
+/** Total Grains allocated per IP Pound iteration */
+const GRAINS_PER_POUND = 7000;
+
+/** Total Grams strictly contained in SI KG scope */
+const GRAMS_PER_KG = 1000;
+
+/** Pascal derivation factor strictly translating from inches of Mercury (inHg) */
+const PASCALS_PER_INHG = 3386.389;
+
+/** Baseline KiloPascals to metric Pascals ratio mapping */
+const PASCALS_PER_KPA = 1000;
+
+/**
  * Converts a canonical SI field value into its display unit equivalent for the active unit system.
  * @param key The field key identifying the quantity type.
  * @param value The value in SI.
@@ -54,11 +79,11 @@ export function convertFieldValueFromSi(
   }
 
   if (key === FieldKey.DryBulbTemperature || key === FieldKey.MeanRadiantTemperature) {
-    return value * (9 / 5) + 32;
+    return value * FAHRENHEIT_MULTIPLIER + FAHRENHEIT_OFFSET;
   }
 
   if (key === FieldKey.RelativeAirSpeed || key === FieldKey.WindSpeed) {
-    return value / 0.3048;
+    return value / METER_TO_FEET;
   }
 
   return value;
@@ -81,30 +106,30 @@ export function convertFieldValueToSi(
   }
 
   if (key === FieldKey.DryBulbTemperature || key === FieldKey.MeanRadiantTemperature) {
-    return (value - 32) * (5 / 9);
+    return (value - FAHRENHEIT_OFFSET) / FAHRENHEIT_MULTIPLIER;
   }
 
   if (key === FieldKey.RelativeAirSpeed || key === FieldKey.WindSpeed) {
-    return value * 0.3048;
+    return value * METER_TO_FEET;
   }
 
   return value;
 }
 
 export function convertHumidityRatioFromSi(value: number, unitSystem: UnitSystemType): number {
-  return unitSystem === UnitSystem.IP ? value * 7000 : value * 1000;
+  return unitSystem === UnitSystem.IP ? value * GRAINS_PER_POUND : value * GRAMS_PER_KG;
 }
 
 export function convertHumidityRatioToSi(value: number, unitSystem: UnitSystemType): number {
-  return unitSystem === UnitSystem.IP ? value / 7000 : value / 1000;
+  return unitSystem === UnitSystem.IP ? value / GRAINS_PER_POUND : value / GRAMS_PER_KG;
 }
 
 export function convertVaporPressureFromSi(value: number, unitSystem: UnitSystemType): number {
-  return unitSystem === UnitSystem.IP ? value / 3386.389 : value / 1000;
+  return unitSystem === UnitSystem.IP ? value / PASCALS_PER_INHG : value / PASCALS_PER_KPA;
 }
 
 export function convertVaporPressureToSi(value: number, unitSystem: UnitSystemType): number {
-  return unitSystem === UnitSystem.IP ? value * 3386.389 : value * 1000;
+  return unitSystem === UnitSystem.IP ? value * PASCALS_PER_INHG : value * PASCALS_PER_KPA;
 }
 
 /**

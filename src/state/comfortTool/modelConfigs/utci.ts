@@ -20,10 +20,23 @@ const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
 
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
+/**
+ * Normalizes UTCI options. Since UTCI currently has no complex advanced options,
+ * this acts strictly as a type check guard, returning an empty options record.
+ * @param value Unvalidated unknown state shape.
+ * @returns An empty valid options map `{}`, or null if not a record.
+ */
 function normalizeUtciOptions(value: unknown) {
   return isRecord(value) ? {} : null;
 }
 
+/**
+ * Formats the canonical global state into a discrete SI structure required
+ * by the core `jsthermalcomfort` mathematical UTCI solver, aligned to a specific InputId slot.
+ * @param state Global Reactivity UI Canonical state.
+ * @param inputId Active Target Input slot enumerator.
+ * @returns Isolated `UtciRequestDto`.
+ */
 function toUtciRequest(state, inputId: InputIdType) {
   const inputs = state.inputsByInput[inputId];
   return {
@@ -35,6 +48,13 @@ function toUtciRequest(state, inputId: InputIdType) {
   };
 }
 
+/**
+ * Derives UTCI inputs needed to correctly render the backend Chart components.
+ * This bundles requests for all simultaneously visible inputs at once.
+ * @param state Global state context.
+ * @param visibleInputIds All actively rendered inputs to query.
+ * @returns Chart Input bundle payload container.
+ */
 function toUtciChartInputsRequest(
   state,
   visibleInputIds: InputIdType[],
@@ -47,6 +67,14 @@ function toUtciChartInputsRequest(
   };
 }
 
+/**
+ * Assembles tabular data blocks detailing UTCI and text Stress categories based
+ * on previously ran model resolution.
+ * @param results Compiled Model Results for active inputs.
+ * @param visibleInputIds Ordered ID references determining render sequences.
+ * @param unitSystem Preferred User format metric (SI vs IP).
+ * @returns Abstract section mappings.
+ */
 function buildUtciResultSections(
   results: Record<InputIdType, UtciResponseDto | null>,
   visibleInputIds: InputIdType[],
@@ -69,6 +97,15 @@ function buildUtciResultSections(
   ];
 }
 
+/**
+ * Executes rendering assignments for the UTCI specific Plotly diagrams
+ * based on the selected Model Chart ID (Stress/AirTemperature).
+ * @param chartId User selected View/Chart ID.
+ * @param chartSource The mapped properties containing bounds.
+ * @param resultsByInput Pre-compiled scalar solutions tracking outputs per input.
+ * @param unitSystem Local UI SI/IP metric schema.
+ * @returns A composite configuration structure for Plotly.
+ */
 function buildUtciChartResult(
   chartId: ChartIdType,
   chartSource: UtciChartSourceDto | null,
@@ -90,6 +127,11 @@ function buildUtciChartResult(
   return null;
 }
 
+/**
+ * UTCI Implementation Standard ComfortModelBuilder.
+ * Wires the 4 core behavior fields strictly without extraneous advanced options.
+ * This builder is directly injected into the Reactivity model layer (`createComfortToolState.svelte.ts`) to bootstrap the tool's UTCI context.
+ */
 export const utciModelConfig = new ComfortModelBuilder<UtciResponseDto, UtciChartSourceDto>(ComfortModel.Utci)
   .addControl({
     id: InputControlId.Temperature,

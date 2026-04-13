@@ -22,6 +22,7 @@ function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
  * Returns the UTCI value and its associated stress category.
  * Note: UTCI is evaluated directly and does not require local minimum/maximum temperature search brackets 
  * for solving comfort zones, unlike PMV. Its visualization bounds are defined independently.
+ * This function acts as the integration gateway used by the UTCI model config state layers to drive chart updates and dashboard displays.
  * @param payload The UTCI request parameters.
  * @returns An object containing the UTCI temperature and stress category.
  */

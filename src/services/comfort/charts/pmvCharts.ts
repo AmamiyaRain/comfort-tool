@@ -1,10 +1,7 @@
-import {
-  inputChartStyleById,
-  inputDisplayMetaById,
-} from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
 import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
+import { inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import type {
   PlotlyChartResponseDto,
@@ -24,7 +21,16 @@ import {
   type ComfortZonesByInput,
 } from "../helpers";
 import { derivePsychrometricStateFromRelativeHumidity } from "../derivations";
+import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace } from "./plotlyBuilders";
 
+/**
+ * Retrieves or lazily computes the comfort zone polygon boundaries for a given set of PMV inputs.
+ *
+ * @param inputId The ID of the input being generated.
+ * @param payload The canonical PMV inputs for that slot.
+ * @param comfortZonesByInput A cache containing previously computed comfort zones.
+ * @returns The resolved ComfortZone mapping.
+ */
 function getComfortZoneForInput(inputId, payload, comfortZonesByInput: ComfortZonesByInput) {
   return comfortZonesByInput[inputId] ?? calculateComfortZone(payload);
 }
@@ -47,6 +53,15 @@ function getHumidityRatioDisplayValue(
   return convertHumidityRatioFromSi(getHumidityRatioSi(temperature, relativeHumidity), unitSystem);
 }
 
+/**
+ * Builds the psychrometric chart (Temperature vs Humidity Ratio) specific to the PMV model.
+ * Maps out curves, comfort boundary polygons, and scatter points for inputs.
+ *
+ * @param payload The Chart Inputs structure.
+ * @param comfortZonesByInput The computed comfort zones per input.
+ * @param unitSystem The UI state representation style.
+ * @returns Complete plotly response bindings (traces, annotations, layout).
+ */
 export function buildComparePsychrometricChart(
   payload: PmvChartInputsRequestDto,
   comfortZonesByInput: ComfortZonesByInput = {},
@@ -81,58 +96,39 @@ export function buildComparePsychrometricChart(
       return;
     }
 
-    traces.push({
-      type: "scatter",
-      mode: "lines",
-      name: `RH ${relativeHumidity}%`,
-      x: xValues,
-      y: yValues,
-      showlegend: false,
-      line: { color: "#94a3b8", width: 1.2 },
-      marker: {},
-      hovertemplate:
-        `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-    });
+    traces.push(buildLineTrace(
+      `RH ${relativeHumidity}%`,
+      xValues,
+      yValues,
+      "#94a3b8",
+      `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+    ));
   });
 
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const comfortZone = getComfortZoneForInput(inputId, inputPayload, comfortZonesByInput);
     const polygon = [...comfortZone.coolEdge, ...[...comfortZone.warmEdge].reverse()];
-    const inputStyle = inputChartStyleById[inputId];
-    const inputLabel = inputDisplayMetaById[inputId].label;
 
     if (polygon.length > 0) {
-      traces.push({
-        type: "scatter",
-        mode: "lines",
-        name: `${inputLabel} comfort zone`,
-        x: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        y: polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
-        showlegend: false,
-        fill: "toself",
-        fillcolor: inputStyle.fill,
-        line: { color: inputStyle.line, width: 1.5 },
-        marker: {},
-        hovertemplate:
-          `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-          `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-      });
+      traces.push(buildComfortPolygonTrace(
+        inputId,
+        "comfort zone",
+        polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
+        polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
+        `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+        `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+      ));
     }
 
-    traces.push({
-      type: "scatter",
-      mode: "markers",
-      name: inputLabel,
-      x: [roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem))],
-      y: [roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem))],
-      showlegend: showInputLegend,
-      line: {},
-      marker: { color: inputStyle.marker, size: 12 },
-      hovertemplate:
-        `${inputLabel}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-    });
+    traces.push(buildInputScatterTrace(
+      inputId,
+      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
+      showInputLegend,
+      `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+    ));
   });
 
   return {

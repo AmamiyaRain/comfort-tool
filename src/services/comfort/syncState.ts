@@ -23,6 +23,34 @@ export type CanonicalInputState = Record<FieldKeyType, number>;
 export type CanonicalDerivedState = Partial<Record<DerivedInputIdType, number>>;
 
 /**
+ * Resolves a given moisture mode and its associated derived state into a single cohesive relative humidity value.
+ * Uses psychrometric functions to iteratively resolve Dew Point, Wet Bulb, Vapor Pressure, and Humidity Ratio.
+ *
+ * @param dryBulbTemperature The primary dry bulb temperature of the state.
+ * @param humidityMode The active Moisture/Humidity input model applied.
+ * @param derivedState The currently resolved generic derived state.
+ * @returns The resolved relative humidity percentage, or null if the mode is not specifically constrained.
+ */
+export function resolveMoistureModeToRelativeHumidity(
+  dryBulbTemperature: number,
+  humidityMode: typeof HumidityInputMode[keyof typeof HumidityInputMode],
+  derivedState: CanonicalDerivedState
+): number | null {
+  switch (humidityMode) {
+    case HumidityInputMode.DewPoint:
+      return deriveRelativeHumidityFromDewPoint(dryBulbTemperature, derivedState[DerivedInputId.DewPoint] ?? 0);
+    case HumidityInputMode.HumidityRatio:
+      return deriveRelativeHumidityFromHumidityRatio(dryBulbTemperature, derivedState[DerivedInputId.HumidityRatio] ?? 0);
+    case HumidityInputMode.WetBulb:
+      return deriveRelativeHumidityFromWetBulb(dryBulbTemperature, derivedState[DerivedInputId.WetBulb] ?? 0);
+    case HumidityInputMode.VaporPressure:
+      return deriveRelativeHumidityFromVaporPressure(dryBulbTemperature, derivedState[DerivedInputId.VaporPressure] ?? 0);
+    default:
+      return null;
+  }
+}
+
+/**
  * Normalizes PMV-specific model options, applying defaults for missing values.
  * @param options A partial record of model options.
  * @returns A fully populated PmvModelOptions object.
@@ -102,29 +130,14 @@ export function synchronizePmvInputState(
     );
   }
 
-  const dryBulbTemperature = nextInputState[FieldKey.DryBulbTemperature];
-  const humidityMode = normalizedOptions[OptionKey.HumidityInputMode];
+  const moistureDerivedRh = resolveMoistureModeToRelativeHumidity(
+    nextInputState[FieldKey.DryBulbTemperature],
+    normalizedOptions[OptionKey.HumidityInputMode],
+    resolvedDerivedState
+  );
 
-  if (humidityMode === HumidityInputMode.DewPoint) {
-    nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromDewPoint(
-      dryBulbTemperature,
-      resolvedDerivedState[DerivedInputId.DewPoint] ?? 0,
-    );
-  } else if (humidityMode === HumidityInputMode.HumidityRatio) {
-    nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromHumidityRatio(
-      dryBulbTemperature,
-      resolvedDerivedState[DerivedInputId.HumidityRatio] ?? 0,
-    );
-  } else if (humidityMode === HumidityInputMode.WetBulb) {
-    nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromWetBulb(
-      dryBulbTemperature,
-      resolvedDerivedState[DerivedInputId.WetBulb] ?? 0,
-    );
-  } else if (humidityMode === HumidityInputMode.VaporPressure) {
-    nextInputState[FieldKey.RelativeHumidity] = deriveRelativeHumidityFromVaporPressure(
-      dryBulbTemperature,
-      resolvedDerivedState[DerivedInputId.VaporPressure] ?? 0,
-    );
+  if (moistureDerivedRh !== null) {
+    nextInputState[FieldKey.RelativeHumidity] = moistureDerivedRh;
   }
 
   return {

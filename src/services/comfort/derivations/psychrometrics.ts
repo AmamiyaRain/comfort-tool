@@ -1,5 +1,4 @@
 import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
-import { t_dp } from "jsthermalcomfort/lib/esm/psychrometrics/t_dp.js";
 
 export type PsychrometricDerivedState = {
   dewPoint: number;
@@ -65,30 +64,20 @@ function solveRelativeHumidity(
   return clamp((low + high) / 2, 0, 100);
 }
 
+/**
+ * Derives the active Relative Humidity given the Dry Bulb Temperature and a target Dew Point temperature.
+ * Uses a robust numerical iterator since an analytical reverse projection isn't cleanly linear out-of-the-box in `jsthermalcomfort`.
+ *
+ * @param dryBulbTemperature Active dry bulb.
+ * @param dewPoint Target Dew Point to resolve against.
+ * @returns The solved Relative Humidity.
+ */
 export function deriveRelativeHumidityFromDewPoint(dryBulbTemperature: number, dewPoint: number): number {
   if (dewPoint >= dryBulbTemperature) {
     return 100;
   }
 
-  let low = 0.01;
-  let high = 100;
-
-  for (let index = 0; index < 35; index += 1) {
-    const middle = (low + high) / 2;
-    const middleDewPoint = t_dp(dryBulbTemperature, middle);
-
-    if (Math.abs(middleDewPoint - dewPoint) < 0.01) {
-      return clamp(middle, 0, 100);
-    }
-
-    if (middleDewPoint < dewPoint) {
-      low = middle;
-    } else {
-      high = middle;
-    }
-  }
-
-  return clamp((low + high) / 2, 0, 100);
+  return solveRelativeHumidity(dryBulbTemperature, dewPoint, (result) => result.t_dp);
 }
 
 export function deriveRelativeHumidityFromHumidityRatio(dryBulbTemperature: number, humidityRatio: number): number {
