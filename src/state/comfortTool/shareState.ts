@@ -37,7 +37,9 @@ const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
 const fieldKeyValues = Object.values(FieldKey);
 
 /**
- * Normalizes an array of input IDs to ensure Input1 is always present and the list is in canonical order.
+ * Cleanses and reconstructs the compare slots array.
+ * Ensures that Input 1 is always present as the baseline and that other elements 
+ * strictly conform to the canonical `inputOrder` structure, dropping invalid IDs.
  * @param inputIds The unsorted or incomplete list of input IDs.
  * @returns A sanitized and ordered array of input IDs.
  */

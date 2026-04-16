@@ -21,8 +21,9 @@ const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
 /**
- * Normalizes UTCI options. Since UTCI currently has no complex advanced options,
- * this acts strictly as a type check guard, returning an empty options record.
+ * Validates an untyped object layer.
+ * Since UTCI exposes no complex advanced user options, normalization cleanly rejects complex objects 
+ * and enforces an empty options record `{}`.
  * @param value Unvalidated unknown state shape.
  * @returns An empty valid options map `{}`, or null if not a record.
  */

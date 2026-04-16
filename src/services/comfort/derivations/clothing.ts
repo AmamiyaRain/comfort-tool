@@ -8,6 +8,11 @@ type CloToutResult =
       clo_tout?: number;
     };
 
+/**
+ * Dynamically maps flexible dictionary payloads into a guaranteed single numerical scalar. 
+ * Different JS targets export slightly different payload structures (number vs object containing clo).
+ * @param result The unstructured output emitted by the jsthermalcomfort clothing function.
+ */
 function normalizePredictedClothingValue(result: CloToutResult): number {
   if (typeof result === "number") {
     return result;

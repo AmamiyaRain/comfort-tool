@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Button, Navbar, NavBrand, NavHamburger, NavLi, NavUl } from "flowbite-svelte";
+  import { LinkOutline } from "flowbite-svelte-icons";
   import { onDestroy } from "svelte";
 
   import { siteBrand, siteHeaderLinks } from "../models/siteShellConfig";
@@ -101,10 +102,7 @@
       onclick={() => void handleExportLink()}
       class="px-4 py-2 font-semibold shadow-sm"
     >
-      <svg class="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-        <path d="M7.5 10.5 12.5 5.5a2.5 2.5 0 1 1 3.5 3.5l-5 5a2.5 2.5 0 0 1-3.5 0 2.5 2.5 0 0 1 0-3.5l4-4"></path>
-        <path d="m12.5 9.5-5 5A2.5 2.5 0 1 1 4 11l5-5"></path>
-      </svg>
+      <LinkOutline class="mr-2 h-4 w-4" strokeWidth="1.7" />
       {getExportLabel()}
     </Button>
     <NavHamburger />

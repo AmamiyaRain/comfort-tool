@@ -66,7 +66,8 @@ function createDefaultCompareInputIds(): InputIdType[] {
 }
 
 /**
- * Ensures that the list of compared input IDs is valid and sorted.
+ * Sorts and enforces a data contract for input IDs. 
+ * It filters dirty input IDs and sequences them rigidly against the main application layout index.
  * @param inputIds The unsorted or incomplete list of input IDs.
  * @returns A normalized array of input IDs.
  */

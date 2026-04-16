@@ -8,6 +8,11 @@ import {
 import type { UtciRequestDto, UtciResponseDto } from "../../models/comfortDtos";
 import { ensureFiniteValue } from "./helpers";
 
+/**
+ * Strictly resolves loosely-typed third-party dynamic string outputs (e.g. from computational engines) 
+ * against our canonical union types, forcibly crashing the pipeline if an unregistered thermal category is returned.
+ * @param value The raw string evaluated by JSThermalComfort
+ */
 function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
   const matchedCategory = utciStressCategoryOrder.find((category) => category === value);
   if (!matchedCategory) {

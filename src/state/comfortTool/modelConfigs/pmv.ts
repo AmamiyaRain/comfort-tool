@@ -66,8 +66,8 @@ const humidityInputModeValues = new Set<string>(Object.values(HumidityInputMode)
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
 /**
- * Normalizes an unknown option snapshot into a valid PMV options record.
- * Strips unknown properties and ensures enum values strictly comply.
+ * Validates an untyped object layer.
+ * It strips away unknown properties and ensures that values map perfectly back to explicitly defined ENUM constants.
  * @param value The unvalidated options object structure.
  * @returns A fully normalized options map, or null if critically invalid.
  */

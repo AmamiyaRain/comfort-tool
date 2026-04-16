@@ -168,7 +168,17 @@ function findTemperatureBracket(
 
 /**
  * Solves for the dry bulb temperature that results in a target PMV value at a given RH.
- * Uses a recursive refinement strategy (bisection-like) for root finding.
+ * Uses a recursive refinement strategy (bisection-like) for root finding tailored specifically for ASHRAE thresholds.
+ * 
+ * DESIGN DECISION (No External Solver/SciPy equivalent used here):
+ * This function handles severe domain-specific edge cases. Standard third-party mathematical bisection 
+ * libraries generically assume continuous domains and typically panic, hang, or evaluate inaccurately 
+ * when the tested function returns `NaN`. Because the strict ASHRAE boundary conditions within 
+ * `jsthermalcomfort` frequently force `calculatePmvValues` to abort and return `NaN` at edge 
+ * temperatures during the bracket scan phase, a generic solver cannot be safely utilized. We 
+ * preserve this custom sequential boundary-scanning solver to safely "walk over" those `NaN` 
+ * holes to find genuine mathematical roots without crashing the state application.
+ * 
  * @param targetPmv The target PMV value to solve for (e.g., -0.5, +0.5).
  * @param rh The relative humidity (0-100).
  * @param payload The base comfort request parameters.

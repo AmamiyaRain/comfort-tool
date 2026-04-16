@@ -51,7 +51,8 @@ export function resolveMoistureModeToRelativeHumidity(
 }
 
 /**
- * Normalizes PMV-specific model options, applying defaults for missing values.
+ * Handles overriding sparse data. It accepts an incomplete/partial options dictionary 
+ * and patches any missing keys with their corresponding safe canonical defaults.
  * @param options A partial record of model options.
  * @returns A fully populated PmvModelOptions object.
  */
