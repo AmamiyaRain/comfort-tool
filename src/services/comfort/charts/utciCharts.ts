@@ -1,6 +1,5 @@
-import { inputChartStyleById, inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
 import {
   utciStressBands,
@@ -13,7 +12,7 @@ import type {
   UtciRequestDto,
   UtciResponseDto,
   UtciChartInputsRequestDto,
-} from "../../../models/dto";
+} from "../../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { convertFieldValueFromSi } from "../../units";
 import { calculateUtci } from "../utci";
@@ -24,7 +23,17 @@ import {
   roundValue,
   type UtciChartResultsByInput,
 } from "../helpers";
+import { inputDisplayMetaById } from "../../../models/inputSlotPresentation";
+import { buildInputAnnotation, buildInputScatterTrace, buildRectangleSelectionShape, buildTextAnnotation } from "./plotlyBuilders";
 
+/**
+ * Computes or retrieves pre-computed UTCI model scalars for an input slot.
+ *
+ * @param inputId The Input reference ID to look up.
+ * @param payload The base physical parameters mapped to the slot.
+ * @param cachedResultsByInput A dictionary of already completed calculation outputs.
+ * @returns The resolved UTCI evaluation wrapper.
+ */
 function getUtciResultForInput(
   inputId,
   payload: UtciRequestDto,
@@ -33,6 +42,15 @@ function getUtciResultForInput(
   return cachedResultsByInput[inputId] ?? calculateUtci(payload);
 }
 
+/**
+ * Displays purely 1-dimensional horizontal plots characterizing UTCI categorized stress scores.
+ * The Y position scales multiple inputs distinctly for overlapping values.
+ *
+ * @param payload Extracted physical parameters array.
+ * @param cachedResultsByInput Evaluated scalar models per input.
+ * @param unitSystem Standard SI or IP visual mappings context.
+ * @returns Generated plotly traces and layout components mapping the stress charts.
+ */
 export function buildUtciStressChart(
   payload: UtciChartInputsRequestDto,
   cachedResultsByInput: UtciChartResultsByInput = {},
@@ -51,43 +69,38 @@ export function buildUtciStressChart(
 
   inputs.forEach(({ inputId, payload: inputPayload }, index) => {
     const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
-    const inputStyle = inputChartStyleById[inputId];
     const inputLabel = inputDisplayMetaById[inputId].label;
     const yPosition = markerPositions[index];
     const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
-    traces.push({
-      type: "scatter",
-      mode: "markers",
-      name: inputLabel,
-      x: [displayUtci],
-      y: [yPosition],
-      showlegend: showInputLegend,
-      line: {},
-      marker: { color: inputStyle.marker, size: 14 },
-      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
-    });
+    traces.push(buildInputScatterTrace(
+      inputId,
+      displayUtci,
+      yPosition,
+      showInputLegend,
+      `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
+      14,
+    ));
 
-    annotations.push({
-      x: displayUtci,
-      y: yPosition + 0.12,
-      text: `${inputLabel}<br>${result.stressCategory}`,
-      showarrow: false,
-      font: { size: 12, color: inputStyle.line },
-    });
+    annotations.push(buildInputAnnotation(
+      inputId,
+      displayUtci,
+      yPosition + 0.12,
+      `${inputLabel}<br>${result.stressCategory}`,
+      false,
+      12,
+    ));
   });
 
   utciStressBands.forEach((band, index) => {
-    annotations.push({
-      x: (
+    annotations.push(buildTextAnnotation(
+      (
         convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem) +
         convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem)
       ) / 2,
-      y: index % 2 === 0 ? 0.05 : 0.16,
-      text: utciStressShortLabelByCategory[band.category],
-      showarrow: false,
-      font: { size: 8, color: "#1f2937" },
-    });
+      index % 2 === 0 ? 0.05 : 0.16,
+      utciStressShortLabelByCategory[band.category],
+    ));
   });
 
   return {
@@ -109,18 +122,16 @@ export function buildUtciStressChart(
         showticklabels: false,
         gridcolor: "#ffffff",
       },
-      shapes: utciStressBands.map((band) => ({
-        type: "rect",
-        xref: "x",
-        yref: "paper",
-        x0: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
-        x1: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
-        y0: 0,
-        y1: 1,
-        fillcolor: band.color,
-        line: { width: 0 },
-        opacity: 0.18,
-      })),
+      shapes: utciStressBands.map((band) => buildRectangleSelectionShape(
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
+        0,
+        1,
+        band.color,
+        0.18,
+        "x",
+        "paper",
+      )),
       legend: { orientation: "h", x: 0, y: 1.08 },
       height: 360,
     },
@@ -129,6 +140,15 @@ export function buildUtciStressChart(
   };
 }
 
+/**
+ * Assembles a scatter chart projecting Air Temperature (X) against UTCI (Y).
+ * Allows visually seeing exactly how much thermal burden or cooling the wind+radiation combination shifted.
+ *
+ * @param payload Extracted physical parameters mapping array.
+ * @param cachedResultsByInput Evaluated UTCI output models.
+ * @param unitSystem The active unit system mapping context.
+ * @returns Plotly layout shapes plotting the UTCI shifts diagrammatically.
+ */
 export function buildUtciTemperatureChart(
   payload: UtciChartInputsRequestDto,
   cachedResultsByInput: UtciChartResultsByInput = {},
@@ -156,34 +176,30 @@ export function buildUtciTemperatureChart(
 
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const result = getUtciResultForInput(inputId, inputPayload, cachedResultsByInput);
-    const inputStyle = inputChartStyleById[inputId];
     const inputLabel = inputDisplayMetaById[inputId].label;
     const temperatureOffset = result.utci - inputPayload.tdb;
     const displayDryBulb = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem));
     const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
-    traces.push({
-      type: "scatter",
-      mode: "markers",
-      name: inputLabel,
-      x: [displayDryBulb],
-      y: [displayUtci],
-      showlegend: showInputLegend,
-      line: {},
-      marker: { color: inputStyle.marker, size: 13 },
-      hovertemplate:
-        `${inputLabel}<br>Dry bulb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `UTCI %{y:.1f} ${temperatureDisplayUnits}<br>` +
-        `Offset ${formatSignedTemperature(temperatureOffset, unitSystem)}<br>${result.stressCategory}<extra></extra>`,
-    });
+    traces.push(buildInputScatterTrace(
+      inputId,
+      displayDryBulb,
+      displayUtci,
+      showInputLegend,
+      `${inputLabel}<br>Dry bulb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      `UTCI %{y:.1f} ${temperatureDisplayUnits}<br>` +
+      `Offset ${formatSignedTemperature(temperatureOffset, unitSystem)}<br>${result.stressCategory}<extra></extra>`,
+      13,
+    ));
 
-    annotations.push({
-      x: displayDryBulb,
-      y: displayUtci,
-      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
-      showarrow: true,
-      font: { size: 11, color: inputStyle.line },
-    });
+    annotations.push(buildInputAnnotation(
+      inputId,
+      displayDryBulb,
+      displayUtci,
+      `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
+      true,
+      11,
+    ));
   });
 
   return {
@@ -205,18 +221,16 @@ export function buildUtciTemperatureChart(
         gridcolor: "#e2e8f0",
       },
       shapes: [
-        ...utciStressBands.map((band) => ({
-          type: "rect",
-          xref: "paper",
-          yref: "y",
-          x0: 0,
-          x1: 1,
-          y0: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
-          y1: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
-          fillcolor: band.color,
-          line: { width: 0 },
-          opacity: 0.12,
-        })),
+        ...utciStressBands.map((band) => buildRectangleSelectionShape(
+          0,
+          1,
+          convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+          convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
+          band.color,
+          0.12,
+          "paper",
+          "y",
+        )),
         {
           type: "line",
           xref: "x",

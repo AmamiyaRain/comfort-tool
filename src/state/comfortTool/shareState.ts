@@ -8,7 +8,7 @@ import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType 
 import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
-import { allFieldOrder } from "../../models/fieldMeta";
+import { allFieldOrder } from "../../models/inputFieldsMeta";
 import { getComfortModelConfig } from "./modelConfigs";
 import type { ComfortToolStateSlice } from "./types";
 
@@ -37,7 +37,9 @@ const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
 const fieldKeyValues = Object.values(FieldKey);
 
 /**
- * Normalizes an array of input IDs to ensure Input1 is always present and the list is in canonical order.
+ * Cleanses and reconstructs the compare slots array.
+ * Ensures that Input 1 is always present as the baseline and that other elements 
+ * strictly conform to the canonical `inputOrder` structure, dropping invalid IDs.
  * @param inputIds The unsorted or incomplete list of input IDs.
  * @returns A sanitized and ordered array of input IDs.
  */

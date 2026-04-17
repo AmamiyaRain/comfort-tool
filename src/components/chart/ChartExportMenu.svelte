@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Button, Dropdown, DropdownItem } from "flowbite-svelte";
+  import { ChevronDownOutline } from "flowbite-svelte-icons";
   import { chartMetaById } from "../../models/chartOptions";
   import type { ChartId } from "../../models/chartOptions";
 
@@ -27,9 +28,7 @@
   size="xs"
 >
   {currentChartLabel}
-  <svg class="ms-2 h-3 w-3" aria-hidden="true" fill="none" viewBox="0 0 10 6">
-    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
-  </svg>
+  <ChevronDownOutline class="ms-2 h-3 w-3" strokeWidth="2" />
 </Button>
 
 <Dropdown triggeredBy={`#chart-select-trigger-${activeChartId}`} class="w-48 shadow-lg">

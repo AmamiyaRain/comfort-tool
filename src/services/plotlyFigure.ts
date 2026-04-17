@@ -3,7 +3,7 @@ import type {
   PlotLayoutDto,
   PlotlyChartResponseDto,
   PlotTraceDto,
-} from "../models/dto";
+} from "../models/comfortDtos";
 
 type PlotlyAxisTitle = string | { text: string; standoff?: number };
 

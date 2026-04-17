@@ -4,7 +4,7 @@
  */
 import type { InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../../../models/comfortModels";
-import type { PlotlyChartResponseDto } from "../../../models/dto";
+import type { PlotlyChartResponseDto } from "../../../models/comfortDtos";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
 import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
 import type {

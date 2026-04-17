@@ -5,9 +5,14 @@ import {
   utciStressCategoryOrder,
   type UtciStressCategory as UtciStressCategoryType,
 } from "../../models/utciStress";
-import type { UtciRequestDto, UtciResponseDto } from "../../models/dto";
+import type { UtciRequestDto, UtciResponseDto } from "../../models/comfortDtos";
 import { ensureFiniteValue } from "./helpers";
 
+/**
+ * Strictly resolves loosely-typed third-party dynamic string outputs (e.g. from computational engines) 
+ * against our canonical union types, forcibly crashing the pipeline if an unregistered thermal category is returned.
+ * @param value The raw string evaluated by JSThermalComfort
+ */
 function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
   const matchedCategory = utciStressCategoryOrder.find((category) => category === value);
   if (!matchedCategory) {
@@ -20,6 +25,9 @@ function normalizeUtciStressCategory(value: string): UtciStressCategoryType {
 /**
  * Main entry point for UTCI (Universal Thermal Climate Index) calculations.
  * Returns the UTCI value and its associated stress category.
+ * Note: UTCI is evaluated directly and does not require local minimum/maximum temperature search brackets 
+ * for solving comfort zones, unlike PMV. Its visualization bounds are defined independently.
+ * This function acts as the integration gateway used by the UTCI model config state layers to drive chart updates and dashboard displays.
  * @param payload The UTCI request parameters.
  * @returns An object containing the UTCI temperature and stress category.
  */

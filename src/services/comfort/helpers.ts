@@ -3,18 +3,16 @@ import {
   type InputId as InputIdType,
 } from "../../models/inputSlots";
 import { FieldKey } from "../../models/fieldKeys";
-import { fieldMetaByKey } from "../../models/fieldMeta";
+import { fieldMetaByKey } from "../../models/inputFieldsMeta";
 import type {
   CompareInputMap,
   ComfortZoneRequestDto,
   ComfortZoneResponseDto,
   UtciRequestDto,
   UtciResponseDto,
-} from "../../models/dto";
+} from "../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 import { convertFieldValueFromSi } from "../units";
-
-export const PMV_COMFORT_LIMIT = 0.5;
 
 export type ComfortZonesByInput = Partial<Record<InputIdType, ComfortZoneResponseDto>>;
 export type UtciChartResultsByInput = Partial<Record<InputIdType, UtciResponseDto>>;

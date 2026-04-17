@@ -11,8 +11,10 @@ import {
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
   predictClothingInsulationFromOutdoorTemperature,
+} from "./derivations";
+import {
   synchronizeControlInputState,
-} from "./inputDerivations";
+} from "./syncState";
 import { calculatePmv } from "./pmv";
 import { clothingGarmentOptions, clothingTypicalEnsembles, metabolicActivityOptions } from "./referenceValues";
 import { calculateUtci } from "./utci";

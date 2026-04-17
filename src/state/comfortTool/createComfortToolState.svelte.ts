@@ -11,13 +11,14 @@ import {
 } from "../../models/inputSlots";
 import { chartMetaById, type ChartId as ChartIdType } from "../../models/chartOptions";
 import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
-import { allFieldOrder, fieldMetaByKey } from "../../models/fieldMeta";
+import { allFieldOrder, fieldMetaByKey } from "../../models/inputFieldsMeta";
 import type { InputControlId as InputControlIdType } from "../../models/inputControls";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
 import { UnitSystem } from "../../models/units";
 import type { BehaviorPatch, ControlBehaviorContext } from "../../services/comfort/controls/types";
-import { deriveInputsDerivedState } from "../../services/comfort/inputDerivations";
+import { deriveInputsDerivedState } from "../../services/comfort/syncState";
 import { comfortModelConfigs, getComfortModelConfig } from "./modelConfigs";
+import { createCalculationManager } from "./calculationManager.svelte";
 import {
   applyShareSnapshotToState,
   createShareStateSnapshot,
@@ -65,7 +66,8 @@ function createDefaultCompareInputIds(): InputIdType[] {
 }
 
 /**
- * Ensures that the list of compared input IDs is valid and sorted.
+ * Sorts and enforces a data contract for input IDs. 
+ * It filters dirty input IDs and sequences them rigidly against the main application layout index.
  * @param inputIds The unsorted or incomplete list of input IDs.
  * @returns A normalized array of input IDs.
  */
@@ -113,29 +115,6 @@ function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
     [ComfortModel.Pmv]: createEmptyCalculationCache(),
     [ComfortModel.Utci]: createEmptyCalculationCache(),
   } as ModelCalculationCacheByModelState;
-}
-
-/**
- * Helper to get the correct timer API (window or globalThis) for browser/node compatibility.
- * @returns The global timer context.
- */
-function getTimerApi() {
-  return typeof window !== "undefined" ? window : globalThis;
-}
-
-/**
- * Yields execution to the next animation frame to keep the UI responsive.
- * Falls back to a resolved promise if not in a browser environment.
- */
-async function yieldToNextFrame() {
-  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-    await Promise.resolve();
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
 }
 
 export function createComfortToolState(): ComfortToolController {
@@ -285,92 +264,14 @@ export function createComfortToolState(): ComfortToolController {
     getCurrentCacheStatus: () => getCurrentModelCache().status,
   };
 
-  let calculationTimerId: ReturnType<typeof setTimeout> | null = null;
-  let latestCalculationToken = 0;
-
-  /**
-   * Clears any currently scheduled calculation timers.
-   */
-  function clearScheduledCalculation() {
-    if (calculationTimerId !== null) {
-      getTimerApi().clearTimeout(calculationTimerId as never);
-      calculationTimerId = null;
-    }
-  }
-
-  /**
-   * Performs the comfort calculation for the current state.
-   * Handles loading states, frame yielding, and error reporting.
-   * @param calculationToken A unique token to cancel stale asynchronous calculations.
-   */
-  async function calculate(calculationToken: number) {
-    const selectedModel = state.ui.selectedModel;
-    const visibleInputIds = getVisibleInputIds();
-
-    state.ui.isLoading = true;
-    state.ui.errorMessage = "";
-
-    await yieldToNextFrame();
-
-    if (calculationToken !== latestCalculationToken) {
-      return;
-    }
-
-    try {
-      const modelConfig = getComfortModelConfig(selectedModel);
-      const calculationOutputs = modelConfig.calculate(state, visibleInputIds);
-
-      state.ui.calculationCacheByModel[selectedModel] = {
-        ...state.ui.calculationCacheByModel[selectedModel],
-        status: "ready",
-        lastVisibleInputIds: [...visibleInputIds],
-        resultsByInput: calculationOutputs.resultsByInput,
-        chartSource: calculationOutputs.chartSource,
-      };
-
-      if (calculationToken !== latestCalculationToken) {
-        return;
-      }
-    } catch (error) {
-      if (calculationToken !== latestCalculationToken) {
-        return;
-      }
-
-      state.ui.calculationCacheByModel[selectedModel] = {
-        ...state.ui.calculationCacheByModel[selectedModel],
-        status: state.ui.calculationCacheByModel[selectedModel].chartSource ? "stale" : "empty",
-      };
-      state.ui.errorMessage = error instanceof Error ? error.message : "Calculation failed.";
-    } finally {
-      if (calculationToken === latestCalculationToken) {
-        state.ui.isLoading = false;
-      }
-    }
-  }
+  const calculationManager = createCalculationManager(state, getVisibleInputIds);
 
   /**
    * Schedules a calculation to run after a short debounce period.
    * @param options Configuration for the calculation (immediate or forced).
    */
   function scheduleCalculationInternal(options?: { immediate?: boolean; force?: boolean }) {
-    if (!options?.force && getCurrentModelCache().status === "ready") {
-      return;
-    }
-
-    const runCalculation = () => {
-      calculationTimerId = null;
-      latestCalculationToken += 1;
-      void calculate(latestCalculationToken);
-    };
-
-    clearScheduledCalculation();
-
-    if (options?.immediate) {
-      runCalculation();
-      return;
-    }
-
-    calculationTimerId = getTimerApi().setTimeout(runCalculation, 180);
+    calculationManager.scheduleCalculation(options);
   }
 
   /**

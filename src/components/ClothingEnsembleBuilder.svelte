@@ -3,9 +3,9 @@
   import { InputId, type InputId as InputIdType } from "../models/inputSlots";
   import { inputDisplayMetaById } from "../models/inputSlotPresentation";
   import { FieldKey } from "../models/fieldKeys";
-  import { fieldMetaByKey } from "../models/fieldMeta";
+  import { fieldMetaByKey } from "../models/inputFieldsMeta";
   import type { UnitSystem as UnitSystemType } from "../models/units";
-  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort/inputDerivations";
+  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort/derivations";
   import { clothingGarmentOptions, type ClothingGarmentOption } from "../services/comfort/referenceValues";
 
   let {

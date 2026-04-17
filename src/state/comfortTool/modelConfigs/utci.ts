@@ -5,9 +5,9 @@
 import { ChartId, type ChartId as ChartIdType } from "../../../models/chartOptions";
 import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel } from "../../../models/comfortModels";
-import type { UtciChartInputsRequestDto, UtciChartSourceDto, UtciResponseDto } from "../../../models/dto";
+import type { UtciChartInputsRequestDto, UtciChartSourceDto, UtciResponseDto } from "../../../models/comfortDtos";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { InputControlId } from "../../../models/inputControls";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { createControlBehavior } from "../../../services/comfort/controls/controlBehaviors";
@@ -18,21 +18,26 @@ import type { ComfortModelDefinition } from "./index";
 
 const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
 
-function createEmptyUtciResults(): Record<InputIdType, UtciResponseDto | null> {
-  return inputOrder.reduce((accumulator, inputId) => {
-    accumulator[inputId] = null;
-    return accumulator;
-  }, {} as Record<InputIdType, UtciResponseDto | null>);
-}
+import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
+/**
+ * Validates an untyped object layer.
+ * Since UTCI exposes no complex advanced user options, normalization cleanly rejects complex objects 
+ * and enforces an empty options record `{}`.
+ * @param value Unvalidated unknown state shape.
+ * @returns An empty valid options map `{}`, or null if not a record.
+ */
 function normalizeUtciOptions(value: unknown) {
   return isRecord(value) ? {} : null;
 }
 
+/**
+ * Formats the canonical global state into a discrete SI structure required
+ * by the core `jsthermalcomfort` mathematical UTCI solver, aligned to a specific InputId slot.
+ * @param state Global Reactivity UI Canonical state.
+ * @param inputId Active Target Input slot enumerator.
+ * @returns Isolated `UtciRequestDto`.
+ */
 function toUtciRequest(state, inputId: InputIdType) {
   const inputs = state.inputsByInput[inputId];
   return {
@@ -44,6 +49,13 @@ function toUtciRequest(state, inputId: InputIdType) {
   };
 }
 
+/**
+ * Derives UTCI inputs needed to correctly render the backend Chart components.
+ * This bundles requests for all simultaneously visible inputs at once.
+ * @param state Global state context.
+ * @param visibleInputIds All actively rendered inputs to query.
+ * @returns Chart Input bundle payload container.
+ */
 function toUtciChartInputsRequest(
   state,
   visibleInputIds: InputIdType[],
@@ -56,6 +68,14 @@ function toUtciChartInputsRequest(
   };
 }
 
+/**
+ * Assembles tabular data blocks detailing UTCI and text Stress categories based
+ * on previously ran model resolution.
+ * @param results Compiled Model Results for active inputs.
+ * @param visibleInputIds Ordered ID references determining render sequences.
+ * @param unitSystem Preferred User format metric (SI vs IP).
+ * @returns Abstract section mappings.
+ */
 function buildUtciResultSections(
   results: Record<InputIdType, UtciResponseDto | null>,
   visibleInputIds: InputIdType[],
@@ -64,35 +84,29 @@ function buildUtciResultSections(
   const temperatureUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
 
   return [
-    {
-      title: "UTCI",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? {
-              text: `${formatDisplayValue(
-                convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem),
-                fieldMetaByKey[FieldKey.DryBulbTemperature].decimals,
-              )} ${temperatureUnits}`,
-              tone: "default",
-            }
-          : null;
-        return accumulator;
-      }, {}),
-    },
-    {
-      title: "Stress Category",
-      valuesByInput: visibleInputIds.reduce((accumulator, inputId) => {
-        const result = results[inputId];
-        accumulator[inputId] = result
-          ? { text: result.stressCategory, tone: "default" }
-          : null;
-        return accumulator;
-      }, {}),
-    },
+    buildResultSection("UTCI", results, visibleInputIds, (result) => ({
+      text: `${formatDisplayValue(
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem),
+        fieldMetaByKey[FieldKey.DryBulbTemperature].decimals,
+      )} ${temperatureUnits}`,
+      tone: "default",
+    })),
+    buildResultSection("Stress Category", results, visibleInputIds, (result) => ({
+      text: result.stressCategory,
+      tone: "default",
+    })),
   ];
 }
 
+/**
+ * Executes rendering assignments for the UTCI specific Plotly diagrams
+ * based on the selected Model Chart ID (Stress/AirTemperature).
+ * @param chartId User selected View/Chart ID.
+ * @param chartSource The mapped properties containing bounds.
+ * @param resultsByInput Pre-compiled scalar solutions tracking outputs per input.
+ * @param unitSystem Local UI SI/IP metric schema.
+ * @returns A composite configuration structure for Plotly.
+ */
 function buildUtciChartResult(
   chartId: ChartIdType,
   chartSource: UtciChartSourceDto | null,
@@ -114,45 +128,45 @@ function buildUtciChartResult(
   return null;
 }
 
-export const utciModelConfig: ComfortModelDefinition<UtciResponseDto, UtciChartSourceDto> = {
-  id: ComfortModel.Utci,
-  controls: [
-    {
-      id: InputControlId.Temperature,
-      behavior: createControlBehavior({
-        controlId: InputControlId.Temperature,
-        fieldKey: FieldKey.DryBulbTemperature,
-      }),
-    },
-    {
-      id: InputControlId.RadiantTemperature,
-      behavior: createControlBehavior({
-        controlId: InputControlId.RadiantTemperature,
-        fieldKey: FieldKey.MeanRadiantTemperature,
-      }),
-    },
-    {
-      id: InputControlId.WindSpeed,
-      behavior: createControlBehavior({
-        controlId: InputControlId.WindSpeed,
-        fieldKey: FieldKey.WindSpeed,
-      }),
-    },
-    {
-      id: InputControlId.Humidity,
-      behavior: createControlBehavior({
-        controlId: InputControlId.Humidity,
-        fieldKey: FieldKey.RelativeHumidity,
-      }),
-    },
-  ],
-  optionHandlersByKey: {},
-  chartIds: utciChartIds,
-  defaultChartId: ChartId.Stress,
-  defaultOptions: {},
-  normalizeOptions: normalizeUtciOptions,
-  calculate: (state, visibleInputIds) => {
-    const resultsByInput = createEmptyUtciResults();
+/**
+ * UTCI Implementation Standard ComfortModelBuilder.
+ * Wires the 4 core behavior fields strictly without extraneous advanced options.
+ * This builder is directly injected into the Reactivity model layer (`createComfortToolState.svelte.ts`) to bootstrap the tool's UTCI context.
+ */
+export const utciModelConfig = new ComfortModelBuilder<UtciResponseDto, UtciChartSourceDto>(ComfortModel.Utci)
+  .addControl({
+    id: InputControlId.Temperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.Temperature,
+      fieldKey: FieldKey.DryBulbTemperature,
+    }),
+  })
+  .addControl({
+    id: InputControlId.RadiantTemperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.RadiantTemperature,
+      fieldKey: FieldKey.MeanRadiantTemperature,
+    }),
+  })
+  .addControl({
+    id: InputControlId.WindSpeed,
+    behavior: createControlBehavior({
+      controlId: InputControlId.WindSpeed,
+      fieldKey: FieldKey.WindSpeed,
+    }),
+  })
+  .addControl({
+    id: InputControlId.Humidity,
+    behavior: createControlBehavior({
+      controlId: InputControlId.Humidity,
+      fieldKey: FieldKey.RelativeHumidity,
+    }),
+  })
+  .setDefaultChart(ChartId.Stress, utciChartIds)
+  .setDefaultOptions({})
+  .setOptionNormalizer(normalizeUtciOptions)
+  .setCalculator((state, visibleInputIds) => {
+    const resultsByInput = createEmptyResults<UtciResponseDto>();
     visibleInputIds.forEach((inputId) => {
       resultsByInput[inputId] = calculateUtci(toUtciRequest(state, inputId));
     });
@@ -165,7 +179,7 @@ export const utciModelConfig: ComfortModelDefinition<UtciResponseDto, UtciChartS
         chartRequest,
       },
     };
-  },
-  buildResultSections: buildUtciResultSections,
-  buildChartResult: buildUtciChartResult,
-};
+  })
+  .setResultBuilder(buildUtciResultSections)
+  .setChartBuilder(buildUtciChartResult)
+  .build();

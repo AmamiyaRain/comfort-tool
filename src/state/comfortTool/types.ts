@@ -11,7 +11,7 @@ import type {
   PmvResponseDto,
   UtciChartSourceDto,
   UtciResponseDto,
-} from "../../models/dto";
+} from "../../models/comfortDtos";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
 import type { InputControlId as InputControlIdType, InputControlViewModel } from "../../models/inputControls";

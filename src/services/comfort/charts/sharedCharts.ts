@@ -1,11 +1,12 @@
 import { inputChartStyleById, inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { FieldKey } from "../../../models/fieldKeys";
-import { fieldMetaByKey } from "../../../models/fieldMeta";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
-import type { ComfortPointDto, CompareInputMap, PlotAnnotationDto, PlotlyChartResponseDto, PlotTraceDto } from "../../../models/dto";
+import type { ComfortPointDto, CompareInputMap, PlotlyChartResponseDto, PlotTraceDto, PlotAnnotationDto } from "../../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { convertFieldValueFromSi } from "../../units";
 import { getCompareInputs, roundValue, type ComfortZonesByInput } from "../helpers";
+import { buildComfortPolygonTrace, buildInputAnnotation, buildInputScatterTrace } from "./plotlyBuilders";
 
 export function buildRelativeHumidityChart(
   payload: { inputs: CompareInputMap<ComfortPointDto> },
@@ -24,38 +25,29 @@ export function buildRelativeHumidityChart(
     const comfortZone = comfortZonesByInput[inputId];
     const polygon = comfortZone ? [...comfortZone.coolEdge, ...[...comfortZone.warmEdge].reverse()] : [];
     if (polygon.length > 0) {
-      traces.push({
-        type: "scatter",
-        mode: "lines",
-        name: `${inputMeta.label} RH comfort zone`,
-        x: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        y: polygon.map((point) => roundValue(point.rh)),
-        showlegend: false,
-        fill: "toself",
-        fillcolor: inputStyle.fill,
-        line: { color: inputStyle.line, width: 1.5 },
-        marker: {},
-        hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
-      });
+      traces.push(buildComfortPolygonTrace(
+        inputId,
+        "RH comfort zone",
+        polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
+        polygon.map((point) => roundValue(point.rh)),
+        `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
+      ));
     }
-    traces.push({
-      type: "scatter",
-      mode: "markers",
-      name: inputMeta.label,
-      x: [roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem))],
-      y: [roundValue(inputPayload.rh)],
-      showlegend: showInputLegend,
-      line: {},
-      marker: { color: inputStyle.marker, size: 12 },
-      hovertemplate: `${inputMeta.label}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
-    });
-    annotations.push({
-      x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
-      y: roundValue(inputPayload.rh),
-      text: inputMeta.shortLabel,
-      showarrow: true,
-      font: { size: 11, color: inputStyle.line },
-    });
+    traces.push(buildInputScatterTrace(
+      inputId,
+      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      roundValue(inputPayload.rh),
+      showInputLegend,
+      `${inputMeta.label}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
+    ));
+    annotations.push(buildInputAnnotation(
+      inputId,
+      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      roundValue(inputPayload.rh),
+      inputMeta.shortLabel,
+      true,
+      11,
+    ));
   });
   return {
     traces,
