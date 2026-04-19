@@ -1,6 +1,16 @@
 <script lang="ts">
-  import { Alert, Badge, Card } from "flowbite-svelte";
+  import {
+    Card,
+    Table,
+    TableBody,
+    TableBodyCell,
+    TableBodyRow,
+    TableHead,
+    TableHeadCell,
+  } from "flowbite-svelte";
   import { inputDisplayMetaById } from "../models/inputSlotPresentation";
+  import type { InputId as InputIdType } from "../models/inputSlots";
+  import type { ResultSectionViewModel } from "../state/comfortTool/types";
 
   let {
     activeInputId,
@@ -9,74 +19,46 @@
     errorMessage,
     isLoading,
     embedded = false,
+  }: {
+    activeInputId: InputIdType;
+    visibleInputIds: InputIdType[];
+    resultSections: ResultSectionViewModel[];
+    errorMessage: string;
+    isLoading: boolean;
+    embedded?: boolean;
   } = $props();
-
-  function getResultsTemplateColumns() {
-    return `repeat(${visibleInputIds.length}, minmax(0, 1fr))`;
-  }
-
-  function getResultCellClasses(inputId) {
-    const inputUi = inputDisplayMetaById[inputId].ui;
-    const activeClasses = activeInputId === inputId ? inputUi.resultActiveRingClass : "";
-    return `rounded-md border px-2 py-1.5 ${inputUi.resultCellClass} ${activeClasses}`.trim();
-  }
-
-  function getResultToneClass(tone) {
-    if (tone === "success") {
-      return "font-semibold text-emerald-700";
-    }
-
-    if (tone === "danger") {
-      return "font-semibold text-red-600";
-    }
-
-    return "text-base font-semibold text-stone-900";
-  }
 </script>
 
 {#snippet content()}
-  {#if !embedded}
-    <header class="flex items-start justify-between gap-3 border-b border-stone-200 pb-2">
-      <h2 class="text-base font-semibold text-stone-900">Results</h2>
-      <p class="flex items-center gap-2">
-        <Badge color={isLoading ? "yellow" : "green"}>{isLoading ? "Refreshing" : "Ready"}</Badge>
-      </p>
-    </header>
-
-    {#if errorMessage}
-      <Alert color="red" class="mt-3 rounded-md text-sm">
-        {errorMessage}
-      </Alert>
-    {/if}
-  {/if}
-
-  <section class={embedded ? "bg-white" : "mt-3 bg-white"}>
-    <div class="grid gap-x-4 gap-y-2 md:grid-cols-2" aria-label="Calculated results">
+  <Table>
+    <TableHead>
+      <TableHeadCell>Input</TableHeadCell>
       {#each resultSections as section}
-        <article class="px-1 py-1.5">
-          <h3 class="text-sm font-medium text-sky-700">{section.title}</h3>
-          <ul class="mt-1 grid gap-2" style={`grid-template-columns: ${getResultsTemplateColumns()};`}>
-            {#each visibleInputIds as inputId}
-              {@const resultCell = section.valuesByInput[inputId]}
-              <li class={getResultCellClasses(inputId)}>
-                {#if resultCell}
-                  <span class={getResultToneClass(resultCell.tone)}>{resultCell.text}</span>
-                {:else}
-                  <span class="text-stone-400">{isLoading ? "Loading..." : "No result"}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        </article>
+        <TableHeadCell>{section.title}</TableHeadCell>
       {/each}
-    </div>
-  </section>
+    </TableHead>
+    <TableBody>
+      {#each visibleInputIds as inputId}
+        <TableBodyRow>
+          <TableBodyCell class={`font-medium ${inputDisplayMetaById[inputId].accentClass}`}>
+            {inputDisplayMetaById[inputId].label}
+          </TableBodyCell>
+          {#each resultSections as section}
+            {@const cell = section.valuesByInput[inputId]}
+            <TableBodyCell class={!cell ? "text-stone-400" : cell.tone === "success" ? "text-emerald-700" : cell.tone === "danger" ? "text-red-600" : ""}>
+              {cell?.text ?? (isLoading ? "Loading..." : "No result")}
+            </TableBodyCell>
+          {/each}
+        </TableBodyRow>
+      {/each}
+    </TableBody>
+  </Table>
 {/snippet}
 
 {#if embedded}
   {@render content()}
 {:else}
-  <Card size="none" class="w-full min-w-0 bg-white border-stone-300 p-3 shadow-sm">
+  <Card size="none" class="p-3">
     {@render content()}
   </Card>
 {/if}

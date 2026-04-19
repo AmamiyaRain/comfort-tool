@@ -30,6 +30,18 @@
     return `repeat(${getVisibleInputIds().length}, minmax(0, 1fr))`;
   }
 
+  function clampToRange(value: number) {
+    if (control.minValue !== undefined && value < control.minValue) {
+      return control.minValue;
+    }
+
+    if (control.maxValue !== undefined && value > control.maxValue) {
+      return control.maxValue;
+    }
+
+    return value;
+  }
+
   function commitFieldValue(inputId: InputIdType, inputElement: HTMLInputElement) {
     const rawValue = inputElement.value.trim();
     toolState.actions.setActiveInputId(inputId);
@@ -39,12 +51,19 @@
       return;
     }
 
-    toolState.actions.updateInput(inputId, control.id, rawValue);
+    const nextValue = clampToRange(Number(rawValue));
+    const normalizedValue = String(nextValue);
+    inputElement.value = normalizedValue;
+    toolState.actions.updateInput(inputId, control.id, normalizedValue);
   }
 
   function handleApplyPresetValue(inputId: InputIdType, value: number) {
     toolState.actions.setActiveInputId(inputId);
-    toolState.actions.updateInput(inputId, control.id, value.toFixed(control.presetDecimals));
+    toolState.actions.updateInput(
+      inputId,
+      control.id,
+      clampToRange(value).toFixed(control.presetDecimals),
+    );
   }
 </script>
 
@@ -132,6 +151,8 @@
           <Input
             id={`${inputId}-${control.id}`}
             type="number"
+            min={control.minValue}
+            max={control.maxValue}
             step={control.step}
             size="sm"
             value={control.displayValuesByInput[inputId] ?? ""}
