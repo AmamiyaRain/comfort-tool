@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, ButtonGroup, Input, Label, Checkbox, Badge } from "flowbite-svelte";
+  import { Button, ButtonGroup, Input, Label, Checkbox, Badge, Heading } from "flowbite-svelte";
   import { InputId, type InputId as InputIdType } from "../models/inputSlots";
   import { inputDisplayMetaById } from "../models/inputSlotPresentation";
   import { FieldKey } from "../models/fieldKeys";
@@ -143,7 +143,7 @@
 
     {#if visibleInputIds.length > 1}
       <aside class="sm:ml-auto flex flex-wrap items-center gap-2 rounded-2xl border border-stone-200 bg-stone-50/90 px-2.5 py-2">
-        <p class="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-600">Apply to</p>
+        <Heading tag="h6" class="text-eyebrow px-1 text-stone-600">Apply to</Heading>
         <ButtonGroup>
           {#each visibleInputIds as inputId}
             <Button
@@ -179,8 +179,8 @@
       <article class="rounded-2xl bg-stone-50 px-4 py-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <header class="min-w-0">
-            <p class="text-sm font-medium text-stone-900">Estimated Clothing</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{predictedClothingDisplayValue} clo</p>
+            <Heading tag="h6" class="text-sm font-medium text-stone-900">Estimated Clothing</Heading>
+            <Heading tag="h3" class="text-result-summary">{predictedClothingDisplayValue} clo</Heading>
             {#if predictedClothingValue !== null && predictedClothingValue > maxClothingValue}
               <Badge color="yellow" class="mt-2 text-xs">
                 Exceeds range ({maxClothingValue.toFixed(1)} clo)
@@ -212,7 +212,7 @@
 
       <div class="max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white">
         {#if filteredGarments.length === 0}
-          <p class="px-4 py-8 text-sm text-stone-500">No garments match this search.</p>
+          <p class="text-description-muted px-4 py-8">No garments match this search.</p>
         {:else}
           {#each filteredGarments as garment}
             <div class="flex items-center gap-3 border-b border-stone-100 px-4 py-3 last:border-b-0 hover:bg-stone-50">
@@ -230,8 +230,8 @@
       <article class="rounded-2xl bg-stone-50 px-4 py-4">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <header class="min-w-0">
-            <p class="text-sm font-medium text-stone-900">{selectionSummaryLabel}</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900">{customClothingValue.toFixed(2)} clo</p>
+            <Heading tag="h6" class="text-sm font-medium text-stone-900">{selectionSummaryLabel}</Heading>
+            <Heading tag="h3" class="text-result-summary">{customClothingValue.toFixed(2)} clo</Heading>
             {#if customClothingValue > maxClothingValue}
               <Badge color="yellow" class="mt-2 text-xs">
                 Exceeds range ({maxClothingValue.toFixed(1)} clo)

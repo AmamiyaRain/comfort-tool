@@ -1,7 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { Toggle } from "flowbite-svelte";
+  import { Heading, Toggle } from "flowbite-svelte";
 
   import SearchableSelect from "../SearchableSelect.svelte";
   import { comfortModelMetaById, comfortModelOrder } from "../../models/comfortModels";
@@ -22,7 +22,7 @@
 
 <section class="mt-3 grid gap-3" aria-label="Tool controls">
   <div>
-    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Model</p>
+    <Heading tag="h6" class="text-eyebrow">Model</Heading>
     <SearchableSelect
       class="mt-1.5"
       items={modelOptions}
@@ -35,7 +35,7 @@
 
   <div class="grid gap-3 md:grid-cols-2">
     <fieldset class="min-w-0">
-      <legend class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Compare</legend>
+      <legend class="text-eyebrow">Compare</legend>
       <div class="mt-1.5 flex w-full items-center justify-between rounded-md border border-stone-300 bg-stone-50 px-3 py-1.5">
         <span class={`text-xs ${!toolState.state.ui.compareEnabled ? "font-semibold text-stone-900" : "text-stone-500"}`}>Off</span>
         <Toggle
@@ -49,7 +49,7 @@
     </fieldset>
 
     <fieldset class="min-w-0">
-      <legend class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Units</legend>
+      <legend class="text-eyebrow">Units</legend>
       <div class="mt-1.5 flex w-full items-center justify-between rounded-md border border-stone-300 bg-stone-50 px-3 py-1.5">
         <span class={`text-xs ${toolState.state.ui.unitSystem === UnitSystem.SI ? "font-semibold text-stone-900" : "text-stone-500"}`}>SI</span>
         <Toggle

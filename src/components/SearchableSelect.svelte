@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Button, Heading } from "flowbite-svelte";
 
   type SelectOption<TValue> = {
     name: string | number;
@@ -173,35 +174,35 @@
     autocomplete="off"
     spellcheck="false"
   />
-  <button
-    type="button"
-    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500"
+  <Button
+    color="none"
+    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500 focus:ring-0"
     onclick={toggleDropdown}
-    tabindex="-1"
+    tabindex={-1}
     aria-label={isOpen ? "Close options" : "Open options"}
     disabled={disabled}
   >
     <span class="text-xs">{isOpen ? "▲" : "▼"}</span>
-  </button>
+  </Button>
 
   {#if isOpen}
     <section id={listboxId} role="listbox" class="absolute z-20 mt-1 w-full rounded-lg border border-stone-300 bg-white p-2 shadow-lg">
-      <p class="px-1 pb-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
+      <Heading tag="h6" class="text-eyebrow px-1 pb-2">
         {searchPlaceholder}
-      </p>
+      </Heading>
       <ul class="max-h-64 overflow-y-auto">
         {#if filteredItems.length > 0}
           {#each filteredItems as item, index}
             <li>
-              <button
-                type="button"
+              <Button
+                color="none"
                 class={`flex w-full items-center rounded-md px-2 py-2 text-left text-sm ${
                   item.value === value
                     ? "bg-sky-50 text-sky-900"
                     : index === highlightedIndex
                       ? "bg-stone-100 text-stone-900"
                       : "text-stone-700 hover:bg-stone-100"
-                } ${item.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                } ${item.disabled ? "cursor-not-allowed opacity-50" : ""} focus:ring-0`}
                 onclick={() => !item.disabled && handleSelect(item.value)}
                 onmouseenter={() => {
                   if (!item.disabled) {
@@ -211,7 +212,7 @@
                 disabled={item.disabled}
               >
                 {item.name}
-              </button>
+              </Button>
             </li>
           {/each}
         {:else}

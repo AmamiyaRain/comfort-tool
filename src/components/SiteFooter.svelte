@@ -4,6 +4,8 @@
     FooterBrand,
     FooterLink,
     FooterLinkGroup,
+    Heading,
+    Img,
   } from "flowbite-svelte";
   import {
     siteBrand,
@@ -34,12 +36,12 @@
             alt="CBE logo"
             class="h-9 w-auto object-contain"
           />
-          <img src={siteBrand.berkeleyLogoSrc} alt="UC Berkeley logo" class="h-7 w-auto object-contain opacity-85" />
+          <Img src={siteBrand.berkeleyLogoSrc} alt="UC Berkeley logo" class="h-7 w-auto object-contain opacity-85" />
         </header>
 
         <div class="mt-3">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{siteBrand.eyebrow}</p>
-          <h2 class="mt-1 text-base font-semibold tracking-tight text-white">{siteBrand.title}</h2>
+          <Heading tag="h6" class="text-eyebrow tracking-[0.18em] text-white/40">{siteBrand.eyebrow}</Heading>
+          <Heading tag="h2" class="mt-1 text-base font-semibold tracking-tight text-white">{siteBrand.title}</Heading>
           <p class="mt-1 text-sm text-white/58 max-w-2xl">
             {siteFooterSummary}
           </p>
@@ -48,7 +50,7 @@
 
       <div class="flex flex-wrap gap-x-8 gap-y-4">
         <div>
-          <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-white/40">Resources</h2>
+          <Heading tag="h2" class="text-footer-label">Resources</Heading>
           <FooterLinkGroup class="flex-col space-y-2">
             <FooterLink
               href={siteFooterDocumentationLink.href}
@@ -70,7 +72,7 @@
         </div>
 
         <div>
-          <h2 class="mb-4 text-xs font-semibold uppercase tracking-wider text-white/40">Contact</h2>
+          <Heading tag="h2" class="text-footer-label">Contact</Heading>
           <FooterLinkGroup class="flex-col space-y-2">
             {#each siteFooterContactLinks as link}
               <FooterLink

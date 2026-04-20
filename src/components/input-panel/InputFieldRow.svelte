@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Dropdown, DropdownItem, Input, Label } from "flowbite-svelte";
+  import { Button, Dropdown, DropdownItem, Heading, Input, Label } from "flowbite-svelte";
   import PresetNumericInput from "../PresetNumericInput.svelte";
   import { inputDisplayMetaById } from "../../models/inputSlotPresentation";
   import type { InputId as InputIdType } from "../../models/inputSlots";
@@ -75,24 +75,32 @@
       </Label>
 
       {#if menu}
-        <button
+        <Button
           id={getAdvancedMenuTriggerId()}
-          type="button"
-          class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
+          color="none"
+          pill
+          class="inline-flex items-center gap-1 border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900 focus:ring-0"
         >
           More
           <span class="text-[10px]">▼</span>
-        </button>
+        </Button>
 
         <Dropdown triggeredBy={`#${getAdvancedMenuTriggerId()}`} class="w-72 overflow-hidden rounded-xl py-1 shadow-lg">
-          <p slot="header" class="border-b border-stone-100 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
+          <Heading
+            slot="header"
+            tag="h6"
+            class="border-b border-stone-100 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-stone-500"
+          >
             {menu.title}
-          </p>
+          </Heading>
           {#each menu.sections as section}
             {#if section.title}
-              <p class="px-4 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+              <Heading
+                tag="h6"
+                class="px-4 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400"
+              >
                 {section.title}
-              </p>
+              </Heading>
             {/if}
 
             {#each section.items as item}
@@ -113,15 +121,16 @@
       {/if}
 
       {#if control.showClothingBuilder}
-        <button
+        <Button
           id={`clothing-builder-trigger-${control.id}`}
-          type="button"
+          color="none"
+          pill
           onclick={onOpenClothingBuilder}
-          class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:text-stone-900"
+          class="inline-flex items-center gap-1 border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900 focus:ring-0"
         >
           More
           <span class="text-[10px]">▼</span>
-        </button>
+        </Button>
       {/if}
     </div>
 
