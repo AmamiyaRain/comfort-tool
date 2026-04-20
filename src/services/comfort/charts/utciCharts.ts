@@ -73,34 +73,34 @@ export function buildUtciStressChart(
     const yPosition = markerPositions[index];
     const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
-    traces.push(buildInputScatterTrace(
+    traces.push(buildInputScatterTrace({
       inputId,
-      displayUtci,
-      yPosition,
-      showInputLegend,
-      `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
-      14,
-    ));
+      x: displayUtci,
+      y: yPosition,
+      showLegend: showInputLegend,
+      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
+      markerSize: 14,
+    }));
 
-    annotations.push(buildInputAnnotation(
+    annotations.push(buildInputAnnotation({
       inputId,
-      displayUtci,
-      yPosition + 0.12,
-      `${inputLabel}<br>${result.stressCategory}`,
-      false,
-      12,
-    ));
+      x: displayUtci,
+      y: yPosition + 0.12,
+      text: `${inputLabel}<br>${result.stressCategory}`,
+      showArrow: false,
+      textSize: 12,
+    }));
   });
 
   utciStressBands.forEach((band, index) => {
-    annotations.push(buildTextAnnotation(
-      (
+    annotations.push(buildTextAnnotation({
+      x: (
         convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem) +
         convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem)
       ) / 2,
-      index % 2 === 0 ? 0.05 : 0.16,
-      utciStressShortLabelByCategory[band.category],
-    ));
+      y: index % 2 === 0 ? 0.05 : 0.16,
+      text: utciStressShortLabelByCategory[band.category],
+    }));
   });
 
   return {
@@ -122,16 +122,16 @@ export function buildUtciStressChart(
         showticklabels: false,
         gridcolor: "#ffffff",
       },
-      shapes: utciStressBands.map((band) => buildRectangleSelectionShape(
-        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
-        convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
-        0,
-        1,
-        band.color,
-        0.18,
-        "x",
-        "paper",
-      )),
+      shapes: utciStressBands.map((band) => buildRectangleSelectionShape({
+        xStart: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+        xEnd: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
+        yStart: 0,
+        yEnd: 1,
+        fillColor: band.color,
+        opacity: 0.18,
+        xref: "x",
+        yref: "paper",
+      })),
       legend: { orientation: "h", x: 0, y: 1.08 },
       height: 360,
     },
@@ -181,25 +181,25 @@ export function buildUtciTemperatureChart(
     const displayDryBulb = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem));
     const displayUtci = roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
 
-    traces.push(buildInputScatterTrace(
+    traces.push(buildInputScatterTrace({
       inputId,
-      displayDryBulb,
-      displayUtci,
-      showInputLegend,
-      `${inputLabel}<br>Dry bulb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      x: displayDryBulb,
+      y: displayUtci,
+      showLegend: showInputLegend,
+      hovertemplate: `${inputLabel}<br>Dry bulb %{x:.1f} ${temperatureDisplayUnits}<br>` +
       `UTCI %{y:.1f} ${temperatureDisplayUnits}<br>` +
       `Offset ${formatSignedTemperature(temperatureOffset, unitSystem)}<br>${result.stressCategory}<extra></extra>`,
-      13,
-    ));
+      markerSize: 13,
+    }));
 
-    annotations.push(buildInputAnnotation(
+    annotations.push(buildInputAnnotation({
       inputId,
-      displayDryBulb,
-      displayUtci,
-      `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
-      true,
-      11,
-    ));
+      x: displayDryBulb,
+      y: displayUtci,
+      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
+      showArrow: true,
+      textSize: 11,
+    }));
   });
 
   return {
@@ -220,28 +220,27 @@ export function buildUtciTemperatureChart(
         range: utciAxisRange,
         gridcolor: "#e2e8f0",
       },
-      shapes: [
-        ...utciStressBands.map((band) => buildRectangleSelectionShape(
-          0,
-          1,
-          convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
-          convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
-          band.color,
-          0.12,
-          "paper",
-          "y",
-        )),
+      shapes: utciStressBands.map((band) => buildRectangleSelectionShape({
+        xStart: 0,
+        xEnd: 1,
+        yStart: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.minimum, unitSystem),
+        yEnd: convertFieldValueFromSi(FieldKey.DryBulbTemperature, band.maximum, unitSystem),
+        fillColor: band.color,
+        opacity: 0.12,
+        xref: "paper",
+        yref: "y",
+      })).concat([
         {
           type: "line",
-          xref: "x",
-          yref: "y",
+          xref: "x" as const,
+          yref: "y" as const,
           x0: xRange[0],
           x1: xRange[1],
           y0: xRange[0],
           y1: xRange[1],
           line: { color: "#94a3b8", width: 1.5, dash: "dash" },
-        },
-      ],
+        } as any,
+      ]),
       legend: { orientation: "h", x: 0, y: 1.08 },
       height: 380,
     },

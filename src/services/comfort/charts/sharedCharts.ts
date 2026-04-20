@@ -23,31 +23,31 @@ export function buildRelativeHumidityChart(
     const inputMeta = inputDisplayMetaById[inputId];
     const inputStyle = inputChartStyleById[inputId];
     const comfortZone = comfortZonesByInput[inputId];
-    const polygon = comfortZone ? [...comfortZone.coolEdge, ...[...comfortZone.warmEdge].reverse()] : [];
+    const polygon = comfortZone ? (comfortZone.coolEdge || []).concat((comfortZone.warmEdge || []).slice().reverse()) : [];
     if (polygon.length > 0) {
-      traces.push(buildComfortPolygonTrace(
+      traces.push(buildComfortPolygonTrace({
         inputId,
-        "RH comfort zone",
-        polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        polygon.map((point) => roundValue(point.rh)),
-        `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
-      ));
+        nameSuffix: "RH comfort zone",
+        polygonX: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
+        polygonY: polygon.map((point) => roundValue(point.rh)),
+        hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
+      }));
     }
-    traces.push(buildInputScatterTrace(
+    traces.push(buildInputScatterTrace({
       inputId,
-      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
-      roundValue(inputPayload.rh),
-      showInputLegend,
-      `${inputMeta.label}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
-    ));
-    annotations.push(buildInputAnnotation(
+      x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      y: roundValue(inputPayload.rh),
+      showLegend: showInputLegend,
+      hovertemplate: `${inputMeta.label}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
+    }));
+    annotations.push(buildInputAnnotation({
       inputId,
-      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
-      roundValue(inputPayload.rh),
-      inputMeta.shortLabel,
-      true,
-      11,
-    ));
+      x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      y: roundValue(inputPayload.rh),
+      text: inputMeta.shortLabel,
+      showArrow: true,
+      textSize: 11,
+    }));
   });
   return {
     traces,
