@@ -55,6 +55,8 @@ type PresentationMeta = {
   step: number;
   decimals: number;
   rangeText: string;
+  minValue?: number;
+  maxValue?: number;
 };
 
 type ControlBehaviorConfig = {
@@ -120,6 +122,8 @@ function buildDefaultPresentation(context: ControlBehaviorContext, meta: FieldMe
     step: meta.step,
     decimals: meta.decimals,
     rangeText: buildRangeText(meta, context),
+    minValue: convertFieldValueFromSi(meta.key, meta.minValue, context.unitSystem),
+    maxValue: convertFieldValueFromSi(meta.key, meta.maxValue, context.unitSystem),
   };
 }
 
@@ -196,6 +200,8 @@ export function createControlBehavior(config: ControlBehaviorConfig): InputContr
         label: presentation.label,
         displayUnits: presentation.displayUnits,
         rangeText: presentation.rangeText,
+        minValue: presentation.minValue,
+        maxValue: presentation.maxValue,
         hidden: config.hidden?.(context) ?? false,
         editorKind: config.presetOptions?.length ? "preset" : "number",
         step: presentation.step,
@@ -262,6 +268,16 @@ export function createTemperatureControlBehavior(controlId: InputControlIdType):
         step: temperatureMeta.step,
         decimals: temperatureMeta.decimals,
         rangeText: buildRangeText(temperatureMeta, context),
+        minValue: convertFieldValueFromSi(
+          temperatureMeta.key,
+          temperatureMeta.minValue,
+          context.unitSystem,
+        ),
+        maxValue: convertFieldValueFromSi(
+          temperatureMeta.key,
+          temperatureMeta.maxValue,
+          context.unitSystem,
+        ),
       };
     },
     getMenu: (context) => {
@@ -348,6 +364,16 @@ export function createAirSpeedControlBehavior(controlId: InputControlIdType): In
         step: airSpeedMeta.step,
         decimals: airSpeedMeta.decimals,
         rangeText: buildRangeText(airSpeedMeta, context),
+        minValue: convertFieldValueFromSi(
+          airSpeedMeta.key,
+          airSpeedMeta.minValue,
+          context.unitSystem,
+        ),
+        maxValue: convertFieldValueFromSi(
+          airSpeedMeta.key,
+          airSpeedMeta.maxValue,
+          context.unitSystem,
+        ),
       };
     },
     getMenu: (context) => {
@@ -488,6 +514,16 @@ export function createHumidityControlBehavior(controlId: InputControlIdType): In
         step: relativeHumidityMeta.step,
         decimals: relativeHumidityMeta.decimals,
         rangeText: buildRangeText(relativeHumidityMeta, context),
+        minValue: convertFieldValueFromSi(
+          relativeHumidityMeta.key,
+          relativeHumidityMeta.minValue,
+          context.unitSystem,
+        ),
+        maxValue: convertFieldValueFromSi(
+          relativeHumidityMeta.key,
+          relativeHumidityMeta.maxValue,
+          context.unitSystem,
+        ),
       };
     },
     getMenu: (context) => buildAdvancedOptionMenu("Humidity input", [

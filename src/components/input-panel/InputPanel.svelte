@@ -49,10 +49,10 @@
         <legend class="sr-only">Visible compare inputs</legend>
         <ul class="grid gap-2 md:grid-cols-3">
           {#each inputOrder as inputId}
-            <li>
+            <li class="w-full">
               <button
                 type="button"
-                class={`min-w-0 rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(inputId)}`}
+                class={`w-full rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(inputId)}`}
                 onclick={() => toolState.actions.toggleCompareInputVisibility(inputId)}
               >
                 <span class="text-sm font-semibold">{inputDisplayMetaById[inputId].label}</span>

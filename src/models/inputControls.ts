@@ -44,6 +44,8 @@ export type InputControlViewModel = {
   label: string;
   displayUnits: string;
   rangeText: string;
+  minValue?: number;
+  maxValue?: number;
   hidden: boolean;
   editorKind: InputControlEditorKind;
   step: number;
