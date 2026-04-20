@@ -9,15 +9,14 @@ import {
   type PmvModelOptions,
 } from "../../models/inputModes";
 import {
-  derivePsychrometricStateFromRelativeHumidity,
   deriveMeasuredAirSpeedFromRelative,
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
   deriveRelativeHumidityFromHumidityRatio,
   deriveRelativeHumidityFromWetBulb,
   deriveRelativeHumidityFromVaporPressure,
-  deriveOperativeTemperature,
 } from "./derivations";
+import { t_o, psy_ta_rh } from "jsthermalcomfort";
 
 export type CanonicalInputState = Record<FieldKeyType, number>;
 export type CanonicalDerivedState = Partial<Record<DerivedInputIdType, number>>;
@@ -71,7 +70,7 @@ export const normalizeControlOptions = normalizePmvOptions;
  * @returns A record of derived values (dew point, measured air speed, etc.).
  */
 export function deriveInputDerivedState(inputState: CanonicalInputState): CanonicalDerivedState {
-  const psychrometricState = derivePsychrometricStateFromRelativeHumidity(
+  const psychrometricState = psy_ta_rh(
     inputState[FieldKey.DryBulbTemperature],
     inputState[FieldKey.RelativeHumidity],
   );
@@ -81,10 +80,10 @@ export function deriveInputDerivedState(inputState: CanonicalInputState): Canoni
       inputState[FieldKey.RelativeAirSpeed],
       inputState[FieldKey.MetabolicRate],
     ),
-    [DerivedInputId.DewPoint]: psychrometricState.dewPoint,
-    [DerivedInputId.HumidityRatio]: psychrometricState.humidityRatio,
-    [DerivedInputId.WetBulb]: psychrometricState.wetBulb,
-    [DerivedInputId.VaporPressure]: psychrometricState.vaporPressure,
+    [DerivedInputId.DewPoint]: psychrometricState.t_dp,
+    [DerivedInputId.HumidityRatio]: psychrometricState.hr,
+    [DerivedInputId.WetBulb]: psychrometricState.t_wb,
+    [DerivedInputId.VaporPressure]: psychrometricState.p_vap,
   };
 }
 
@@ -158,7 +157,8 @@ export function applyOperativeTemperatureMode(
   const airSpeed = normalizedOptions[OptionKey.AirSpeedInputMode] === AirSpeedInputMode.Measured
     ? resolvedDerivedState[DerivedInputId.MeasuredAirSpeed] ?? 0
     : inputState[FieldKey.RelativeAirSpeed];
-  const operativeTemperature = deriveOperativeTemperature(
+
+  const operativeTemperature = t_o(
     inputState[FieldKey.DryBulbTemperature],
     inputState[FieldKey.MeanRadiantTemperature],
     airSpeed,

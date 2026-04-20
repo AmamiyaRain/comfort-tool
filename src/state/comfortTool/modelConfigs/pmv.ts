@@ -187,8 +187,8 @@ function buildPmvResultSections(
 ) {
   return [
     buildResultSection("Compliance", results, visibleInputIds, (result) => ({
-      text: result.acceptable80 ? "Compliant" : "Out of range",
-      tone: result.acceptable80 ? "success" : "danger",
+      text: result.isCompliant ? "Compliant" : "Out of range",
+      tone: result.isCompliant ? "success" : "danger",
     })),
     buildResultSection("PMV", results, visibleInputIds, (result) => ({
       text: result.pmv.toFixed(2),

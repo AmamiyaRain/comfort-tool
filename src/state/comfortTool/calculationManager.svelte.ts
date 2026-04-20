@@ -50,24 +50,12 @@ export function createCalculationManager(state: ComfortToolStateSlice, getVisibl
         resultsByInput: calculationOutputs.resultsByInput,
         chartSource: calculationOutputs.chartSource,
       };
-
-      if (calculationToken !== latestCalculationToken) {
-        return;
-      }
     } catch (error) {
-      if (calculationToken !== latestCalculationToken) {
-        return;
-      }
-
-      state.ui.calculationCacheByModel[selectedModel] = {
-        ...state.ui.calculationCacheByModel[selectedModel],
-        status: state.ui.calculationCacheByModel[selectedModel].chartSource ? "stale" : "empty",
-      };
+      const cache = state.ui.calculationCacheByModel[selectedModel];
+      cache.status = cache.chartSource ? "stale" : "empty";
       state.ui.errorMessage = error instanceof Error ? error.message : "Calculation failed.";
     } finally {
-      if (calculationToken === latestCalculationToken) {
-        state.ui.isLoading = false;
-      }
+      if (calculationToken === latestCalculationToken) state.ui.isLoading = false;
     }
   }
 

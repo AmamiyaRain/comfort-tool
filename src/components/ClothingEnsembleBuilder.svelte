@@ -5,7 +5,7 @@
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/inputFieldsMeta";
   import type { UnitSystem as UnitSystemType } from "../models/units";
-  import { predictClothingInsulationFromOutdoorTemperature } from "../services/comfort/derivations";
+  import { clo_tout } from "jsthermalcomfort";
   import { clothingGarmentOptions, type ClothingGarmentOption } from "../services/comfort/referenceValues";
 
   let {
@@ -86,7 +86,7 @@
   });
   const predictedClothingValue = $derived.by(() => {
     if (predictiveOutdoorTemperatureValue === null) return null;
-    return predictClothingInsulationFromOutdoorTemperature(predictiveOutdoorTemperatureValue, unitSystem);
+    return clo_tout(predictiveOutdoorTemperatureValue, unitSystem).clo_tout;
   });
   const selectionSummaryLabel = $derived.by(() => {
     if (selectedGarmentIds.length === 0) return "No garments selected";

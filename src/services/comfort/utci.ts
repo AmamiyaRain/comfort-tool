@@ -1,4 +1,4 @@
-import { utci } from "jsthermalcomfort/lib/esm/models/utci.js";
+import { utci } from "jsthermalcomfort";
 
 import { CalculationSource } from "../../models/calculationMetadata";
 import {
