@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Navbar, NavBrand, NavHamburger, NavLi, NavUl } from "flowbite-svelte";
+  import { Button, Heading, Img, Navbar, NavBrand, NavHamburger, NavLi, NavUl } from "flowbite-svelte";
   import { LinkOutline } from "flowbite-svelte-icons";
   import { onDestroy } from "svelte";
 
@@ -84,14 +84,14 @@
 </script>
 
 <Navbar fluid={false} class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
-  <NavBrand href="#overview" class="flex items-center gap-4 hover:opacity-90">
-    <figure class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#124f7f] p-2">
-      <img src={siteBrand.headerLogoSrc} alt={siteBrand.eyebrow} class="h-full w-full object-contain" />
-    </figure>
+  <NavBrand href="#overview" class="flex items-center gap-6 hover:opacity-95 transition-opacity">
+    <div class="header-logo-container">
+      <Img src={siteBrand.headerLogoSrc} alt={siteBrand.eyebrow} class="header-logo" />
+    </div>
 
     <div class="min-w-0">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">{siteBrand.eyebrow}</p>
-      <h1 class="truncate text-lg font-semibold tracking-tight text-stone-950 sm:text-xl">{siteBrand.title}</h1>
+      <Heading tag="h6" class="text-eyebrow uppercase tracking-[0.2em]">{siteBrand.eyebrow}</Heading>
+      <Heading tag="h1" class="truncate text-lg font-semibold tracking-tight text-stone-950 sm:text-xl">{siteBrand.title}</Heading>
     </div>
   </NavBrand>
 

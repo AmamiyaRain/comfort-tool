@@ -20,7 +20,7 @@ import {
   roundValue,
   type ComfortZonesByInput,
 } from "../helpers";
-import { derivePsychrometricStateFromRelativeHumidity } from "../derivations";
+import { psy_ta_rh } from "jsthermalcomfort";
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace } from "./plotlyBuilders";
 
 /**
@@ -41,7 +41,7 @@ function getHumidityRatioSi(
 ): number {
   return ensureFiniteValue(
     "Humidity ratio",
-    derivePsychrometricStateFromRelativeHumidity(temperature, relativeHumidity).humidityRatio,
+    psy_ta_rh(temperature, relativeHumidity).hr,
   );
 }
 
@@ -96,39 +96,39 @@ export function buildComparePsychrometricChart(
       return;
     }
 
-    traces.push(buildLineTrace(
-      `RH ${relativeHumidity}%`,
-      xValues,
-      yValues,
-      "#94a3b8",
-      `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+    traces.push(buildLineTrace({
+      name: `RH ${relativeHumidity}%`,
+      x: xValues,
+      y: yValues,
+      color: "#94a3b8",
+      hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
       `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-    ));
+    }));
   });
 
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const comfortZone = getComfortZoneForInput(inputId, inputPayload, comfortZonesByInput);
-    const polygon = [...comfortZone.coolEdge, ...[...comfortZone.warmEdge].reverse()];
+    const polygon = (comfortZone.coolEdge || []).concat((comfortZone.warmEdge || []).slice().reverse());
 
     if (polygon.length > 0) {
-      traces.push(buildComfortPolygonTrace(
+      traces.push(buildComfortPolygonTrace({
         inputId,
-        "comfort zone",
-        polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
-        `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+        nameSuffix: "comfort zone",
+        polygonX: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
+        polygonY: polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
+        hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
         `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-      ));
+      }));
     }
 
-    traces.push(buildInputScatterTrace(
+    traces.push(buildInputScatterTrace({
       inputId,
-      roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
-      roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
-      showInputLegend,
-      `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
+      y: roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
+      showLegend: showInputLegend,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
       `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-    ));
+    }));
   });
 
   return {

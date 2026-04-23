@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Button, Heading } from "flowbite-svelte";
 
   export interface NumericPresetOption {
     id: string;
@@ -273,16 +274,16 @@
     autocomplete="off"
     spellcheck="false"
   />
-  <button
-    type="button"
-    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500"
+  <Button
+    color="none"
+    class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500 focus:ring-0"
     onclick={toggleDropdown}
-    tabindex="-1"
+    tabindex={-1}
     aria-label={isOpen ? "Close presets" : "Open presets"}
     disabled={disabled}
   >
     <span class="text-xs">{isOpen ? "▲" : "▼"}</span>
-  </button>
+  </Button>
 
   {#if isOpen}
     <section
@@ -292,9 +293,12 @@
       style={dropdownPanelStyle}
     >
       <header class="flex items-center justify-between gap-3 px-1 pb-2">
-        <p class="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+        <Heading
+          tag="h6"
+          class="text-eyebrow px-1 pb-2"
+        >
           {searchPlaceholder}
-        </p>
+        </Heading>
         <p class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600">
           Current {formatValue(value)}
         </p>
@@ -303,15 +307,15 @@
         {#if filteredItems.length > 0}
           {#each filteredItems as item, index}
             <li>
-              <button
-                type="button"
+              <Button
+                color="none"
                 class={`flex w-full items-start justify-between gap-3 rounded-md px-2 py-2 text-left ${
                   index === highlightedIndex
                     ? "bg-stone-100 text-stone-900"
                     : selectedPreset?.id === item.id
                       ? "bg-sky-50 text-sky-900"
                       : "text-stone-700 hover:bg-stone-100"
-                }`}
+                } focus:ring-0`}
                 onclick={() => handleSelect(item.value)}
                 onmouseenter={() => {
                   highlightedIndex = index;
@@ -321,7 +325,7 @@
                 <span class="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-semibold text-white">
                   {formatValue(item.value)}
                 </span>
-              </button>
+              </Button>
             </li>
           {/each}
         {:else}

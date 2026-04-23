@@ -1,7 +1,7 @@
 <svelte:options runes={true} />
 
 <script lang="ts">
-  import { Card, Modal } from "flowbite-svelte";
+  import { Button, Card, Heading, Modal } from "flowbite-svelte";
 
   import ClothingEnsembleBuilder from "../ClothingEnsembleBuilder.svelte";
   import InputFieldRow from "./InputFieldRow.svelte";
@@ -50,13 +50,13 @@
         <ul class="grid gap-2 md:grid-cols-3">
           {#each inputOrder as inputId}
             <li class="w-full">
-              <button
-                type="button"
+              <Button
+                color="none"
                 class={`w-full rounded-sm border px-2 py-1.5 text-left ${getCompareToggleClasses(inputId)}`}
                 onclick={() => toolState.actions.toggleCompareInputVisibility(inputId)}
               >
                 <span class="text-sm font-semibold">{inputDisplayMetaById[inputId].label}</span>
-              </button>
+              </Button>
             </li>
           {/each}
         </ul>
@@ -85,9 +85,9 @@
   class="w-full"
   title="Clothing Tools"
 >
-  <p slot="header" class="text-sm text-stone-500">
+  <Heading slot="header" tag="h6" class="text-description-muted">
     Predict clo quickly or build a garment ensemble from the CBE list.
-  </p>
+  </Heading>
   <ClothingEnsembleBuilder
     activeInputId={toolState.state.ui.activeInputId}
     visibleInputIds={toolState.selectors.getVisibleInputIds()}

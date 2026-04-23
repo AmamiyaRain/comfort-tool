@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card } from "flowbite-svelte";
+  import { Card, Heading } from "flowbite-svelte";
   import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
   import type { ChartId } from "../../models/chartOptions";
@@ -36,7 +36,7 @@
   <header class="flex items-start justify-between gap-4">
     <div class="min-w-0">
       {#if title}
-        <h3 class="text-sm font-semibold text-stone-900">{title}</h3>
+        <Heading tag="h3" class="text-sm font-semibold text-stone-900">{title}</Heading>
       {/if}
       {#if description}
         <p class="mt-1 text-xs text-stone-500">{description}</p>

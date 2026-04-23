@@ -10,8 +10,8 @@ import { calculateComfortZone } from "./comfortZone";
 import {
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
-  predictClothingInsulationFromOutdoorTemperature,
 } from "./derivations";
+import { clo_tout, t_o } from "jsthermalcomfort";
 import {
   synchronizeControlInputState,
 } from "./syncState";
@@ -76,7 +76,7 @@ describe("comfort services", () => {
         rhPoints: 31,
       });
 
-      expect(constrainedResult.acceptable80).toBe(false);
+      expect(constrainedResult.isCompliant).toBe(false);
       expect(constrainedComfortZone.coolEdge.length).toBeLessThan(31);
     } finally {
       warnSpy.mockRestore();
@@ -165,7 +165,7 @@ describe("comfort services", () => {
   });
 
   it("normalizes clothing prediction results from jsthermalcomfort", () => {
-    const predictedClothing = predictClothingInsulationFromOutdoorTemperature(10, UnitSystem.SI);
+    const predictedClothing = clo_tout(10, UnitSystem.SI).clo_tout;
 
     expect(predictedClothing).toBeTypeOf("number");
     expect(predictedClothing).toBeGreaterThan(0);

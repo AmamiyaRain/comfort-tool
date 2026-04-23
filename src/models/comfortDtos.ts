@@ -18,7 +18,7 @@ export interface PmvRequestDto {
 export interface PmvResponseDto {
   pmv: number;
   ppd: number;
-  acceptable80: boolean;
+  isCompliant: boolean;
   standard: ComfortStandard;
   source: CalculationSource;
 }
