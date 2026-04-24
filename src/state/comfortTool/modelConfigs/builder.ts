@@ -41,10 +41,12 @@ export function buildResultSection<T>(
   title: string,
   resultsByInput: Record<InputIdType, T | null>,
   visibleInputIds: InputIdType[],
-  formatter: (result: T) => { text: string; tone: ResultTone }
+  formatter: (result: T) => { text: string; tone: ResultTone },
+  group?: string,
 ): ResultSectionViewModel {
   return {
     title,
+    group,
     valuesByInput: visibleInputIds.reduce((acc, inputId) => {
       const result = resultsByInput[inputId];
       let formattedValue = null;

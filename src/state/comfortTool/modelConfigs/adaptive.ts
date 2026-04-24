@@ -1,0 +1,438 @@
+import { ChartId, type ChartId as ChartIdType } from "../../../models/chartOptions";
+import { type InputId as InputIdType } from "../../../models/inputSlots";
+import { ComfortModel } from "../../../models/comfortModels";
+import type {
+  AdaptiveChartInputsRequestDto,
+  AdaptiveChartSourceDto,
+  AdaptiveResponseDto,
+  AdaptiveRequestDto,
+} from "../../../models/comfortDtos";
+import { FieldKey } from "../../../models/fieldKeys";
+import { InputControlId, type PresetInputOption } from "../../../models/inputControls";
+import {
+  OptionKey,
+  type OptionKey as OptionKeyType,
+  TemperatureMode,
+  defaultAdaptiveOptions,
+  AdaptiveStandardMode,
+} from "../../../models/inputModes";
+import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
+import { calculateAdaptive } from "../../../services/comfort/adaptive";
+import { buildAdaptiveChart } from "../../../services/comfort/charts/adaptiveCharts";
+import {
+  buildDefaultPresentation,
+  createAirSpeedControlBehavior,
+  createControlBehavior,
+  createTemperatureControlBehavior,
+} from "../../../services/comfort/controls/controlBehaviors";
+import { type InputControlBehavior } from "../../../services/comfort/controls/types";
+import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
+
+const adaptiveChartIds: ChartIdType[] = [ChartId.Adaptive];
+
+function normalizeAdaptiveOptionsSnapshot(value: unknown) {
+  // Check if the input value is a valid record.
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  // Create a new options object by copying the default adaptive options.
+  // Example: { "temperature_mode": "operative", ... }
+  const nextOptions = Object.assign({}, defaultAdaptiveOptions);
+
+  // Check if the temperature mode in the input value is set to "air".
+  if (value[OptionKey.TemperatureMode] === TemperatureMode.Air) {
+    // If it is, set the temperature mode in our next options to "air".
+    nextOptions[OptionKey.TemperatureMode] = TemperatureMode.Air;
+  } else {
+    // Otherwise, default to "operative".
+    nextOptions[OptionKey.TemperatureMode] = TemperatureMode.Operative;
+  }
+
+  // Return the normalized options.
+  return nextOptions;
+}
+
+/**
+ * Transforms the application state into a request object for the adaptive comfort calculation.
+ * @param state The current application state.
+ * @param inputId The ID of the input slot.
+ * @returns An AdaptiveRequestDto object.
+ */
+function toAdaptiveRequest(state: any, inputId: InputIdType): AdaptiveRequestDto {
+  // Get the input state for the given input ID.
+  const inputs = state.inputsByInput[inputId];
+  
+  // Return the adaptive request DTO.
+  return {
+    // Dry bulb temperature (air temperature) in °C. Example: 25
+    tdb: Number(inputs[FieldKey.DryBulbTemperature]),
+    // Mean radiant temperature in °C. Example: 25
+    tr: Number(inputs[FieldKey.MeanRadiantTemperature]),
+    // Prevailing mean outdoor temperature in °C. Example: 20
+    trm: Number(inputs[FieldKey.PrevailingMeanOutdoorTemperature]),
+    // Relative air speed in m/s. Example: 0.1
+    v: Number(inputs[FieldKey.RelativeAirSpeed]),
+    // The unit system (always SI for this internal calculation).
+    units: UnitSystem.SI,
+  };
+}
+
+/**
+ * Transforms the application state into a request object for adaptive chart generation.
+ * @param state The current application state.
+ * @param visibleInputIds The list of visible input IDs.
+ * @returns An AdaptiveChartInputsRequestDto object.
+ */
+function toAdaptiveChartInputsRequest(
+  state: any,
+  visibleInputIds: InputIdType[],
+): AdaptiveChartInputsRequestDto {
+  // Return the adaptive chart inputs request DTO.
+  return {
+    // Map each visible input ID to its corresponding adaptive request.
+    inputs: visibleInputIds.reduce((accumulator, inputId) => {
+      accumulator[inputId] = toAdaptiveRequest(state, inputId);
+      return accumulator;
+    }, {} as AdaptiveChartInputsRequestDto["inputs"]),
+  };
+}
+
+/**
+ * Creates an option change handler for a specific control behavior.
+ */
+function createOptionHandler(behavior: InputControlBehavior, optionKey: OptionKeyType) {
+  return (context: any, nextValue: string) => {
+    // Check if the behavior has an applyOptionChange function.
+    if (behavior.applyOptionChange) {
+      // If it does, call it and return the result.
+      return behavior.applyOptionChange(context, optionKey, nextValue);
+    }
+    // Otherwise, return null.
+    return null;
+  };
+}
+
+// Preset options for air speed in ASHRAE mode.
+const ashraeAirSpeedPresets: PresetInputOption[] = [
+  { id: "0.3", value: 0.3, label: "0.3 m/s (59 fpm)" },
+  { id: "0.6", value: 0.6, label: "0.6 m/s (118 fpm)" },
+  { id: "0.9", value: 0.9, label: "0.9 m/s (177 fpm)" },
+  { id: "1.2", value: 1.2, label: "1.2 m/s (236 fpm)" },
+];
+
+// Preset options for air speed in EN mode.
+const enAirSpeedPresets: PresetInputOption[] = [
+  { id: "0.1", value: 0.1, label: "lower than 0.6 m/s (118 fpm)" },
+  { id: "0.6", value: 0.6, label: "0.6 m/s (118 fpm)" },
+  { id: "0.9", value: 0.9, label: "0.9 m/s (177 fpm)" },
+  { id: "1.2", value: 1.2, label: "1.2 m/s (236 fpm)" },
+];
+
+function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: AdaptiveStandardMode) {
+  // Check if we are in ASHRAE mode.
+  const isAshrae = standardMode === AdaptiveStandardMode.Ashrae;
+  
+  // The control behavior for temperature.
+  const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temperature);
+
+  // The control behavior for air speed in adaptive mode.
+  const adaptiveAirSpeedBehavior = createControlBehavior({
+    // Set the control ID.
+    controlId: InputControlId.AirSpeed,
+    // Set the field key.
+    fieldKey: FieldKey.RelativeAirSpeed,
+    // Set the preset options based on the standard.
+    presetOptions: isAshrae ? ashraeAirSpeedPresets : enAirSpeedPresets,
+    // Get the presentation for the control.
+    getPresentation: (context, meta) => {
+      // Get the default presentation.
+      const presentation = buildDefaultPresentation(context, meta);
+      // Return the presentation with a custom label.
+      return {
+        label: "Air speed",
+        displayUnits: presentation.displayUnits,
+        step: presentation.step,
+        decimals: presentation.decimals,
+        rangeText: presentation.rangeText,
+        minValue: presentation.minValue,
+        maxValue: presentation.maxValue,
+      };
+    },
+  });
+
+  // Create a new model configuration builder.
+  const builder = new ComfortModelBuilder<AdaptiveResponseDto, AdaptiveChartSourceDto>(modelId);
+
+  // Register the temperature control.
+  builder.addControl({
+    id: InputControlId.Temperature,
+    behavior: temperatureBehavior,
+  });
+
+  // Register the radiant temperature control.
+  builder.addControl({
+    id: InputControlId.RadiantTemperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.RadiantTemperature,
+      fieldKey: FieldKey.MeanRadiantTemperature,
+      // Hide the control if the temperature mode is not "air".
+      hidden: (context) => {
+        return context.options[OptionKey.TemperatureMode] !== TemperatureMode.Air;
+      },
+      getPresentation: (context, meta) => {
+        // Get the default presentation.
+        const presentation = buildDefaultPresentation(context, meta);
+        // Return the presentation with a custom label.
+        return {
+          label: "Mean radiant temperature",
+          displayUnits: presentation.displayUnits,
+          step: presentation.step,
+          decimals: presentation.decimals,
+          rangeText: presentation.rangeText,
+          minValue: presentation.minValue,
+          maxValue: presentation.maxValue,
+        };
+      },
+    }),
+  });
+
+  // Register the prevailing mean outdoor temperature control.
+  builder.addControl({
+    id: InputControlId.PrevailingMeanOutdoorTemperature,
+    behavior: createControlBehavior({
+      controlId: InputControlId.PrevailingMeanOutdoorTemperature,
+      fieldKey: FieldKey.PrevailingMeanOutdoorTemperature,
+      getPresentation: (context, meta) => {
+        // Get the default presentation.
+        const presentation = buildDefaultPresentation(context, meta);
+        
+        // The custom label for the outdoor temperature.
+        let label = "Prevailing mean outdoor temperature";
+        if (!isAshrae) {
+          label = "Running mean outdoor temperature";
+        }
+
+        // Return the presentation with the custom label.
+        return {
+          label: label,
+          displayUnits: presentation.displayUnits,
+          step: presentation.step,
+          decimals: presentation.decimals,
+          rangeText: presentation.rangeText,
+          minValue: presentation.minValue,
+          maxValue: presentation.maxValue,
+        };
+      },
+    }),
+  });
+
+  // Register the air speed control.
+  builder.addControl({
+    id: InputControlId.AirSpeed,
+    behavior: adaptiveAirSpeedBehavior,
+  });
+
+  // Register the temperature mode option handler.
+  builder.addOptionHandler(OptionKey.TemperatureMode, (context, nextValue) => {
+    // Check if the temperature behavior has an applyOptionChange function.
+    if (temperatureBehavior.applyOptionChange) {
+      // If it does, call it for the temperature mode.
+      return temperatureBehavior.applyOptionChange(context, OptionKey.TemperatureMode, nextValue);
+    }
+    // Otherwise, return null.
+    return null;
+  });
+
+  // Set the default chart for the model.
+  builder.setDefaultChart(ChartId.Adaptive, adaptiveChartIds);
+
+  // Build the default options.
+  const nextDefaultOptions = Object.assign({}, defaultAdaptiveOptions);
+  nextDefaultOptions[OptionKey.TemperatureMode] = TemperatureMode.Operative;
+  
+  // Set the default options for the model.
+  builder.setDefaultOptions(nextDefaultOptions);
+
+  // Set the option normalizer for the model.
+  builder.setOptionNormalizer(normalizeAdaptiveOptionsSnapshot);
+
+  // Set the calculation engine for the model.
+  builder.setCalculator((state, visibleInputIds) => {
+    // Build the chart request.
+    const chartRequest = toAdaptiveChartInputsRequest(state, visibleInputIds);
+    // Create an empty results record.
+    const resultsByInput = createEmptyResults<AdaptiveResponseDto>();
+
+    // Calculate the adaptive comfort for each visible input slot.
+    visibleInputIds.forEach((inputId) => {
+      // Get the adaptive request for the current input slot.
+      const request = toAdaptiveRequest(state, inputId);
+      // Perform the calculation.
+      resultsByInput[inputId] = calculateAdaptive(request, standardMode);
+    });
+
+    // Return the calculation outputs.
+    return {
+      resultsByInput: resultsByInput,
+      chartSource: {
+        chartRequest: chartRequest,
+        resultsByInput: resultsByInput,
+        standardMode: standardMode,
+      },
+    };
+  });
+
+  // Set the result builder for the model.
+  builder.setResultBuilder((results, visibleInputIds) => {
+    // The list of result sections.
+    const sections = [];
+
+    // Add the compliance section.
+    sections.push(
+      buildResultSection("Compliance", results, visibleInputIds, (result) => {
+        // Check if the result is within a comfortable range based on the standard.
+        let isComfortable = false;
+        if (isAshrae) {
+          // In ASHRAE mode, check the 80% acceptability threshold.
+          isComfortable = result.acceptability_80 === true;
+        } else {
+          // In EN mode, check the Category III threshold.
+          isComfortable = result.acceptability_cat_iii === true;
+        }
+
+        // The compliance status. Example: true
+        const isCompliant = result.isCompliant && isComfortable;
+
+        // The text for the compliance cell. Example: "Compliant"
+        let text = "Out of range";
+        if (isCompliant) {
+          text = "Compliant";
+        } else if (result.isCompliant) {
+          text = "Non-compliant";
+        }
+
+        // Return the result cell view model.
+        return {
+          text: text,
+          tone: isCompliant ? "success" : "danger",
+        };
+      }),
+    );
+
+    // If we are in ASHRAE mode, add the acceptability sections.
+    if (isAshrae) {
+      sections.push(
+        buildResultSection("80% Acceptability", results, visibleInputIds, (result) => {
+          // If the status is missing, return N/A.
+          if (!result.status_80) {
+            return { text: "N/A", tone: "default" };
+          }
+
+          // Build the subtext with the comfort range. Example: "21.5 ~ 28.3 °C"
+          let subtext = undefined;
+          if (result.tmp_cmf_80_low !== undefined && result.tmp_cmf_80_up !== undefined) {
+            subtext = `${result.tmp_cmf_80_low.toFixed(1)} ~ ${result.tmp_cmf_80_up.toFixed(1)} °C`;
+          }
+
+          // Return the result cell view model.
+          return {
+            text: result.status_80,
+            subtext: subtext,
+            tone: result.acceptability_80 ? "success" : "danger",
+          };
+        }),
+        buildResultSection("90% Acceptability", results, visibleInputIds, (result) => {
+          // If the status is missing, return N/A.
+          if (!result.status_90) {
+            return { text: "N/A", tone: "default" };
+          }
+
+          // Build the subtext with the comfort range.
+          let subtext = undefined;
+          if (result.tmp_cmf_90_low !== undefined && result.tmp_cmf_90_up !== undefined) {
+            subtext = `${result.tmp_cmf_90_low.toFixed(1)} ~ ${result.tmp_cmf_90_up.toFixed(1)} °C`;
+          }
+
+          // Return the result cell view model.
+          return {
+            text: result.status_90,
+            subtext: subtext,
+            tone: result.acceptability_90 ? "success" : "danger",
+          };
+        }),
+      );
+    } else {
+      // Otherwise, add the European category sections.
+      sections.push(
+        buildResultSection("Category I", results, visibleInputIds, (result) => {
+          if (!result.status_cat_i) {
+            return { text: "N/A", tone: "default" };
+          }
+
+          let subtext = undefined;
+          if (result.tmp_cmf_cat_i_low !== undefined && result.tmp_cmf_cat_i_up !== undefined) {
+            subtext = `${result.tmp_cmf_cat_i_low.toFixed(1)} ~ ${result.tmp_cmf_cat_i_up.toFixed(1)} °C`;
+          }
+
+          return {
+            text: result.status_cat_i,
+            subtext: subtext,
+            tone: result.acceptability_cat_i ? "success" : "danger",
+          };
+        }),
+        buildResultSection("Category II", results, visibleInputIds, (result) => {
+          if (!result.status_cat_ii) {
+            return { text: "N/A", tone: "default" };
+          }
+
+          let subtext = undefined;
+          if (result.tmp_cmf_cat_ii_low !== undefined && result.tmp_cmf_cat_ii_up !== undefined) {
+            subtext = `${result.tmp_cmf_cat_ii_low.toFixed(1)} ~ ${result.tmp_cmf_cat_ii_up.toFixed(1)} °C`;
+          }
+
+          return {
+            text: result.status_cat_ii,
+            subtext: subtext,
+            tone: result.acceptability_cat_ii ? "success" : "danger",
+          };
+        }),
+        buildResultSection("Category III", results, visibleInputIds, (result) => {
+          if (!result.status_cat_iii) {
+            return { text: "N/A", tone: "default" };
+          }
+
+          let subtext = undefined;
+          if (result.tmp_cmf_cat_iii_low !== undefined && result.tmp_cmf_cat_iii_up !== undefined) {
+            subtext = `${result.tmp_cmf_cat_iii_low.toFixed(1)} ~ ${result.tmp_cmf_cat_iii_up.toFixed(1)} °C`;
+          }
+
+          return {
+            text: result.status_cat_iii,
+            subtext: subtext,
+            tone: result.acceptability_cat_iii ? "success" : "danger",
+          };
+        }),
+      );
+    }
+
+    // Return the list of sections.
+    return sections;
+  });
+
+  // Set the chart builder for the model.
+  builder.setChartBuilder((chartId, chartSource, resultsByInput, unitSystem) => {
+    // If there is no chart source or the chart ID is invalid, return null.
+    if (!chartSource || !adaptiveChartIds.includes(chartId)) {
+      return null;
+    }
+    // Build and return the adaptive chart.
+    return buildAdaptiveChart(chartSource.chartRequest, standardMode, unitSystem);
+  });
+
+  // Return the completed model configuration.
+  return builder.build();
+}
+
+export const adaptiveAshraeModelConfig = createAdaptiveModelConfig(ComfortModel.AdaptiveAshrae, AdaptiveStandardMode.Ashrae);
+export const adaptiveEnModelConfig = createAdaptiveModelConfig(ComfortModel.AdaptiveEn, AdaptiveStandardMode.En);

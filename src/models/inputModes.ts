@@ -57,3 +57,22 @@ export const defaultPmvOptions: PmvModelOptions = {
   [OptionKey.AirSpeedInputMode]: AirSpeedInputMode.Relative,
   [OptionKey.HumidityInputMode]: HumidityInputMode.RelativeHumidity,
 };
+
+// The adaptive standard mode options. 
+export const AdaptiveStandardMode = {
+  Ashrae: "ashrae",
+  En: "en",
+} as const;
+
+// The adaptive standard mode type. 
+export type AdaptiveStandardMode = (typeof AdaptiveStandardMode)[keyof typeof AdaptiveStandardMode];
+
+// The adaptive model options type. 
+export type AdaptiveModelOptions = {
+  [OptionKey.TemperatureMode]: TemperatureMode;
+};
+
+// The default adaptive model options. 
+export const defaultAdaptiveOptions: AdaptiveModelOptions = {
+  [OptionKey.TemperatureMode]: TemperatureMode.Operative,
+};

@@ -11,6 +11,8 @@ import type {
   PmvResponseDto,
   UtciChartSourceDto,
   UtciResponseDto,
+  AdaptiveResponseDto,
+  AdaptiveChartSourceDto,
 } from "../../models/comfortDtos";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
@@ -29,11 +31,13 @@ export type ResultTone = "default" | "success" | "danger";
 
 export type ResultCellViewModel = {
   text: string;
+  subtext?: string;
   tone?: ResultTone;
 };
 
 export type ResultSectionViewModel = {
   title: string;
+  group?: string;
   valuesByInput: Partial<Record<InputIdType, ResultCellViewModel | null>>;
 };
 
@@ -56,9 +60,18 @@ export type UtciCalculationCache = ModelCalculationCacheBase & {
   chartSource: UtciChartSourceDto | null;
 };
 
+export type AdaptiveResultsState = Record<InputIdType, AdaptiveResponseDto | null>;
+
+export type AdaptiveCalculationCache = ModelCalculationCacheBase & {
+  resultsByInput: AdaptiveResultsState;
+  chartSource: AdaptiveChartSourceDto | null;
+};
+
 export type ModelCalculationCacheByModelState = {
   [ComfortModel.Pmv]: PmvCalculationCache;
   [ComfortModel.Utci]: UtciCalculationCache;
+  [ComfortModel.AdaptiveAshrae]: AdaptiveCalculationCache;
+  [ComfortModel.AdaptiveEn]: AdaptiveCalculationCache;
 };
 
 export type UiState = {

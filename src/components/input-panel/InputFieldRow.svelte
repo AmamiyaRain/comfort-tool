@@ -65,6 +65,13 @@
       clampToRange(value).toFixed(control.presetDecimals),
     );
   }
+  let dropdownOpen = $state(false);
+
+  // Updates a model option and automatically closes the "More" dropdown selection.
+  function handleSelectItem(optionKey: string, value: string) {
+    toolState.actions.setModelOption(optionKey, value);
+    dropdownOpen = false;
+  }
 </script>
 
 <section class="px-1 py-0.5">
@@ -85,7 +92,11 @@
           <span class="text-[10px]">▼</span>
         </Button>
 
-        <Dropdown triggeredBy={`#${getAdvancedMenuTriggerId()}`} class="w-72 overflow-hidden rounded-xl py-1 shadow-lg">
+        <Dropdown
+          bind:open={dropdownOpen}
+          triggeredBy={`#${getAdvancedMenuTriggerId()}`}
+          class="w-72 overflow-hidden rounded-xl py-1 shadow-lg"
+        >
           <Heading
             slot="header"
             tag="h6"
@@ -106,9 +117,7 @@
             {#each section.items as item}
               <DropdownItem
                 class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
-                onclick={() => {
-                  toolState.actions.setModelOption(item.optionKey, item.value);
-                }}
+                onclick={() => handleSelectItem(item.optionKey, item.value)}
               >
                 <span class={item.active ? "font-semibold text-stone-900" : ""}>
                   {item.label}

@@ -9,6 +9,7 @@ export const InputControlId = {
   Humidity: "humidity",
   MetabolicRate: "metabolicRate",
   ClothingInsulation: "clothingInsulation",
+  PrevailingMeanOutdoorTemperature: "prevailingMeanOutdoorTemperature",
 } as const;
 
 export type InputControlId = (typeof InputControlId)[keyof typeof InputControlId];

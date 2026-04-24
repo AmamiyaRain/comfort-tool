@@ -17,6 +17,7 @@
   const modelOptions = comfortModelOrder.map((modelId) => ({
     name: comfortModelMetaById[modelId].label,
     value: modelId,
+    description: comfortModelMetaById[modelId].description,
   }));
 </script>
 

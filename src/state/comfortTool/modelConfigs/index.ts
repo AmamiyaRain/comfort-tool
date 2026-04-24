@@ -16,6 +16,7 @@ import type { UnitSystem as UnitSystemType } from "../../../models/units";
 import type { ComfortToolStateSlice, ModelOptionsState, ResultSectionViewModel } from "../types";
 import { pmvModelConfig } from "./pmv";
 import { utciModelConfig } from "./utci";
+import { adaptiveAshraeModelConfig, adaptiveEnModelConfig } from "./adaptive";
 
 export type ModelCalculationOutputs<ResultType, ChartSourceType> = {
   resultsByInput: Record<InputIdType, ResultType | null>;
@@ -55,6 +56,8 @@ export interface ComfortModelDefinition<ResultType, ChartSourceType> {
 export const comfortModelConfigs = {
   [ComfortModel.Pmv]: pmvModelConfig,
   [ComfortModel.Utci]: utciModelConfig,
+  [ComfortModel.AdaptiveAshrae]: adaptiveAshraeModelConfig,
+  [ComfortModel.AdaptiveEn]: adaptiveEnModelConfig,
 } as const;
 
 export function getComfortModelConfig(modelId: ComfortModelType) {

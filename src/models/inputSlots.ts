@@ -22,6 +22,7 @@ export const inputDefaultsById: Record<InputId, InputDefaults> = {
     [FieldKey.MetabolicRate]: 1.0,
     [FieldKey.ClothingInsulation]: 0.51,
     [FieldKey.ExternalWork]: 0,
+    [FieldKey.PrevailingMeanOutdoorTemperature]: 25,
   },
   [InputId.Input2]: {
     [FieldKey.DryBulbTemperature]: 25,
@@ -32,6 +33,7 @@ export const inputDefaultsById: Record<InputId, InputDefaults> = {
     [FieldKey.MetabolicRate]: 1.1,
     [FieldKey.ClothingInsulation]: 0.61,
     [FieldKey.ExternalWork]: 0,
+    [FieldKey.PrevailingMeanOutdoorTemperature]: 25,
   },
   [InputId.Input3]: {
     [FieldKey.DryBulbTemperature]: 23,
@@ -42,5 +44,6 @@ export const inputDefaultsById: Record<InputId, InputDefaults> = {
     [FieldKey.MetabolicRate]: 1.2,
     [FieldKey.ClothingInsulation]: 0.71,
     [FieldKey.ExternalWork]: 0,
+    [FieldKey.PrevailingMeanOutdoorTemperature]: 23,
   },
 };
