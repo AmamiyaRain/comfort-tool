@@ -24,7 +24,7 @@ import { psy_ta_rh } from "jsthermalcomfort";
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace } from "./plotlyBuilders";
 
 /**
- * Retrieves or lazily computes the comfort zone polygon boundaries for a given set of PMV inputs.
+ * Retrieves or computes the comfort zone polygon boundaries for a given set of PMV inputs.
  *
  * @param inputId The ID of the input being generated.
  * @param payload The canonical PMV inputs for that slot.
@@ -35,6 +35,13 @@ function getComfortZoneForInput(inputId, payload, comfortZonesByInput: ComfortZo
   return comfortZonesByInput[inputId] ?? calculateComfortZone(payload);
 }
 
+/**
+ * Calculates the humidity ratio (absolute humidity) in SI units (kg/kg) from air temperature and relative humidity.
+ *
+ * @param temperature Air temperature in Celsius.
+ * @param relativeHumidity Relative humidity in percent.
+ * @returns Humidity ratio in kg/kg, or NaN if calculation fails.
+ */
 function getHumidityRatioSi(
   temperature: number,
   relativeHumidity: number,
@@ -45,6 +52,14 @@ function getHumidityRatioSi(
   );
 }
 
+/**
+ * Converts humidity ratio from SI units (kg/kg) to the display units defined by the UnitSystem.
+ *
+ * @param temperature Air temperature in Celsius (required for conversion).
+ * @param relativeHumidity Relative humidity in percent.
+ * @param unitSystem The target unit system (SI or IP).
+ * @returns Humidity ratio in the display units for the specified system.
+ */
 function getHumidityRatioDisplayValue(
   temperature: number,
   relativeHumidity: number,
@@ -63,82 +78,111 @@ function getHumidityRatioDisplayValue(
  * @returns Complete plotly response bindings (traces, annotations, layout).
  */
 export function buildComparePsychrometricChart(
+  // PMV Chart Inputs Request Data Transfer Object (DTO).
   payload: PmvChartInputsRequestDto,
+  // Comfort zones calculated for each input.
   comfortZonesByInput: ComfortZonesByInput = {},
+  // Unit system (SI or IP).
   unitSystem: UnitSystemType = UnitSystem.SI,
 ): PlotlyChartResponseDto {
+  // Get the inputs for the chart.
   const inputs = getCompareInputs(payload.inputs);
+  // Show input legend if there are multiple inputs.
   const showInputLegend = inputs.length > 1;
+  // Get chart range and display metadata.
   const { chartRange } = payload;
   const temperatureDisplayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
   const humidityRatioMeta = getHumidityRatioDisplayMeta(unitSystem);
+  // Generate temperature points for drawing curves.
   const temperatures = Array.from({ length: chartRange.tdbPoints }, (_, index) => (
     chartRange.tdbMin + ((chartRange.tdbMax - chartRange.tdbMin) * index) / (chartRange.tdbPoints - 1)
   ));
 
   const traces: PlotTraceDto[] = [];
 
+  // Generate relative humidity (RH) curves.
   payload.rhCurves.forEach((relativeHumidity) => {
+    // X-axis values.
     const xValues: number[] = [];
+    // Y-axis values.
     const yValues: number[] = [];
-
+    // Generate the curve for the current relative humidity.
     temperatures.forEach((temperature) => {
       const humidityRatioSi = getHumidityRatioSi(temperature, relativeHumidity);
       const humidityRatio = convertHumidityRatioFromSi(humidityRatioSi, unitSystem);
-
+      // Add the point to the curve if it is within the chart range.
       if (humidityRatioSi >= chartRange.humidityRatioMin && humidityRatioSi <= chartRange.humidityRatioMax) {
         xValues.push(roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, temperature, unitSystem)));
         yValues.push(roundValue(humidityRatio));
       }
     });
-
+    // Add the curve to the traces if it has any points.
     if (xValues.length === 0) {
       return;
     }
-
+    // Add the curve to the traces.
     traces.push(buildLineTrace({
+      // Name of the curve.
       name: `RH ${relativeHumidity}%`,
+      // X-axis values.
       x: xValues,
+      // Y-axis values.
       y: yValues,
+      // Color of the curve.
       color: "#94a3b8",
+      // Hover template for the curve.
       hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
       `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
     }));
   });
 
+  // Generate comfort zones and data points for each input.
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const comfortZone = getComfortZoneForInput(inputId, inputPayload, comfortZonesByInput);
+    // Combine cool and warm edges into a closed polygon.
     const polygon = (comfortZone.coolEdge || []).concat((comfortZone.warmEdge || []).slice().reverse());
 
     if (polygon.length > 0) {
+      // Add the shaded comfort zone polygon.
       traces.push(buildComfortPolygonTrace({
         inputId,
         nameSuffix: "comfort zone",
+        // Convert coordinates to display units.
         polygonX: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
         polygonY: polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
+        // Tooltip text for the comfort zone.
         hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
         `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
       }));
     }
 
+    // Add the data point for the current conditions.
     traces.push(buildInputScatterTrace({
       inputId,
+      // Convert coordinates to display units.
       x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
       y: roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
       showLegend: showInputLegend,
+      // Tooltip text for the data point.
       hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
       `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
     }));
   });
 
+  // Return the chart traces and layout.
   return {
     traces,
     layout: {
+      // Chart title.
       title: "Psychrometric chart",
+      // Background colors.
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#f8fafc",
+      // Show legend if multiple inputs.
       showlegend: showInputLegend,
-      margin: { l: 56, r: 24, t: 48, b: 56 },
+      // Margins.
+      margin: { l: 56, r: 24, t: 48, b: 80 },
+      // X-axis (Dry bulb temperature).
       xaxis: {
         title: `Dry bulb temperature (${temperatureDisplayUnits})`,
         range: [
@@ -147,6 +191,7 @@ export function buildComparePsychrometricChart(
         ],
         gridcolor: "#e2e8f0",
       },
+      // Y-axis (Humidity ratio).
       yaxis: {
         title: `Humidity ratio (${humidityRatioMeta.displayUnits})`,
         range: [
@@ -155,10 +200,13 @@ export function buildComparePsychrometricChart(
         ],
         gridcolor: "#e2e8f0",
       },
+      // Legend and height.
       legend: { orientation: "h", x: 0, y: 1.1 },
-      height: 440,
+      height: 480,
     },
+    // Annotations.
     annotations: [],
+    // The source of the calculation, indicating it was generated directly in the browser.
     source: CalculationSource.FrontendGenerated,
   };
 }

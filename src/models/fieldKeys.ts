@@ -7,6 +7,7 @@ export const FieldKey = {
   MetabolicRate: "met",
   ClothingInsulation: "clo",
   ExternalWork: "wme",
+  PrevailingMeanOutdoorTemperature: "trm",
 } as const;
 
 export type FieldKey = (typeof FieldKey)[keyof typeof FieldKey];

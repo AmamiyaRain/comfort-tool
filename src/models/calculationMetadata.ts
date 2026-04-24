@@ -7,6 +7,8 @@ export type CalculationSource = (typeof CalculationSource)[keyof typeof Calculat
 
 export const ComfortStandard = {
   Ashrae55PmvPpd: "ASHRAE 55 (PMV/PPD)",
+  Ashrae55Adaptive: "ASHRAE 55 (Adaptive)",
+  En16798Adaptive: "EN 16798-1 (Adaptive)",
 } as const;
 
 export type ComfortStandard = (typeof ComfortStandard)[keyof typeof ComfortStandard];

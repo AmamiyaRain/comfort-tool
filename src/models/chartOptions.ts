@@ -3,6 +3,7 @@ export const ChartId = {
   RelativeHumidity: "relativeHumidity",
   Stress: "stress",
   AirTemperature: "airTemperature",
+  Adaptive: "adaptive",
 } as const;
 
 export type ChartId = (typeof ChartId)[keyof typeof ChartId];
@@ -18,21 +19,26 @@ export const chartMetaById: Record<
   [ChartId.Psychrometric]: {
     name: "Psychrometric Chart",
     emptyMessage: "No psychrometric chart yet.",
-    heightClass: "h-[420px] xl:h-[420px]",
+    heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.RelativeHumidity]: {
     name: "Relative Humidity Chart",
     emptyMessage: "No relative humidity chart yet.",
-    heightClass: "h-[420px] xl:h-[420px]",
+    heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.Stress]: {
     name: "UTCI Stress Chart",
     emptyMessage: "No UTCI stress visualization yet.",
-    heightClass: "h-[360px] xl:h-[360px]",
+    heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.AirTemperature]: {
     name: "UTCI vs Air Temperature",
     emptyMessage: "No UTCI temperature comparison yet.",
-    heightClass: "h-[380px] xl:h-[380px]",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.Adaptive]: {
+    name: "Adaptive Chart",
+    emptyMessage: "No adaptive chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
   },
 };

@@ -7,6 +7,7 @@
   type SelectOption<TValue> = {
     name: string | number;
     value: TValue;
+    description?: string;
     disabled?: boolean;
   };
 
@@ -196,7 +197,7 @@
             <li>
               <Button
                 color="none"
-                class={`flex w-full items-center rounded-md px-2 py-2 text-left text-sm ${
+                class={`flex w-full flex-col items-start rounded-md px-2 py-2 text-left text-sm ${
                   item.value === value
                     ? "bg-sky-50 text-sky-900"
                     : index === highlightedIndex
@@ -211,7 +212,10 @@
                 }}
                 disabled={item.disabled}
               >
-                {item.name}
+                <span class="font-semibold">{item.name}</span>
+                {#if item.description}
+                  <span class="text-[11px] opacity-70">{item.description}</span>
+                {/if}
               </Button>
             </li>
           {/each}

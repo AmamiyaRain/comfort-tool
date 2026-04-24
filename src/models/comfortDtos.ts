@@ -54,6 +54,41 @@ export interface UtciResponseDto {
   source: CalculationSource;
 }
 
+export interface AdaptiveRequestDto {
+  tdb: number;
+  tr: number;
+  trm: number;
+  v: number;
+  units: UnitSystem;
+}
+
+export interface AdaptiveResponseDto {
+  t_cmf: number;
+  acceptability_80?: boolean;
+  acceptability_90?: boolean;
+  acceptability_cat_i?: boolean;
+  acceptability_cat_ii?: boolean;
+  acceptability_cat_iii?: boolean;
+  status_80?: string;
+  status_90?: string;
+  status_cat_i?: string;
+  status_cat_ii?: string;
+  status_cat_iii?: string;
+  tmp_cmf_80_low?: number;
+  tmp_cmf_80_up?: number;
+  tmp_cmf_90_low?: number;
+  tmp_cmf_90_up?: number;
+  tmp_cmf_cat_i_low?: number;
+  tmp_cmf_cat_i_up?: number;
+  tmp_cmf_cat_ii_low?: number;
+  tmp_cmf_cat_ii_up?: number;
+  tmp_cmf_cat_iii_low?: number;
+  tmp_cmf_cat_iii_up?: number;
+  isCompliant: boolean;
+  standard: ComfortStandard;
+  source: CalculationSource;
+}
+
 interface ChartRangeDto {
   tdbMin: number;
   tdbMax: number;
@@ -83,6 +118,16 @@ export interface UtciChartInputsRequestDto {
 
 export interface UtciChartSourceDto {
   chartRequest: UtciChartInputsRequestDto;
+}
+
+export interface AdaptiveChartInputsRequestDto {
+  inputs: CompareInputMap<AdaptiveRequestDto>;
+}
+
+export interface AdaptiveChartSourceDto {
+  chartRequest: AdaptiveChartInputsRequestDto;
+  resultsByInput: CompareInputMap<AdaptiveResponseDto>;
+  standardMode: string;
 }
 
 export interface PlotTraceDto {

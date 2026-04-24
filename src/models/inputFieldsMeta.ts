@@ -1,5 +1,5 @@
 import { FieldKey, type FieldKey as FieldKeyType } from "./fieldKeys";
-
+// The field metadata keyed by field key.
 export interface FieldMeta {
   key: FieldKeyType;
   label: string;
@@ -24,7 +24,7 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     label: "Air temperature",
     units: { SI: "degC", IP: "degF" },
     displayUnits: { SI: "°C", IP: "°F" },
-    step: 0.1,
+    step: 0.5,
     decimals: 1,
     defaultValue: 25,
     minValue: 10,
@@ -35,7 +35,7 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     label: "Radiant temperature",
     units: { SI: "degC", IP: "degF" },
     displayUnits: { SI: "°C", IP: "°F" },
-    step: 0.1,
+    step: 0.5,
     decimals: 1,
     defaultValue: 25,
     minValue: 10,
@@ -107,8 +107,20 @@ export const fieldMetaByKey: Record<FieldKeyType, FieldMeta> = {
     minValue: 0,
     maxValue: 2,
   },
+  [FieldKey.PrevailingMeanOutdoorTemperature]: {
+    key: FieldKey.PrevailingMeanOutdoorTemperature,
+    label: "Mean outdoor temperature",
+    units: { SI: "degC", IP: "degF" },
+    displayUnits: { SI: "°C", IP: "°F" },
+    step: 0.5,
+    decimals: 1,
+    defaultValue: 20,
+    minValue: 10,
+    maxValue: 33.5,
+  },
 };
 
+// The order in which the input fields are displayed in the input panel.
 export const allFieldOrder: FieldKeyType[] = [
   FieldKey.DryBulbTemperature,
   FieldKey.MeanRadiantTemperature,
@@ -118,4 +130,5 @@ export const allFieldOrder: FieldKeyType[] = [
   FieldKey.MetabolicRate,
   FieldKey.ClothingInsulation,
   FieldKey.ExternalWork,
+  FieldKey.PrevailingMeanOutdoorTemperature,
 ];

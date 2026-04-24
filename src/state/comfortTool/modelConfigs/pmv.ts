@@ -9,6 +9,7 @@ import type {
   ComfortZoneRequestDto,
   PmvChartSourceDto,
   PmvChartInputsRequestDto,
+  PmvRequestDto,
   PmvResponseDto,
 } from "../../../models/comfortDtos";
 import { FieldKey } from "../../../models/fieldKeys";
@@ -21,6 +22,7 @@ import {
   type OptionKey as OptionKeyType,
   TemperatureMode,
   defaultPmvOptions,
+  type PmvModelOptions,
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import {
@@ -42,7 +44,6 @@ import {
 } from "../../../services/comfort/controls/controlBehaviors";
 import { createSingleInputPatch, type InputControlBehavior } from "../../../services/comfort/controls/types";
 import { clothingTypicalEnsembles, metabolicActivityOptions } from "../../../services/comfort/referenceValues";
-import type { ComfortModelDefinition } from "./index";
 
 const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
 
@@ -72,38 +73,62 @@ import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection }
  * @returns A fully normalized options map, or null if critically invalid.
  */
 function normalizePmvOptionsSnapshot(value: unknown) {
+  // Check if the input value is a valid record.
   if (!isRecord(value)) {
     return null;
   }
 
+  // Get the individual option values from the input record.
   const nextTemperatureMode = value[OptionKey.TemperatureMode];
   const nextAirSpeedControlMode = value[OptionKey.AirSpeedControlMode];
   const nextAirSpeedInputMode = value[OptionKey.AirSpeedInputMode];
   const nextHumidityInputMode = value[OptionKey.HumidityInputMode];
 
+  // Validate the temperature mode if it exists. Example: "air" or "operative"
   if (nextTemperatureMode !== undefined && !temperatureModeValues.has(String(nextTemperatureMode))) {
     return null;
   }
 
+  // Validate the air speed control mode. Example: "with_local_control"
   if (nextAirSpeedControlMode !== undefined && !airSpeedControlModeValues.has(String(nextAirSpeedControlMode))) {
     return null;
   }
 
+  // Validate the air speed input mode. Example: "relative_air_speed"
   if (nextAirSpeedInputMode !== undefined && !airSpeedInputModeValues.has(String(nextAirSpeedInputMode))) {
     return null;
   }
 
+  // Validate the humidity input mode. Example: "relative_humidity"
   if (nextHumidityInputMode !== undefined && !humidityInputModeValues.has(String(nextHumidityInputMode))) {
     return null;
   }
 
-  return {
-    ...defaultPmvOptions,
-    ...(nextTemperatureMode !== undefined ? { [OptionKey.TemperatureMode]: String(nextTemperatureMode) } : {}),
-    ...(nextAirSpeedControlMode !== undefined ? { [OptionKey.AirSpeedControlMode]: String(nextAirSpeedControlMode) } : {}),
-    ...(nextAirSpeedInputMode !== undefined ? { [OptionKey.AirSpeedInputMode]: String(nextAirSpeedInputMode) } : {}),
-    ...(nextHumidityInputMode !== undefined ? { [OptionKey.HumidityInputMode]: String(nextHumidityInputMode) } : {}),
-  };
+  // Create a new options object by copying the default PMV options.
+  const options: PmvModelOptions = Object.assign({}, defaultPmvOptions);
+
+  // Apply the validated temperature mode if provided.
+  if (nextTemperatureMode !== undefined) {
+    options[OptionKey.TemperatureMode] = nextTemperatureMode as TemperatureMode;
+  }
+
+  // Apply the validated air speed control mode if provided.
+  if (nextAirSpeedControlMode !== undefined) {
+    options[OptionKey.AirSpeedControlMode] = nextAirSpeedControlMode as AirSpeedControlMode;
+  }
+
+  // Apply the validated air speed input mode if provided.
+  if (nextAirSpeedInputMode !== undefined) {
+    options[OptionKey.AirSpeedInputMode] = nextAirSpeedInputMode as AirSpeedInputMode;
+  }
+
+  // Apply the validated humidity input mode if provided.
+  if (nextHumidityInputMode !== undefined) {
+    options[OptionKey.HumidityInputMode] = nextHumidityInputMode as HumidityInputMode;
+  }
+
+  // Return the normalized options object.
+  return options;
 }
 
 /**
@@ -113,18 +138,32 @@ function normalizePmvOptionsSnapshot(value: unknown) {
  * @param inputId The assigned Input Slot target.
  * @returns An isolated PmvRequestDto containing SI physical parameters.
  */
-function toPmvRequest(state, inputId: InputIdType) {
+function toPmvRequest(state: any, inputId: InputIdType): PmvRequestDto {
+  // Get the input values for the specific input slot.
   const inputs = state.inputsByInput[inputId];
+  
+  // Normalize the model options for PMV.
   const options = normalizePmvOptions(state.ui.modelOptionsByModel[ComfortModel.Pmv]);
+  
+  // Return the PMV request object.
   return {
+    // Air temperature in °C. Example: 25
     tdb: Number(inputs[FieldKey.DryBulbTemperature]),
+    // Radiant temperature in °C. Example: 25
     tr: Number(inputs[FieldKey.MeanRadiantTemperature]),
+    // Relative air speed in m/s. Example: 0.1
     vr: Number(inputs[FieldKey.RelativeAirSpeed]),
+    // Relative humidity in %. Example: 50
     rh: Number(inputs[FieldKey.RelativeHumidity]),
+    // Metabolic rate in met. Example: 1.2
     met: Number(inputs[FieldKey.MetabolicRate]),
+    // Clothing insulation in clo. Example: 0.5
     clo: Number(inputs[FieldKey.ClothingInsulation]),
+    // External work in met. Example: 0
     wme: Number(inputs[FieldKey.ExternalWork]),
+    // Whether the occupant has local air speed control. Example: true
     occupantHasAirSpeedControl: options[OptionKey.AirSpeedControlMode] === AirSpeedControlMode.WithLocalControl,
+    // The unit system (always SI for internal requests).
     units: UnitSystem.SI,
   };
 }
@@ -136,11 +175,26 @@ function toPmvRequest(state, inputId: InputIdType) {
  * @param inputId Target Input Slot.
  * @returns A ComfortZoneRequestDto defining search boundaries.
  */
-function toComfortZoneRequest(state, inputId: InputIdType): ComfortZoneRequestDto {
+function toComfortZoneRequest(state: any, inputId: InputIdType): ComfortZoneRequestDto {
+  // Get the base PMV request.
+  const baseRequest = toPmvRequest(state, inputId);
+  
+  // Return the comfort zone request by adding range parameters.
   return {
-    ...toPmvRequest(state, inputId),
+    tdb: baseRequest.tdb,
+    tr: baseRequest.tr,
+    vr: baseRequest.vr,
+    rh: baseRequest.rh,
+    met: baseRequest.met,
+    clo: baseRequest.clo,
+    wme: baseRequest.wme,
+    occupantHasAirSpeedControl: baseRequest.occupantHasAirSpeedControl,
+    units: baseRequest.units,
+    // The minimum relative humidity to scan. Example: 0
     rhMin: 0,
+    // The maximum relative humidity to scan. Example: 100
     rhMax: 100,
+    // The number of points to sample in the humidity range. Example: 31
     rhPoints: 31,
   };
 }
@@ -153,14 +207,17 @@ function toComfortZoneRequest(state, inputId: InputIdType): ComfortZoneRequestDt
  * @returns Chart inputs container.
  */
 function toPmvChartInputsRequest(
-  state,
+  state: any,
   visibleInputIds: InputIdType[],
 ): PmvChartInputsRequestDto {
+  // Return the PMV chart inputs request.
   return {
+    // Map each visible input ID to its comfort zone request.
     inputs: visibleInputIds.reduce((accumulator, inputId) => {
       accumulator[inputId] = toComfortZoneRequest(state, inputId);
       return accumulator;
     }, {} as PmvChartInputsRequestDto["inputs"]),
+    // The visual range for the temperature axis on the chart.
     chartRange: {
       tdbMin: 10,
       tdbMax: 40,
@@ -168,6 +225,7 @@ function toPmvChartInputsRequest(
       humidityRatioMin: 0,
       humidityRatioMax: 0.03,
     },
+    // The relative humidity levels to draw as reference curves. Example: [50, 100]
     rhCurves: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
   };
 }
@@ -185,24 +243,51 @@ function buildPmvResultSections(
   visibleInputIds: InputIdType[],
   _unitSystem: UnitSystemType,
 ) {
-  return [
-    buildResultSection("Compliance", results, visibleInputIds, (result) => ({
-      text: result.isCompliant ? "Compliant" : "Out of range",
-      tone: result.isCompliant ? "success" : "danger",
-    })),
-    buildResultSection("PMV", results, visibleInputIds, (result) => ({
-      text: result.pmv.toFixed(2),
-      tone: "default",
-    })),
-    buildResultSection("PPD", results, visibleInputIds, (result) => ({
-      text: `${result.ppd.toFixed(1)}%`,
-      tone: "default",
-    })),
-    buildResultSection("Acceptability", results, visibleInputIds, (result) => ({
-      text: `${(100 - result.ppd).toFixed(1)}%`,
-      tone: "default",
-    })),
-  ];
+  // The list of result table sections.
+  const sections = [];
+
+  // Add the compliance status section.
+  sections.push(
+    buildResultSection("Compliance", results, visibleInputIds, (result) => {
+      return {
+        text: result.isCompliant ? "Compliant" : "Out of range",
+        tone: result.isCompliant ? "success" : "danger",
+      };
+    }),
+  );
+
+  // Add the raw PMV value section. Example: "-0.50"
+  sections.push(
+    buildResultSection("PMV", results, visibleInputIds, (result) => {
+      return {
+        text: result.pmv.toFixed(2),
+        tone: "default",
+      };
+    }),
+  );
+
+  // Add the PPD (Predicted Percentage of Dissatisfied) section. Example: "10.0%"
+  sections.push(
+    buildResultSection("PPD", results, visibleInputIds, (result) => {
+      return {
+        text: `${result.ppd.toFixed(1)}%`,
+        tone: "default",
+      };
+    }),
+  );
+
+  // Add the calculated acceptability percentage. Example: "90.0%"
+  sections.push(
+    buildResultSection("Acceptability", results, visibleInputIds, (result) => {
+      return {
+        text: `${(100 - result.ppd).toFixed(1)}%`,
+        tone: "default",
+      };
+    }),
+  );
+
+  // Return the completed array of sections.
+  return sections;
 }
 
 /**
@@ -218,18 +303,30 @@ function buildPmvChartResult(
   chartSource: PmvChartSourceDto | null,
   unitSystem: UnitSystemType,
 ) {
+  // If there is no chart source data, return null.
   if (!chartSource) {
     return null;
   }
 
+  // Handle the Psychrometric chart type.
   if (chartId === ChartId.Psychrometric) {
-    return buildComparePsychrometricChart(chartSource.chartRequest, chartSource.comfortZonesByInput, unitSystem);
+    return buildComparePsychrometricChart(
+      chartSource.chartRequest, 
+      chartSource.comfortZonesByInput, 
+      unitSystem
+    );
   }
 
+  // Handle the Relative Humidity chart type.
   if (chartId === ChartId.RelativeHumidity) {
-    return buildRelativeHumidityChart(chartSource.chartRequest, chartSource.comfortZonesByInput, unitSystem);
+    return buildRelativeHumidityChart(
+      chartSource.chartRequest, 
+      chartSource.comfortZonesByInput, 
+      unitSystem
+    );
   }
 
+  // Return null if the chart ID is not supported.
   return null;
 }
 
@@ -243,7 +340,15 @@ function createOptionHandler(
   behavior: InputControlBehavior,
   optionKey: OptionKeyType,
 ) {
-  return (context, nextValue: string) => behavior.applyOptionChange?.(context, optionKey, nextValue) ?? null;
+  return (context: any, nextValue: string) => {
+    // Check if the behavior has an applyOptionChange function.
+    if (behavior.applyOptionChange) {
+      // Call it and return the state patch.
+      return behavior.applyOptionChange(context, optionKey, nextValue);
+    }
+    // Otherwise return null.
+    return null;
+  };
 }
 
 const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temperature);
@@ -251,92 +356,135 @@ const airSpeedBehavior = createAirSpeedControlBehavior(InputControlId.AirSpeed);
 const humidityBehavior = createHumidityControlBehavior(InputControlId.Humidity);
 
 /**
- * Standard ComfortModelBuilder defining the PMV implementation.
+ * The ComfortModelBuilder used for PMV model.
  * Connects required behavior controls (Temperature, AirSpeed, etc.) and provides option maps.
- * This builder is directly consumed inside the Reactivity root state (e.g., `createComfortToolState.svelte.ts`) to form the application's overall PMV behavior model.
+ * This builder is directly consumed inside the createComfortToolState.svelte to form the application's overall PMV behavior model.
  */
 export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSourceDto>(ComfortModel.Pmv)
+  // Add Temperature input control.
   .addControl({
     id: InputControlId.Temperature,
     behavior: temperatureBehavior,
   })
+  // Add Radiant Temperature input control.
   .addControl({
     id: InputControlId.RadiantTemperature,
     behavior: createControlBehavior({
       controlId: InputControlId.RadiantTemperature,
       fieldKey: FieldKey.MeanRadiantTemperature,
-      hidden: (context) => (
-        normalizePmvOptions(context.options)[OptionKey.TemperatureMode] === TemperatureMode.Operative
-      ),
+      // The Radiant Temperature input is hidden if we are in Operative Temperature mode.
+      hidden: (context) => {
+        const options = normalizePmvOptions(context.options);
+        return options[OptionKey.TemperatureMode] === TemperatureMode.Operative;
+      },
     }),
   })
+  // Add Air Speed input control.
   .addControl({
     id: InputControlId.AirSpeed,
     behavior: airSpeedBehavior,
   })
+  // Add Humidity input control.
   .addControl({
     id: InputControlId.Humidity,
     behavior: humidityBehavior,
   })
+  // Add Metabolic Rate input control.
   .addControl({
     id: InputControlId.MetabolicRate,
+    // Behavior applies the input change to the state.
     behavior: createControlBehavior({
+      // The ID must match the InputIdType enum value.
       controlId: InputControlId.MetabolicRate,
       fieldKey: FieldKey.MetabolicRate,
+      // Provide preset option values for the input control.
       presetOptions: metabolicPresetOptions,
+      // Custom logic for applying metabolic rate changes, ensuring synchronization with other fields.
       applyInput: (context, inputId, nextValue) => {
-        const nextInputState = {
-          ...context.inputsByInput[inputId],
-          [FieldKey.MetabolicRate]: nextValue,
-        };
+        // Clone the existing input state and update the metabolic rate field.
+        const nextInputState = Object.assign({}, context.inputsByInput[inputId]);
+        nextInputState[FieldKey.MetabolicRate] = nextValue;
+
+        // Synchronize the input state (e.g., updating calculated fields if needed).
         const synchronizedState = synchronizePmvInputState(
+          // Pass the new input state to the synchronizer.
           nextInputState,
+          // Pass the current options.
           context.options,
+          // Pass the derived values for the input control.
           context.derivedByInput[inputId],
         );
+        
+        // Return a patch for the specific input slot.
         return createSingleInputPatch(inputId, synchronizedState.inputState);
       },
     }),
   })
+  // Add Clothing Insulation input control.
   .addControl({
     id: InputControlId.ClothingInsulation,
     behavior: createControlBehavior({
+      // The ID must match the InputIdType enum value.
       controlId: InputControlId.ClothingInsulation,
       fieldKey: FieldKey.ClothingInsulation,
+      // Provide preset option values for the input control.
       presetOptions: clothingPresetOptions,
+      // Provide the number of decimal places to use for the input control.
       presetDecimals: 2,
+      // Show the clothing builder for the input control.
       showClothingBuilder: true,
     }),
   })
+  // Add option handlers for input modes for PMV. 
   .addOptionHandler(OptionKey.TemperatureMode, createOptionHandler(temperatureBehavior, OptionKey.TemperatureMode))
   .addOptionHandler(OptionKey.AirSpeedControlMode, createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedControlMode))
   .addOptionHandler(OptionKey.AirSpeedInputMode, createOptionHandler(airSpeedBehavior, OptionKey.AirSpeedInputMode))
   .addOptionHandler(OptionKey.HumidityInputMode, createOptionHandler(humidityBehavior, OptionKey.HumidityInputMode))
+  // Set the default chart for PMV.
   .setDefaultChart(ChartId.Psychrometric, pmvChartIds)
-  .setDefaultOptions({ ...defaultPmvOptions })
+  // Set the default options for PMV.
+  .setDefaultOptions(Object.assign({}, defaultPmvOptions))
+  // Set the option normalizer for PMV.
   .setOptionNormalizer(normalizePmvOptionsSnapshot)
+  // Set the calculator for PMV.
   .setCalculator((state, visibleInputIds) => {
+    // Generate the request DTO for the chart.
     const compareChartRequest = toPmvChartInputsRequest(state, visibleInputIds);
+    
+    // Create an empty results map.
     const resultsByInput = createEmptyResults<PmvResponseDto>();
+    
+    // Calculate comfort zones (the visual polygons on the chart) for each visible input.
     const comfortZonesByInput = visibleInputIds.reduce((accumulator, inputId) => {
+      // Calculate the comfort zone for the current visible input.
       accumulator[inputId] = calculateComfortZone(toComfortZoneRequest(state, inputId));
       return accumulator;
     }, {} as ComfortZonesByInput);
 
+    // Perform the main PMV calculation for each visible input slot.
     visibleInputIds.forEach((inputId) => {
       resultsByInput[inputId] = calculatePmv(toPmvRequest(state, inputId));
     });
 
+    // Return the combined results and chart source data.
     return {
-      resultsByInput,
+      // Map PMV calculation results to their input slots.
+      resultsByInput: resultsByInput,
+      // Combine the compare chart request and comfort zones into a single chart source.
       chartSource: {
+        // The compare chart request.
         chartRequest: compareChartRequest,
-        comfortZonesByInput,
+        // The comfort zones for each visible input.
+        comfortZonesByInput: comfortZonesByInput,
       },
     };
   })
+  // Set the result builder for PMV.
   .setResultBuilder(buildPmvResultSections)
-  .setChartBuilder((chartId, chartSource, _resultsByInput, unitSystem) => (
-    buildPmvChartResult(chartId, chartSource, unitSystem)
-  ))
+  // Set the chart builder for PMV.
+  .setChartBuilder((chartId, chartSource, _resultsByInput, unitSystem) => {
+    // Return the calculated chart trace configuration.
+    return buildPmvChartResult(chartId, chartSource, unitSystem);
+  })
+  // Build the ComfortModel instance.
   .build();

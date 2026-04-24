@@ -114,6 +114,8 @@ function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
   return {
     [ComfortModel.Pmv]: createEmptyCalculationCache(),
     [ComfortModel.Utci]: createEmptyCalculationCache(),
+    [ComfortModel.AdaptiveAshrae]: createEmptyCalculationCache(),
+    [ComfortModel.AdaptiveEn]: createEmptyCalculationCache(),
   } as ModelCalculationCacheByModelState;
 }
 
@@ -148,11 +150,12 @@ export function createComfortToolState(): ComfortToolController {
       state.ui.errorMessage = "";
     }
 
-    const nextStatus = state.ui.calculationCacheByModel[modelId].chartSource ? "stale" : "empty";
+    const cache = state.ui.calculationCacheByModel[modelId];
+    const nextStatus = cache.chartSource ? "stale" : "empty";
     state.ui.calculationCacheByModel[modelId] = {
-      ...state.ui.calculationCacheByModel[modelId],
+      ...cache,
       status: nextStatus,
-    };
+    } as any;
   }
 
   /**
@@ -242,18 +245,21 @@ export function createComfortToolState(): ComfortToolController {
         return [];
       }
 
-      return getActiveModelConfig().buildResultSections(
+      return (getActiveModelConfig() as any).buildResultSections(
         cache.resultsByInput,
         getVisibleInputIds(),
         state.ui.unitSystem,
       );
     },
-    getCurrentChartResult: () => getActiveModelConfig().buildChartResult(
-      getCurrentSelectedChartId(),
-      getCurrentModelCache().chartSource,
-      getCurrentModelCache().resultsByInput,
-      state.ui.unitSystem,
-    ),
+    getCurrentChartResult: () => {
+      const cache = getCurrentModelCache();
+      return (getActiveModelConfig() as any).buildChartResult(
+        getCurrentSelectedChartId(),
+        cache.chartSource,
+        cache.resultsByInput,
+        state.ui.unitSystem,
+      );
+    },
     getCurrentChartEmptyMessage: () => chartMetaById[getCurrentSelectedChartId()].emptyMessage,
     getCurrentChartOptions: () => getActiveModelConfig().chartIds.map((chartId) => ({
       name: chartMetaById[chartId].name,
@@ -294,6 +300,8 @@ export function createComfortToolState(): ComfortToolController {
     }
 
     state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
+    invalidateModel(state.ui.selectedModel);
+    scheduleCalculationInternal({ immediate: true });
   }
 
   /**
