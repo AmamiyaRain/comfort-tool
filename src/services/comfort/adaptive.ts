@@ -1,4 +1,6 @@
-import { adaptive_ashrae, adaptive_en, t_o } from "jsthermalcomfort";
+import { adaptive_ashrae } from "jsthermalcomfort/lib/esm/models/adaptive_ashrae.js";
+import { adaptive_en } from "jsthermalcomfort/lib/esm/models/adaptive_en.js";
+import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
 
 import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
 import type { AdaptiveRequestDto, AdaptiveResponseDto } from "../../models/comfortDtos";

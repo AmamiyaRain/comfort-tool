@@ -1,4 +1,5 @@
-import { psy_ta_rh, p_sat } from "jsthermalcomfort";
+import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
+import { p_sat } from "jsthermalcomfort/lib/esm/psychrometrics/p_sat.js";
 
 /**
  * Derives the active Relative Humidity given the Dry Bulb Temperature and a target Dew Point temperature.

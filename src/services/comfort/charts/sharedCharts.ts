@@ -7,6 +7,7 @@ import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/u
 import { convertFieldValueFromSi } from "../../units";
 import { getCompareInputs, roundValue, type ComfortZonesByInput } from "../helpers";
 import { buildComfortPolygonTrace, buildInputAnnotation, buildInputScatterTrace } from "./plotlyBuilders";
+import { buildComfortZonePolygon } from "./pmvCharts";
 
 export function buildRelativeHumidityChart(
   payload: { inputs: CompareInputMap<ComfortPointDto> },
@@ -21,15 +22,20 @@ export function buildRelativeHumidityChart(
 
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const inputMeta = inputDisplayMetaById[inputId];
-    const inputStyle = inputChartStyleById[inputId];
     const comfortZone = comfortZonesByInput[inputId];
-    const polygon = comfortZone ? (comfortZone.coolEdge || []).concat((comfortZone.warmEdge || []).slice().reverse()) : [];
-    if (polygon.length > 0) {
+    const { polygonX, polygonY } = buildComfortZonePolygon(
+      comfortZone?.coolEdge || [],
+      comfortZone?.warmEdge || [],
+      (point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem)),
+      (point) => roundValue(point.rh),
+    );
+
+    if (polygonX.length > 0) {
       traces.push(buildComfortPolygonTrace({
         inputId,
         nameSuffix: "RH comfort zone",
-        polygonX: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        polygonY: polygon.map((point) => roundValue(point.rh)),
+        polygonX,
+        polygonY,
         hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
       }));
     }

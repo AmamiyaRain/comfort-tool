@@ -4,6 +4,7 @@ import { CalculationSource } from "../../../models/calculationMetadata";
 import { inputDisplayMetaById } from "../../../models/inputSlotPresentation";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import type {
+  ComfortPointDto,
   PlotlyChartResponseDto,
   PlotTraceDto,
   PmvChartInputsRequestDto,
@@ -20,8 +21,46 @@ import {
   roundValue,
   type ComfortZonesByInput,
 } from "../helpers";
-import { psy_ta_rh } from "jsthermalcomfort";
+import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace } from "./plotlyBuilders";
+
+/**
+ * Applies a light 3-point smoothing pass to X coordinates only.
+ * This keeps the first/last points fixed while softening small left/right jitter
+ * introduced by the comfort-zone solver sampling.
+ */
+function smoothComfortZoneXValues(xValues: number[]): number[] {
+  if (xValues.length < 3) {
+    return xValues;
+  }
+
+  return xValues.map((value, index) => (
+    index === 0 || index === xValues.length - 1
+      ? value
+      : Math.round((((xValues[index - 1] + (value * 2) + xValues[index + 1]) / 4) * 1000)) / 1000
+  ));
+}
+
+/**
+ * Builds a closed comfort-zone polygon while smoothing only the X axis.
+ * The Y axis remains untouched so the RH/humidity-ratio sampling stays exact.
+ */
+export function buildComfortZonePolygon(
+  coolEdge: ComfortPointDto[],
+  warmEdge: ComfortPointDto[],
+  getX: (point: ComfortPointDto) => number,
+  getY: (point: ComfortPointDto) => number,
+): { polygonX: number[]; polygonY: number[] } {
+  const coolX = smoothComfortZoneXValues(coolEdge.map(getX));
+  const coolY = coolEdge.map(getY);
+  const warmX = smoothComfortZoneXValues(warmEdge.map(getX));
+  const warmY = warmEdge.map(getY);
+
+  return {
+    polygonX: coolX.concat(warmX.slice().reverse()),
+    polygonY: coolY.concat(warmY.slice().reverse()),
+  };
+}
 
 /**
  * Retrieves or computes the comfort zone polygon boundaries for a given set of PMV inputs.
@@ -139,17 +178,20 @@ export function buildComparePsychrometricChart(
   // Generate comfort zones and data points for each input.
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const comfortZone = getComfortZoneForInput(inputId, inputPayload, comfortZonesByInput);
-    // Combine cool and warm edges into a closed polygon.
-    const polygon = (comfortZone.coolEdge || []).concat((comfortZone.warmEdge || []).slice().reverse());
+    const { polygonX, polygonY } =  buildComfortZonePolygon(
+      comfortZone.coolEdge || [],
+      comfortZone.warmEdge || [],
+      (point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem)),
+      (point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem)),
+    );
 
-    if (polygon.length > 0) {
+    if (polygonX.length > 0) {
       // Add the shaded comfort zone polygon.
       traces.push(buildComfortPolygonTrace({
         inputId,
         nameSuffix: "comfort zone",
-        // Convert coordinates to display units.
-        polygonX: polygon.map((point) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, point.tdb, unitSystem))),
-        polygonY: polygon.map((point) => roundValue(getHumidityRatioDisplayValue(point.tdb, point.rh, unitSystem))),
+        polygonX,
+        polygonY,
         // Tooltip text for the comfort zone.
         hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
         `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,

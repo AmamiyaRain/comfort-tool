@@ -1,4 +1,4 @@
-import { t_o } from "jsthermalcomfort";
+import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
 import { FieldKey } from "../../../models/fieldKeys";
 import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";

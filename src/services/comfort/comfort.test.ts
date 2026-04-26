@@ -4,14 +4,15 @@ import { inputDefaultsById, InputId } from "../../models/inputSlots";
 import { AirSpeedInputMode, HumidityInputMode, OptionKey } from "../../models/inputModes";
 import { DerivedInputId, FieldKey } from "../../models/fieldKeys";
 import { UnitSystem } from "../../models/units";
-import { buildComparePsychrometricChart } from "./charts/pmvCharts";
+import { buildComparePsychrometricChart, buildComfortZonePolygon } from "./charts/pmvCharts";
 import { buildUtciTemperatureChart } from "./charts/utciCharts";
 import { calculateComfortZone } from "./comfortZone";
 import {
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
 } from "./derivations";
-import { clo_tout, t_o } from "jsthermalcomfort";
+import { clo_tout } from "jsthermalcomfort/lib/esm/models/clo_tout.js";
+import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
 import {
   synchronizeControlInputState,
 } from "./syncState";
@@ -162,6 +163,41 @@ describe("comfort services", () => {
     expect(String(utciChart.layout.xaxis.title)).toContain("°F");
     expect(String(utciChart.layout.yaxis.title)).toContain("°F");
     expect(utciChart.traces[0].hovertemplate).toContain("°F");
+  });
+
+  it("smooths comfort-zone polygon x values while preserving solver output", () => {
+    const comfortZone = calculateComfortZone(comfortZonePayload);
+    const psychrometricChart = buildComparePsychrometricChart(
+      {
+        inputs: {
+          [InputId.Input1]: comfortZonePayload,
+        },
+        chartRange: {
+          tdbMin: 10,
+          tdbMax: 40,
+          tdbPoints: 121,
+          humidityRatioMin: 0,
+          humidityRatioMax: 0.03,
+        },
+        rhCurves: [10, 20, 30, 40, 50, 60],
+      },
+      {
+        [InputId.Input1]: comfortZone,
+      },
+    );
+
+    const comfortPolygon = psychrometricChart.traces.find((trace) => trace.name.includes("comfort zone"));
+    const { polygonX } = buildComfortZonePolygon(
+      comfortZone.coolEdge,
+      comfortZone.warmEdge,
+      (point) => Math.round(point.tdb * 1000) / 1000,
+      (point) => point.rh,
+    );
+    const middleIndex = Math.floor(comfortZone.coolEdge.length / 2);
+
+    expect(comfortPolygon).toBeDefined();
+    expect(comfortPolygon?.x).toEqual(polygonX);
+    expect(comfortZone.coolEdge[middleIndex].tdb).not.toBe(polygonX[middleIndex]);
   });
 
   it("normalizes clothing prediction results from jsthermalcomfort", () => {

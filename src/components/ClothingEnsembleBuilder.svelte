@@ -5,7 +5,7 @@
   import { FieldKey } from "../models/fieldKeys";
   import { fieldMetaByKey } from "../models/inputFieldsMeta";
   import type { UnitSystem as UnitSystemType } from "../models/units";
-  import { clo_tout } from "jsthermalcomfort";
+  import { clo_tout } from "jsthermalcomfort/lib/esm/models/clo_tout.js";
   import { clothingGarmentOptions, type ClothingGarmentOption } from "../services/comfort/referenceValues";
 
   let {

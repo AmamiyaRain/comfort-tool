@@ -2,7 +2,7 @@ import {
   clo_individual_garments,
   clo_typical_ensembles,
   met_typical_tasks,
-} from "jsthermalcomfort";
+} from "jsthermalcomfort/lib/esm/utilities/utilities.js";
 
 type NumericReferenceMap = Record<string, number>;
 type TypicalEnsembleLabel = Parameters<typeof clo_typical_ensembles>[0];

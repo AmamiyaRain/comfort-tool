@@ -16,7 +16,8 @@ import {
   deriveRelativeHumidityFromWetBulb,
   deriveRelativeHumidityFromVaporPressure,
 } from "./derivations";
-import { t_o, psy_ta_rh } from "jsthermalcomfort";
+import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
+import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
 
 export type CanonicalInputState = Record<FieldKeyType, number>;
 export type CanonicalDerivedState = Partial<Record<DerivedInputIdType, number>>;
