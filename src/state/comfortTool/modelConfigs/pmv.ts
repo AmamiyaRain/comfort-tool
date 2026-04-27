@@ -25,13 +25,15 @@ import {
   type PmvModelOptions,
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
+import { CalculationSource, ComfortStandard } from "../../../models/calculationMetadata";
 import {
   type ComfortZonesByInput,
 } from "../../../services/comfort/helpers";
 import { buildComparePsychrometricChart } from "../../../services/comfort/charts/pmvCharts";
 import { buildRelativeHumidityChart } from "../../../services/comfort/charts/sharedCharts";
 import { calculateComfortZone } from "../../../services/comfort/comfortZone";
-import { calculatePmv } from "../../../services/comfort/pmv";
+import { check_standard_compliance_array } from "jsthermalcomfort";
+import { pmv_ppd_ashrae, PMV_COMFORT_LIMIT } from "../../../services/comfort/pmv";
 import {
   normalizePmvOptions,
   synchronizePmvInputState,
@@ -463,7 +465,42 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
 
     // Perform the main PMV calculation for each visible input slot.
     visibleInputIds.forEach((inputId) => {
-      resultsByInput[inputId] = calculatePmv(toPmvRequest(state, inputId));
+      const request = toPmvRequest(state, inputId);
+      const result = pmv_ppd_ashrae(
+        request.tdb,
+        request.tr,
+        request.vr,
+        request.rh,
+        request.met,
+        request.clo,
+        request.wme,
+        {
+          units: request.units,
+          limit_inputs: false,
+          airspeed_control: request.occupantHasAirSpeedControl,
+        },
+      );
+      const compliance = check_standard_compliance_array("ASHRAE", {
+        tdb: [request.tdb],
+        tr: [request.tr],
+        v: [request.vr],
+        met: [request.met],
+        clo: [request.clo],
+        airspeed_control: request.occupantHasAirSpeedControl,
+      });
+
+      resultsByInput[inputId] = {
+        pmv: result.pmv,
+        ppd: result.ppd,
+        isCompliant: !compliance.tdb.some((value) => Number.isNaN(value))
+          && !compliance.tr.some((value) => Number.isNaN(value))
+          && !compliance.v.some((value) => Number.isNaN(value))
+          && !(compliance.met ?? []).some((value) => Number.isNaN(value))
+          && !(compliance.clo ?? []).some((value) => Number.isNaN(value))
+          && Math.abs(result.pmv) <= PMV_COMFORT_LIMIT,
+        standard: ComfortStandard.Ashrae55PmvPpd,
+        source: CalculationSource.JsThermalComfort,
+      };
     });
 
     // Return the combined results and chart source data.

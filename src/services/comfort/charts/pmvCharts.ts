@@ -16,7 +16,6 @@ import {
 } from "../../units";
 import { calculateComfortZone } from "../comfortZone";
 import {
-  ensureFiniteValue,
   getCompareInputs,
   roundValue,
   type ComfortZonesByInput,
@@ -75,23 +74,6 @@ function getComfortZoneForInput(inputId, payload, comfortZonesByInput: ComfortZo
 }
 
 /**
- * Calculates the humidity ratio (absolute humidity) in SI units (kg/kg) from air temperature and relative humidity.
- *
- * @param temperature Air temperature in Celsius.
- * @param relativeHumidity Relative humidity in percent.
- * @returns Humidity ratio in kg/kg, or NaN if calculation fails.
- */
-function getHumidityRatioSi(
-  temperature: number,
-  relativeHumidity: number,
-): number {
-  return ensureFiniteValue(
-    "Humidity ratio",
-    psy_ta_rh(temperature, relativeHumidity).hr,
-  );
-}
-
-/**
  * Converts humidity ratio from SI units (kg/kg) to the display units defined by the UnitSystem.
  *
  * @param temperature Air temperature in Celsius (required for conversion).
@@ -104,7 +86,7 @@ function getHumidityRatioDisplayValue(
   relativeHumidity: number,
   unitSystem: UnitSystemType,
 ): number {
-  return convertHumidityRatioFromSi(getHumidityRatioSi(temperature, relativeHumidity), unitSystem);
+  return convertHumidityRatioFromSi(psy_ta_rh(temperature, relativeHumidity).hr, unitSystem);
 }
 
 /**
@@ -147,7 +129,7 @@ export function buildComparePsychrometricChart(
     const yValues: number[] = [];
     // Generate the curve for the current relative humidity.
     temperatures.forEach((temperature) => {
-      const humidityRatioSi = getHumidityRatioSi(temperature, relativeHumidity);
+      const humidityRatioSi = psy_ta_rh(temperature, relativeHumidity).hr;
       const humidityRatio = convertHumidityRatioFromSi(humidityRatioSi, unitSystem);
       // Add the point to the curve if it is within the chart range.
       if (humidityRatioSi >= chartRange.humidityRatioMin && humidityRatioSi <= chartRange.humidityRatioMax) {

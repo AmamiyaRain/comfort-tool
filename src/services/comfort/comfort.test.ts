@@ -11,13 +11,14 @@ import {
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
 } from "./derivations";
-import { clo_tout, t_o } from "jsthermalcomfort";
+import { check_standard_compliance_array, clo_tout, t_o } from "jsthermalcomfort";
 import {
   synchronizeControlInputState,
 } from "./syncState";
-import { calculatePmv } from "./pmv";
+import { pmv_ppd_ashrae, PMV_COMFORT_LIMIT } from "./pmv";
 import { clothingGarmentOptions, clothingTypicalEnsembles, metabolicActivityOptions } from "./referenceValues";
 import { calculateUtci } from "./utci";
+import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
 
 const pmvPayload = {
   tdb: 26,
@@ -48,7 +49,20 @@ const utciPayload = {
 
 describe("comfort services", () => {
   it("calculates PMV and comfort zone data", () => {
-    const pmvResult = calculatePmv(pmvPayload);
+    const pmvResult = pmv_ppd_ashrae(
+      pmvPayload.tdb,
+      pmvPayload.tr,
+      pmvPayload.vr,
+      pmvPayload.rh,
+      pmvPayload.met,
+      pmvPayload.clo,
+      pmvPayload.wme,
+      {
+        units: pmvPayload.units,
+        limit_inputs: false,
+        airspeed_control: pmvPayload.occupantHasAirSpeedControl,
+      },
+    );
     const comfortZone = calculateComfortZone(comfortZonePayload);
 
     expect(pmvResult.pmv).toBeTypeOf("number");
@@ -67,8 +81,40 @@ describe("comfort services", () => {
         vr: 0.4,
         occupantHasAirSpeedControl: false,
       };
+      const constrainedPmv = pmv_ppd_ashrae(
+        constrainedPayload.tdb,
+        constrainedPayload.tr,
+        constrainedPayload.vr,
+        constrainedPayload.rh,
+        constrainedPayload.met,
+        constrainedPayload.clo,
+        constrainedPayload.wme,
+        {
+          units: constrainedPayload.units,
+          limit_inputs: false,
+          airspeed_control: constrainedPayload.occupantHasAirSpeedControl,
+        },
+      );
+      const constrainedCompliance = check_standard_compliance_array("ASHRAE", {
+        tdb: [constrainedPayload.tdb],
+        tr: [constrainedPayload.tr],
+        v: [constrainedPayload.vr],
+        met: [constrainedPayload.met],
+        clo: [constrainedPayload.clo],
+        airspeed_control: constrainedPayload.occupantHasAirSpeedControl,
+      });
 
-      const constrainedResult = calculatePmv(constrainedPayload);
+      const constrainedResult = {
+        ...constrainedPmv,
+        isCompliant: !constrainedCompliance.tdb.some((value) => Number.isNaN(value))
+          && !constrainedCompliance.tr.some((value) => Number.isNaN(value))
+          && !constrainedCompliance.v.some((value) => Number.isNaN(value))
+          && !(constrainedCompliance.met ?? []).some((value) => Number.isNaN(value))
+          && !(constrainedCompliance.clo ?? []).some((value) => Number.isNaN(value))
+          && Math.abs(constrainedPmv.pmv) <= PMV_COMFORT_LIMIT,
+        standard: ComfortStandard.Ashrae55PmvPpd,
+        source: CalculationSource.JsThermalComfort,
+      };
       const constrainedComfortZone = calculateComfortZone({
         ...constrainedPayload,
         rhMin: 0,

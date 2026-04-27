@@ -1,10 +1,9 @@
 import { pmv_ppd_ashrae, check_standard_compliance_array, units_converter } from "jsthermalcomfort";
 
-import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
-import type { PmvRequestDto, PmvResponseDto } from "../../models/comfortDtos";
+import type { PmvRequestDto } from "../../models/comfortDtos";
 import { UnitSystem } from "../../models/units";
-import { ensureFiniteValue } from "./helpers";
 
+export { pmv_ppd_ashrae };
 export const PMV_COMFORT_LIMIT = 0.5;
 
 // The exact bounds are used primarily as a search bracket for finding PMV roots (comfort zone boundaries).
@@ -19,106 +18,6 @@ const ROOT_TOLERANCE = 5e-4;
 type TemperatureBracket =
   | { exactTemperature: number } // Found a specific dry bulb temperature that meets the target PMV within expected tolerance.
   | { low: number; high: number }; // Found a temperature range bracket where the target PMV root exists.
-
-function normalizePmvPayloadToSi(payload: PmvRequestDto): PmvRequestDto {
-  if (payload.units === UnitSystem.SI) {
-    return payload;
-  }
-
-  const { tdb, tr, vr } = units_converter(
-    {
-      tdb: payload.tdb,
-      tr: payload.tr,
-      vr: payload.vr,
-    },
-    payload.units,
-  );
-
-  return {
-    ...payload,
-    tdb,
-    tr,
-    vr,
-    units: UnitSystem.SI,
-  };
-}
-
-function hasInvalidComplianceValues(values: number[]): boolean {
-  return values.some((value) => Number.isNaN(value));
-}
-
-function isNormalizedPmvInputWithinAshraeLimits(payload: PmvRequestDto): boolean {
-  const compliance = check_standard_compliance_array("ASHRAE", {
-    tdb: [payload.tdb],
-    tr: [payload.tr],
-    v: [payload.vr],
-    met: [payload.met],
-    clo: [payload.clo],
-    airspeed_control: payload.occupantHasAirSpeedControl,
-  });
-
-  return !hasInvalidComplianceValues(compliance.tdb)
-    && !hasInvalidComplianceValues(compliance.tr)
-    && !hasInvalidComplianceValues(compliance.v)
-    && !hasInvalidComplianceValues(compliance.met ?? [])
-    && !hasInvalidComplianceValues(compliance.clo ?? []);
-}
-
-function isPmvInputWithinAshraeLimits(payload: PmvRequestDto): boolean {
-  return isNormalizedPmvInputWithinAshraeLimits(normalizePmvPayloadToSi(payload));
-}
-
-function calculatePmvValues(payload: PmvRequestDto): { pmv: number; ppd: number } {
-  const result = pmv_ppd_ashrae(
-    payload.tdb,
-    payload.tr,
-    payload.vr,
-    payload.rh,
-    payload.met,
-    payload.clo,
-    payload.wme,
-    {
-      units: payload.units,
-      limit_inputs: false,
-      airspeed_control: payload.occupantHasAirSpeedControl,
-    },
-  );
-
-  return {
-    pmv: ensureFiniteValue("PMV", result.pmv),
-    ppd: ensureFiniteValue("PPD", result.ppd),
-  };
-}
-
-function calculateRawPmvValue(payload: PmvRequestDto): number {
-  const normalizedPayload = normalizePmvPayloadToSi(payload);
-
-  if (!isNormalizedPmvInputWithinAshraeLimits(normalizedPayload)) {
-    return NaN;
-  }
-
-  return calculatePmvValues(normalizedPayload).pmv;
-}
-
-function clonePmvPayload(
-  payload: PmvRequestDto,
-  overrides: Partial<PmvRequestDto>,
-): PmvRequestDto {
-  return {
-    ...payload,
-    ...overrides,
-  };
-}
-
-function getPmvDeltaAtTemperature(
-  targetPmv: number,
-  rh: number,
-  payload: PmvRequestDto,
-  dryBulbTemperature: number,
-): number | null {
-  const pmv = calculateRawPmvValue(clonePmvPayload(payload, { tdb: dryBulbTemperature, rh }));
-  return Number.isFinite(pmv) ? pmv - targetPmv : null;
-}
 
 /**
  * Scans a range of temperatures sequentially to locate a bracket where the target PMV root crosses zero.
@@ -139,7 +38,62 @@ function findTemperatureBracket(
 
   for (let index = 0; index < pointCount; index += 1) {
     const temperature = minimum + ((maximum - minimum) * index) / (pointCount - 1);
-    const delta = getPmvDeltaAtTemperature(targetPmv, rh, payload, temperature);
+    const evaluationPayload = {
+      ...payload,
+      tdb: temperature,
+      rh,
+    };
+    const normalizedPayload = evaluationPayload.units === UnitSystem.SI
+      ? evaluationPayload
+      : {
+          ...evaluationPayload,
+          ...units_converter(
+            {
+              tdb: evaluationPayload.tdb,
+              tr: evaluationPayload.tr,
+              vr: evaluationPayload.vr,
+            },
+            evaluationPayload.units,
+          ),
+          units: UnitSystem.SI,
+        };
+
+    const compliance = check_standard_compliance_array("ASHRAE", {
+      tdb: [normalizedPayload.tdb],
+      tr: [normalizedPayload.tr],
+      v: [normalizedPayload.vr],
+      met: [normalizedPayload.met],
+      clo: [normalizedPayload.clo],
+      airspeed_control: normalizedPayload.occupantHasAirSpeedControl,
+    });
+
+    if (
+      compliance.tdb.some((value) => Number.isNaN(value))
+      || compliance.tr.some((value) => Number.isNaN(value))
+      || compliance.v.some((value) => Number.isNaN(value))
+      || (compliance.met ?? []).some((value) => Number.isNaN(value))
+      || (compliance.clo ?? []).some((value) => Number.isNaN(value))
+    ) {
+      previousTemperature = null;
+      previousDelta = null;
+      continue;
+    }
+
+    const pmv = pmv_ppd_ashrae(
+      normalizedPayload.tdb,
+      normalizedPayload.tr,
+      normalizedPayload.vr,
+      normalizedPayload.rh,
+      normalizedPayload.met,
+      normalizedPayload.clo,
+      normalizedPayload.wme,
+      {
+        units: normalizedPayload.units,
+        limit_inputs: false,
+        airspeed_control: normalizedPayload.occupantHasAirSpeedControl,
+      },
+    ).pmv;
+    const delta = Number.isFinite(pmv) ? pmv - targetPmv : null;
 
     if (delta === null) {
       previousTemperature = null;
@@ -173,7 +127,7 @@ function findTemperatureBracket(
  * This function handles severe domain-specific edge cases. Standard third-party mathematical bisection 
  * libraries generically assume continuous domains and typically panic, hang, or evaluate inaccurately 
  * when the tested function returns `NaN`. Because the strict ASHRAE boundary conditions within 
- * `jsthermalcomfort` frequently force `calculatePmvValues` to abort and return `NaN` at edge 
+ * `jsthermalcomfort` frequently returns `NaN` at edge
  * temperatures during the bracket scan phase, a generic solver cannot be safely utilized. We 
  * preserve this custom sequential boundary-scanning solver to safely "walk over" those `NaN` 
  * holes to find genuine mathematical roots without crashing the state application.
@@ -229,23 +183,4 @@ export function solveDryBulbForTargetPmv(
   }
 
   return (currentBracket.low + currentBracket.high) / 2;
-}
-
-/**
- * Main entry point for PMV/PPD calculations.
- * Returns the PMV, PPD, and ASHRAE standard compliance status.
- * This is primarily used by the model definitions in the Reactivity state (e.g. `pmvModelConfig`) to bridge purely mathematical functions into user-accessible UI variables.
- * @param payload The thermal comfort request payload.
- * @returns An object containing PMV results and metadata.
- */
-export function calculatePmv(payload: PmvRequestDto): PmvResponseDto {
-  const result = calculatePmvValues(payload);
-  const isWithinAshraeLimits = isPmvInputWithinAshraeLimits(payload);
-  return {
-    pmv: result.pmv,
-    ppd: result.ppd,
-    isCompliant: isWithinAshraeLimits && Math.abs(result.pmv) <= PMV_COMFORT_LIMIT,
-    standard: ComfortStandard.Ashrae55PmvPpd,
-    source: CalculationSource.JsThermalComfort,
-  };
 }
