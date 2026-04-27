@@ -11,8 +11,7 @@ import {
   deriveRelativeAirSpeedFromMeasured,
   deriveRelativeHumidityFromDewPoint,
 } from "./derivations";
-import { clo_tout } from "jsthermalcomfort/lib/esm/models/clo_tout.js";
-import { t_o } from "jsthermalcomfort/lib/esm/psychrometrics/t_o.js";
+import { clo_tout, t_o } from "jsthermalcomfort";
 import {
   synchronizeControlInputState,
 } from "./syncState";

@@ -1,8 +1,4 @@
-import { pmv_ppd_ashrae } from "jsthermalcomfort/lib/esm/models/pmv_ppd_ashrae.js";
-import {
-  check_standard_compliance_array,
-  units_converter,
-} from "jsthermalcomfort/lib/esm/utilities/utilities.js";
+import { pmv_ppd_ashrae, check_standard_compliance_array, units_converter } from "jsthermalcomfort";
 
 import { CalculationSource, ComfortStandard } from "../../models/calculationMetadata";
 import type { PmvRequestDto, PmvResponseDto } from "../../models/comfortDtos";

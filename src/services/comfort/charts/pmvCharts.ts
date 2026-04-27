@@ -21,7 +21,7 @@ import {
   roundValue,
   type ComfortZonesByInput,
 } from "../helpers";
-import { psy_ta_rh } from "jsthermalcomfort/lib/esm/psychrometrics/psy_ta_rh.js";
+import { psy_ta_rh } from "jsthermalcomfort";
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace } from "./plotlyBuilders";
 
 /**
