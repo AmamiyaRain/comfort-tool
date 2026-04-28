@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: #0f172a;
+  }
+}
+
+.plotly-panel :global(.js-plotly-plot),
+.plotly-panel :global(.plot-container),
+.plotly-panel :global(.svg-container) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.plotly-panel :global(.main-svg),
+.plotly-panel :global(svg) {
+  max-width: 100% !important;
+}
+
+.plotly-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.header-logo-container {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-logo {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+@media (min-width: 640px) {
+  .header-logo {
+    height: 64px;
+  }
+}
+
+@layer utilities {
+  .text-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: #78716c; /* stone-500 */
+  }
+
+  .text-footer-label {
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.4); /* white/40 */
+  }
+
+  .text-result-summary {
+    margin-top: 0.25rem;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: #1c1917; /* stone-900 */
+  }
+
+  .text-description-muted {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: #78716c; /* stone-500 */
+  }
+}
