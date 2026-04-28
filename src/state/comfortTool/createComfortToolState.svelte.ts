@@ -249,6 +249,7 @@ export function createComfortToolState(): ComfortToolController {
         cache.resultsByInput,
         getVisibleInputIds(),
         state.ui.unitSystem,
+        state.ui.modelOptionsByModel[state.ui.selectedModel],
       );
     },
     getCurrentChartResult: () => {

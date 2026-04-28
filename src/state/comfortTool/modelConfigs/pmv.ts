@@ -46,6 +46,8 @@ import {
 } from "../../../services/comfort/controls/controlBehaviors";
 import { createSingleInputPatch, type InputControlBehavior } from "../../../services/comfort/controls/types";
 import { clothingTypicalEnsembles, metabolicActivityOptions } from "../../../services/comfort/referenceValues";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
+import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units";
 
 const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
 
@@ -243,8 +245,12 @@ function toPmvChartInputsRequest(
 function buildPmvResultSections(
   results: Record<InputIdType, PmvResponseDto | null>,
   visibleInputIds: InputIdType[],
-  _unitSystem: UnitSystemType,
+  unitSystem: UnitSystemType,
+  options: any,
 ) {
+  // Normalize the model options for PMV.
+  const normalizedOptions = normalizePmvOptions(options);
+
   // The list of result table sections.
   const sections = [];
 
@@ -257,6 +263,27 @@ function buildPmvResultSections(
       };
     }),
   );
+
+  // Add the "Relative air speed" section if the air speed input mode is "Measured air speed".
+  if (normalizedOptions[OptionKey.AirSpeedInputMode] === AirSpeedInputMode.Measured) {
+    const airSpeedUnits = fieldMetaByKey[FieldKey.RelativeAirSpeed].displayUnits[unitSystem];
+    sections.push(
+      buildResultSection("Relative air speed", results, visibleInputIds, (result) => {
+        // Convert the SI value to the user's preferred unit system.
+        const displayValue = convertFieldValueFromSi(FieldKey.RelativeAirSpeed, result.vr, unitSystem);
+        // Format the value as a string with the correct number of decimals.
+        const formattedValue = formatDisplayValue(
+          displayValue,
+          fieldMetaByKey[FieldKey.RelativeAirSpeed].decimals,
+        );
+
+        return {
+          text: `${formattedValue} ${airSpeedUnits}`,
+          tone: "default",
+        };
+      }),
+    );
+  }
 
   // Add the raw PMV value section. Example: "-0.50"
   sections.push(
@@ -492,6 +519,7 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
       resultsByInput[inputId] = {
         pmv: result.pmv,
         ppd: result.ppd,
+        vr: request.vr,
         isCompliant: !compliance.tdb.some((value) => Number.isNaN(value))
           && !compliance.tr.some((value) => Number.isNaN(value))
           && !compliance.v.some((value) => Number.isNaN(value))

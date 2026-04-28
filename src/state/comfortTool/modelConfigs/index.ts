@@ -44,6 +44,7 @@ export interface ComfortModelDefinition<ResultType, ChartSourceType> {
     resultsByInput: Record<InputIdType, ResultType | null>,
     visibleInputIds: InputIdType[],
     unitSystem: UnitSystemType,
+    options: ModelOptionsState,
   ) => ResultSectionViewModel[];
   buildChartResult: (
     chartId: ChartIdType,

@@ -83,7 +83,7 @@
   });
 </script>
 
-<Navbar fluid={false} class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+<Navbar class="border-b border-stone-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
   <NavBrand href="#overview" class="flex items-center gap-6 hover:opacity-95 transition-opacity">
     <div class="header-logo-container">
       <Img src={siteBrand.headerLogoSrc} alt={siteBrand.eyebrow} class="header-logo" />

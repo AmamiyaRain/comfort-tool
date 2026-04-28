@@ -95,6 +95,7 @@ function buildUtciResultSections(
   results: Record<InputIdType, UtciResponseDto | null>,
   visibleInputIds: InputIdType[],
   unitSystem: UnitSystemType,
+  options: any,
 ) {
   // Get the temperature units for display. Example: "°C"
   const temperatureUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];

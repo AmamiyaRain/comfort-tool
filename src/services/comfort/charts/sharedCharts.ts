@@ -77,7 +77,7 @@ export function buildRelativeHumidityChart(
         gridcolor: "#e2e8f0",
       },
       legend: { orientation: "h", x: 0, y: 1.1 },
-      height: 420,
+      height: 480,
     },
     annotations,
     source: CalculationSource.FrontendGenerated,
