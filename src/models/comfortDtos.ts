@@ -136,6 +136,9 @@ export interface AdaptiveChartSourceDto {
   chartRequest: AdaptiveChartInputsRequestDto;
   resultsByInput: CompareInputMap<AdaptiveResponseDto>;
   standardMode: string;
+  dynamicXAxis?: string;
+  dynamicYAxis?: string;
+  baselineInputId?: InputIdType;
 }
 
 export interface PlotTraceDto {

@@ -4,6 +4,7 @@ export const ChartId = {
   Stress: "stress",
   AirTemperature: "airTemperature",
   Adaptive: "adaptive",
+  AdaptiveDynamic: "adaptiveDynamic",
   PmvDynamic: "pmvDynamic",
   UtciDynamic: "utciDynamic",
 } as const;
@@ -41,6 +42,11 @@ export const chartMetaById: Record<
   [ChartId.Adaptive]: {
     name: "Adaptive Chart",
     emptyMessage: "No adaptive chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.AdaptiveDynamic]: {
+    name: "Dynamic Adaptive Chart",
+    emptyMessage: "No adaptive dynamic chart yet.",
     heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.PmvDynamic]: {

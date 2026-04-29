@@ -8,12 +8,40 @@ import type {
   PlotlyChartResponseDto,
   PlotTraceDto,
   AdaptiveChartInputsRequestDto,
+  AdaptiveRequestDto,
 } from "../../../models/comfortDtos";
-import { convertFieldValueFromSi } from "../../units";
+import { convertFieldValueFromSi, convertFieldValueToSi } from "../../units";
 import { getCompareInputs, roundValue } from "../helpers";
-import { buildComfortPolygonTrace, buildInputScatterTrace } from "./plotlyBuilders";
+import { buildComfortPolygonTrace, buildInputScatterTrace, buildContourTrace } from "./plotlyBuilders";
 import { AdaptiveStandardMode } from "../../../models/inputModes";
-import { getCe } from "../adaptive";
+import { getCe, calculateAdaptive } from "../adaptive";
+import { InputId as InputIdType } from "../../../models/inputSlots";
+import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
+
+// Discrete colorscales for Adaptive Dynamic Chart (Option A)
+const ADAPTIVE_ASHRAE_COLORSCALE = [
+  [0, "#3b82f6"],     // 1: Too cool (Blue)
+  [0.25, "#3b82f6"],
+  [0.25, "#86efac"],  // 2: 80% Acceptability (Light Green)
+  [0.5, "#86efac"],
+  [0.5, "#22c55e"],   // 3: 90% Acceptability (Green)
+  [0.75, "#22c55e"],
+  [0.75, "#ef4444"],  // 4: Too warm (Red)
+  [1, "#ef4444"],
+];
+
+const ADAPTIVE_EN_COLORSCALE = [
+  [0, "#3b82f6"],     // 1: Too cool (Blue)
+  [0.2, "#3b82f6"],
+  [0.2, "#fde047"],   // 2: Category III (Yellow)
+  [0.4, "#fde047"],
+  [0.4, "#86efac"],   // 3: Category II (Light Green)
+  [0.6, "#86efac"],
+  [0.6, "#22c55e"],   // 4: Category I (Green)
+  [0.8, "#22c55e"],
+  [0.8, "#ef4444"],   // 5: Too warm (Red)
+  [1, "#ef4444"],
+];
 
 /**
  * Builds the adaptive comfort chart (Prevailing Mean Outdoor Temperature (TRM) vs Operative Temperature (To)).
@@ -197,8 +225,8 @@ export function buildAdaptiveChart(
       // Background color.
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#f8fafc",
-      // Show legend if there are multiple inputs.
-      showlegend: showInputLegend,
+      // Show legend.
+      showlegend: true,
       // Margin around the chart.
       margin: { l: 64, r: 24, t: 48, b: 80 },
       // X-axis settings.
@@ -235,6 +263,214 @@ export function buildAdaptiveChart(
     // Annotations.
     annotations: [],
     // The source of the calculation, indicating it was generated directly in the browser.
+    source: CalculationSource.FrontendGenerated,
+  };
+}
+
+export function buildAdaptiveDynamicChart(
+  payload: AdaptiveChartInputsRequestDto,
+  standardMode: AdaptiveStandardMode,
+  unitSystem: UnitSystemType = UnitSystem.SI,
+  dynamicXAxis?: FieldKeyType,
+  dynamicYAxis?: FieldKeyType,
+  baselineInputId?: string,
+): PlotlyChartResponseDto {
+  const inputs = getCompareInputs(payload.inputs);
+  const showInputLegend = inputs.length > 1;
+
+  if (!dynamicXAxis || !dynamicYAxis || dynamicXAxis === dynamicYAxis) {
+    return {
+      traces: [],
+      layout: {
+        title: "Invalid Axes Selection",
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#f8fafc",
+        showlegend: false,
+        margin: { l: 64, r: 24, t: 48, b: 64 },
+        xaxis: {},
+        yaxis: {},
+      },
+      annotations: [],
+      source: CalculationSource.FrontendGenerated,
+    };
+  }
+
+  const activeInputPayload = (payload.inputs[baselineInputId as any] || inputs[0]?.payload);
+
+  const xMeta = fieldMetaByKey[dynamicXAxis];
+  const yMeta = fieldMetaByKey[dynamicYAxis];
+
+  const xMin = convertFieldValueFromSi(dynamicXAxis, xMeta.minValue, unitSystem);
+  const xMax = convertFieldValueFromSi(dynamicXAxis, xMeta.maxValue, unitSystem);
+  const yMin = convertFieldValueFromSi(dynamicYAxis, yMeta.minValue, unitSystem);
+  const yMax = convertFieldValueFromSi(dynamicYAxis, yMeta.maxValue, unitSystem);
+    const xPoints = 50;
+    const yPoints = 50;
+    const xValues: number[] = [];
+    const yValues: number[] = [];
+
+    for (let i = 0; i < xPoints; i++) xValues.push(xMin + (xMax - xMin) * (i / (xPoints - 1)));
+    for (let i = 0; i < yPoints; i++) yValues.push(yMin + (yMax - yMin) * (i / (yPoints - 1)));
+
+    const zValues: (number | null)[][] = [];
+    const textValues: string[][] = [];
+
+    const isAshrae = standardMode === AdaptiveStandardMode.Ashrae;
+
+    if (activeInputPayload) {
+      const xKey = (dynamicXAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicXAxis) as string;
+      const yKey = (dynamicYAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicYAxis) as string;
+
+      for (let i = 0; i < yPoints; i++) {
+        const row: (number | null)[] = [];
+        const textRow: string[] = [];
+        const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
+
+        for (let j = 0; j < xPoints; j++) {
+          const xSi = convertFieldValueToSi(dynamicXAxis, xValues[j], unitSystem);
+
+          const pointArgs = {
+            ...activeInputPayload,
+            [xKey]: xSi,
+            [yKey]: ySi,
+          } as AdaptiveRequestDto;
+
+          // Skip calculation if any core parameter is NaN to avoid library hangs.
+          if (Number.isNaN(pointArgs.tdb) || Number.isNaN(pointArgs.tr) || Number.isNaN(pointArgs.trm) || Number.isNaN(pointArgs.v)) {
+            row.push(null);
+            textRow.push("Out of range");
+            continue;
+          }
+
+          try {
+            const result = calculateAdaptive(pointArgs, standardMode);
+            
+            if (isAshrae) {
+              if (result.acceptability_90) {
+                row.push(3);
+                textRow.push("90% Acceptability");
+              } else if (result.acceptability_80) {
+                row.push(2);
+                textRow.push("80% Acceptability");
+              } else if (result.status_80 === "Too cool") {
+                row.push(1);
+                textRow.push("Too cool");
+              } else {
+                row.push(4);
+                textRow.push("Too warm");
+              }
+            } else {
+              if (result.acceptability_cat_i) {
+                row.push(4);
+                textRow.push("Category I");
+              } else if (result.acceptability_cat_ii) {
+                row.push(3);
+                textRow.push("Category II");
+              } else if (result.acceptability_cat_iii) {
+                row.push(2);
+                textRow.push("Category III");
+              } else if (result.status_cat_iii === "Too cool") {
+                row.push(1);
+                textRow.push("Too cool");
+              } else {
+                row.push(5);
+                textRow.push("Too warm");
+              }
+            }
+          } catch (e) {
+            row.push(null);
+            textRow.push("Out of range");
+          }
+        }
+        zValues.push(row);
+        textValues.push(textRow);
+      }
+    }
+
+    const traces: PlotTraceDto[] = [];
+
+    if (zValues.length > 0) {
+      const ashraeColorScale: any = [
+        [0, "#3b82f6"], // Too cool (Value 1)
+        [0.25, "#3b82f6"],
+        [0.25, "#86efac"], // 80% Acceptability (Value 2)
+        [0.5, "#86efac"],
+        [0.5, "#16a34a"], // 90% Acceptability (Value 3)
+        [0.75, "#16a34a"],
+        [0.75, "#ef4444"], // Too warm (Value 4)
+        [1, "#ef4444"],
+      ];
+
+      const enColorScale: any = [
+        [0, "#3b82f6"], // Too cool (Value 1)
+        [0.2, "#3b82f6"],
+        [0.2, "#86efac"], // Category III (Value 2)
+        [0.4, "#86efac"],
+        [0.4, "#4ade80"], // Category II (Value 3)
+        [0.6, "#4ade80"],
+        [0.6, "#16a34a"], // Category I (Value 4)
+        [0.8, "#16a34a"],
+        [0.8, "#ef4444"], // Too warm (Value 5)
+        [1, "#ef4444"],
+      ];
+
+      traces.push({
+        type: "heatmap",
+        name: "Adaptive Zones",
+        x: xValues,
+        y: yValues,
+        z: zValues,
+        text: textValues as any,
+        colorscale: isAshrae ? ashraeColorScale : enColorScale,
+        showscale: false,
+        zmin: 1,
+        zmax: isAshrae ? 4 : 5,
+        hoverinfo: "text",
+        hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><extra></extra>`,
+      } as any);
+    }
+
+  inputs.forEach(({ inputId, payload: inputPayload }) => {
+    const xKey = (dynamicXAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicXAxis) as string;
+    const yKey = (dynamicYAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicYAxis) as string;
+
+    let inputX = inputPayload[xKey as keyof typeof inputPayload] as number;
+    let inputY = inputPayload[yKey as keyof typeof inputPayload] as number;
+    
+    inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
+    inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
+
+    traces.push(buildInputScatterTrace({
+      inputId,
+      x: roundValue(inputX),
+      y: roundValue(inputY),
+      showLegend: showInputLegend,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+    }));
+  });
+
+  return {
+    traces,
+    layout: {
+      title: `${isAshrae ? 'ASHRAE 55' : 'EN 16798-1'} Adaptive Dynamic Chart (${xMeta.label} vs ${yMeta.label})`,
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#f8fafc",
+      showlegend: true,
+      margin: { l: 64, r: 24, t: 48, b: 64 },
+      xaxis: {
+        title: `${xMeta.label} (${xMeta.displayUnits[unitSystem]})`,
+        range: [xMin, xMax],
+        gridcolor: "#e2e8f0",
+      },
+      yaxis: {
+        title: `${yMeta.label} (${yMeta.displayUnits[unitSystem]})`,
+        range: [yMin, yMax],
+        gridcolor: "#e2e8f0",
+      },
+      legend: { orientation: "h", x: 0, y: 1.1 },
+      height: 480,
+    },
+    annotations: [],
     source: CalculationSource.FrontendGenerated,
   };
 }

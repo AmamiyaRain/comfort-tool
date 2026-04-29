@@ -7,7 +7,7 @@ import type {
   AdaptiveResponseDto,
   AdaptiveRequestDto,
 } from "../../../models/comfortDtos";
-import { FieldKey } from "../../../models/fieldKeys";
+import { FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import { InputControlId, type PresetInputOption } from "../../../models/inputControls";
 import {
   OptionKey,
@@ -17,8 +17,10 @@ import {
   AdaptiveStandardMode,
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
+import { convertFieldValueFromSi, convertFieldValueToSi } from "../../../services/units";
 import { calculateAdaptive } from "../../../services/comfort/adaptive";
-import { buildAdaptiveChart } from "../../../services/comfort/charts/adaptiveCharts";
+import { buildAdaptiveChart, buildAdaptiveDynamicChart } from "../../../services/comfort/charts/adaptiveCharts";
 import {
   buildDefaultPresentation,
   createAirSpeedControlBehavior,
@@ -28,7 +30,7 @@ import {
 import { type InputControlBehavior } from "../../../services/comfort/controls/types";
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
-const adaptiveChartIds: ChartIdType[] = [ChartId.Adaptive];
+const adaptiveChartIds: ChartIdType[] = [ChartId.Adaptive, ChartId.AdaptiveDynamic];
 
 function normalizeAdaptiveOptionsSnapshot(value: unknown) {
   // Check if the input value is a valid record.
@@ -244,15 +246,15 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
     return null;
   });
 
-  // Set the default chart for the model.
-  builder.setDefaultChart(ChartId.Adaptive, adaptiveChartIds);
-
   // Build the default options.
   const nextDefaultOptions = Object.assign({}, defaultAdaptiveOptions);
   nextDefaultOptions[OptionKey.TemperatureMode] = TemperatureMode.Operative;
   
   // Set the default options for the model.
   builder.setDefaultOptions(nextDefaultOptions);
+
+  // Set the default chart and all available charts for the model.
+  builder.setDefaultChart(ChartId.Adaptive, adaptiveChartIds);
 
   // Set the option normalizer for the model.
   builder.setOptionNormalizer(normalizeAdaptiveOptionsSnapshot);
@@ -261,8 +263,8 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
   builder.setDynamicAxisFields([
     FieldKey.DryBulbTemperature,
     FieldKey.MeanRadiantTemperature,
-    FieldKey.PrevailingMeanOutdoorTemperature,
     FieldKey.RelativeAirSpeed,
+    FieldKey.PrevailingMeanOutdoorTemperature,
   ]);
 
   // Set the calculation engine for the model.
@@ -287,6 +289,9 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
         chartRequest: chartRequest,
         resultsByInput: resultsByInput,
         standardMode: standardMode,
+        dynamicXAxis: state.ui.dynamicXAxis,
+        dynamicYAxis: state.ui.dynamicYAxis,
+        baselineInputId: state.ui.chartBaselineInputId,
       },
     };
   });
@@ -337,10 +342,13 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
             return { text: "N/A", tone: "default" };
           }
 
-          // Build the subtext with the comfort range. Example: "21.5 ~ 28.3 °C"
+          // Build the subtext with the comfort range.
+          const tempUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
           let subtext = undefined;
           if (result.tmp_cmf_80_low !== undefined && result.tmp_cmf_80_up !== undefined) {
-            subtext = `${result.tmp_cmf_80_low.toFixed(1)} ~ ${result.tmp_cmf_80_up.toFixed(1)} °C`;
+            const low = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_80_low, unitSystem);
+            const up = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_80_up, unitSystem);
+            subtext = `${low.toFixed(1)} ~ ${up.toFixed(1)} ${tempUnits}`;
           }
 
           // Return the result cell view model.
@@ -357,9 +365,12 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
           }
 
           // Build the subtext with the comfort range.
+          const tempUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
           let subtext = undefined;
           if (result.tmp_cmf_90_low !== undefined && result.tmp_cmf_90_up !== undefined) {
-            subtext = `${result.tmp_cmf_90_low.toFixed(1)} ~ ${result.tmp_cmf_90_up.toFixed(1)} °C`;
+            const low = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_90_low, unitSystem);
+            const up = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_90_up, unitSystem);
+            subtext = `${low.toFixed(1)} ~ ${up.toFixed(1)} ${tempUnits}`;
           }
 
           // Return the result cell view model.
@@ -374,15 +385,14 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
       // Otherwise, add the European category sections.
       sections.push(
         buildResultSection("Category I", results, visibleInputIds, (result) => {
-          if (!result.status_cat_i) {
-            return { text: "N/A", tone: "default" };
-          }
-
+          if (!result.status_cat_i) return { text: "N/A", tone: "default" };
+          const tempUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
           let subtext = undefined;
           if (result.tmp_cmf_cat_i_low !== undefined && result.tmp_cmf_cat_i_up !== undefined) {
-            subtext = `${result.tmp_cmf_cat_i_low.toFixed(1)} ~ ${result.tmp_cmf_cat_i_up.toFixed(1)} °C`;
+            const low = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_i_low, unitSystem);
+            const up = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_i_up, unitSystem);
+            subtext = `${low.toFixed(1)} ~ ${up.toFixed(1)} ${tempUnits}`;
           }
-
           return {
             text: result.status_cat_i,
             subtext: subtext,
@@ -390,15 +400,14 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
           };
         }),
         buildResultSection("Category II", results, visibleInputIds, (result) => {
-          if (!result.status_cat_ii) {
-            return { text: "N/A", tone: "default" };
-          }
-
+          if (!result.status_cat_ii) return { text: "N/A", tone: "default" };
+          const tempUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
           let subtext = undefined;
           if (result.tmp_cmf_cat_ii_low !== undefined && result.tmp_cmf_cat_ii_up !== undefined) {
-            subtext = `${result.tmp_cmf_cat_ii_low.toFixed(1)} ~ ${result.tmp_cmf_cat_ii_up.toFixed(1)} °C`;
+            const low = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_ii_low, unitSystem);
+            const up = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_ii_up, unitSystem);
+            subtext = `${low.toFixed(1)} ~ ${up.toFixed(1)} ${tempUnits}`;
           }
-
           return {
             text: result.status_cat_ii,
             subtext: subtext,
@@ -406,15 +415,14 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
           };
         }),
         buildResultSection("Category III", results, visibleInputIds, (result) => {
-          if (!result.status_cat_iii) {
-            return { text: "N/A", tone: "default" };
-          }
-
+          if (!result.status_cat_iii) return { text: "N/A", tone: "default" };
+          const tempUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
           let subtext = undefined;
           if (result.tmp_cmf_cat_iii_low !== undefined && result.tmp_cmf_cat_iii_up !== undefined) {
-            subtext = `${result.tmp_cmf_cat_iii_low.toFixed(1)} ~ ${result.tmp_cmf_cat_iii_up.toFixed(1)} °C`;
+            const low = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_iii_low, unitSystem);
+            const up = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.tmp_cmf_cat_iii_up, unitSystem);
+            subtext = `${low.toFixed(1)} ~ ${up.toFixed(1)} ${tempUnits}`;
           }
-
           return {
             text: result.status_cat_iii,
             subtext: subtext,
@@ -434,6 +442,18 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
     if (!chartSource || !adaptiveChartIds.includes(chartId)) {
       return null;
     }
+    
+    if (chartId === ChartId.AdaptiveDynamic) {
+      return buildAdaptiveDynamicChart(
+        chartSource.chartRequest,
+        standardMode,
+        unitSystem,
+        chartSource.dynamicXAxis as FieldKeyType,
+        chartSource.dynamicYAxis as FieldKeyType,
+        chartSource.baselineInputId,
+      );
+    }
+    
     // Build and return the adaptive chart.
     return buildAdaptiveChart(chartSource.chartRequest, standardMode, unitSystem);
   });

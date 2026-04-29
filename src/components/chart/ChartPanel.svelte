@@ -64,7 +64,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2">
-      {#if (selectedChart === ChartId.PmvDynamic || selectedChart === ChartId.UtciDynamic) && dynamicXAxis && dynamicYAxis && onSelectXAxis && onSelectYAxis}
+      {#if (selectedChart === ChartId.PmvDynamic || selectedChart === ChartId.UtciDynamic || selectedChart === ChartId.AdaptiveDynamic) && dynamicXAxis && dynamicYAxis && onSelectXAxis && onSelectYAxis}
         <ChartAxisMenu
           {dynamicXAxis}
           {dynamicYAxis}

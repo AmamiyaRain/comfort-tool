@@ -294,6 +294,18 @@ export function createComfortToolState(): ComfortToolController {
   function setSelectedModel(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
     state.ui.errorMessage = "";
+
+    // Ensure dynamic axes are valid for the new model.
+    const config = getComfortModelConfig(nextModel);
+    if (config.dynamicAxisFields && config.dynamicAxisFields.length >= 2) {
+      if (!config.dynamicAxisFields.includes(state.ui.dynamicXAxis as any)) {
+        state.ui.dynamicXAxis = config.dynamicAxisFields[0];
+      }
+      if (!config.dynamicAxisFields.includes(state.ui.dynamicYAxis as any)) {
+        state.ui.dynamicYAxis = config.dynamicAxisFields[config.dynamicAxisFields.length - 1];
+      }
+    }
+
     scheduleCalculationInternal({ immediate: true });
   }
 
