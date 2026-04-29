@@ -26,11 +26,12 @@ import {
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { CalculationSource, ComfortStandard } from "../../../models/calculationMetadata";
+import { type ComfortZonesByInput } from "../../../services/comfort/helpers";
 import {
-  type ComfortZonesByInput,
-} from "../../../services/comfort/helpers";
-import { buildComparePsychrometricChart } from "../../../services/comfort/charts/pmvCharts";
-import { buildRelativeHumidityChart } from "../../../services/comfort/charts/sharedCharts";
+  buildComparePsychrometricChart,
+  buildPmvDynamicChart,
+  buildPmvRelativeHumidityChart,
+} from "../../../services/comfort/charts/pmvCharts";
 import { calculateComfortZone } from "../../../services/comfort/comfortZone";
 import { check_standard_compliance_array } from "jsthermalcomfort";
 import { pmv_ppd_ashrae, PMV_COMFORT_LIMIT } from "../../../services/comfort/pmv";
@@ -49,7 +50,7 @@ import { clothingTypicalEnsembles, metabolicActivityOptions } from "../../../ser
 import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units";
 
-const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
+const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity, ChartId.PmvDynamic];
 
 const clothingPresetOptions = clothingTypicalEnsembles.map((ensemble) => ({
   id: ensemble.id,
@@ -348,9 +349,18 @@ function buildPmvChartResult(
 
   // Handle the Relative Humidity chart type.
   if (chartId === ChartId.RelativeHumidity) {
-    return buildRelativeHumidityChart(
+    return buildPmvRelativeHumidityChart(
       chartSource.chartRequest, 
-      chartSource.comfortZonesByInput, 
+      unitSystem
+    );
+  }
+
+  // Handle the Dynamic PMV chart type.
+  if (chartId === ChartId.PmvDynamic && chartSource.dynamicXAxis && chartSource.dynamicYAxis) {
+    return buildPmvDynamicChart(
+      chartSource.chartRequest,
+      chartSource.dynamicXAxis as any,
+      chartSource.dynamicYAxis as any,
       unitSystem
     );
   }
@@ -541,6 +551,8 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
         chartRequest: compareChartRequest,
         // The comfort zones for each visible input.
         comfortZonesByInput: comfortZonesByInput,
+        dynamicXAxis: state.ui.dynamicXAxis,
+        dynamicYAxis: state.ui.dynamicYAxis,
       },
     };
   })

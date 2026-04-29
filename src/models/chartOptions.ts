@@ -4,6 +4,7 @@ export const ChartId = {
   Stress: "stress",
   AirTemperature: "airTemperature",
   Adaptive: "adaptive",
+  PmvDynamic: "pmvDynamic",
 } as const;
 
 export type ChartId = (typeof ChartId)[keyof typeof ChartId];
@@ -39,6 +40,11 @@ export const chartMetaById: Record<
   [ChartId.Adaptive]: {
     name: "Adaptive Chart",
     emptyMessage: "No adaptive chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.PmvDynamic]: {
+    name: "Dynamic PMV Chart",
+    emptyMessage: "No PMV dynamic chart yet.",
     heightClass: "h-[480px] xl:h-[480px]",
   },
 };

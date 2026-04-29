@@ -109,6 +109,8 @@ export interface PmvChartInputsRequestDto {
 export interface PmvChartSourceDto {
   chartRequest: PmvChartInputsRequestDto;
   comfortZonesByInput: CompareInputMap<ComfortZoneResponseDto>;
+  dynamicXAxis?: string;
+  dynamicYAxis?: string;
 }
 
 export interface RelativeHumidityChartRequestDto extends PmvChartInputsRequestDto {}
@@ -132,16 +134,24 @@ export interface AdaptiveChartSourceDto {
 }
 
 export interface PlotTraceDto {
-  type: "scatter";
-  mode: string;
+  type: "scatter" | "contour";
+  mode?: string;
   name: string;
   x: number[];
   y: number[];
+  z?: number[][];
+  text?: string[] | string[][];
   showlegend?: boolean | null;
   fill?: string | null;
   fillcolor?: string | null;
-  line: Record<string, string | number>;
-  marker: Record<string, string | number>;
+  line?: Record<string, string | number>;
+  marker?: Record<string, string | number>;
+  colorscale?: any[];
+  contours?: any;
+  zmin?: number;
+  zmax?: number;
+  showscale?: boolean;
+  hoverinfo?: string;
   hovertemplate?: string | null;
 }
 

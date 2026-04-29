@@ -229,3 +229,53 @@ export function buildRectangleSelectionShape({
     opacity,
   };
 }
+
+export interface ContourTraceOptions {
+  name: string;
+  x: number[];
+  y: number[];
+  z: number[][];
+  text?: string[][];
+  colorscale: any[];
+  contours: any;
+  hovertemplate: string;
+  showscale?: boolean;
+  zmin?: number;
+  zmax?: number;
+}
+
+/**
+ * Builds a contour trace to visualize multi-zone comfort boundaries.
+ *
+ * @param options configuration object defining the contour ranges and styling.
+ * @returns A PlotTraceDto for the contour plot.
+ */
+export function buildContourTrace({
+  name,
+  x,
+  y,
+  z,
+  text,
+  colorscale,
+  contours,
+  hovertemplate,
+  showscale = false,
+  zmin,
+  zmax,
+}: ContourTraceOptions): PlotTraceDto {
+  return {
+    type: "contour",
+    name,
+    x,
+    y,
+    z,
+    text,
+    colorscale,
+    contours,
+    showscale,
+    zmin,
+    zmax,
+    hoverinfo: "all",
+    hovertemplate,
+  };
+}

@@ -82,6 +82,8 @@ export type UiState = {
   compareInputIds: InputIdType[];
   activeInputId: InputIdType;
   unitSystem: UnitSystemType;
+  dynamicXAxis: FieldKeyType;
+  dynamicYAxis: FieldKeyType;
   isLoading: boolean;
   errorMessage: string;
   calculationCacheByModel: ModelCalculationCacheByModelState;
@@ -100,6 +102,8 @@ export type ComfortToolActions = {
   setActiveInputId: (nextInputId: InputIdType) => void;
   toggleCompareInputVisibility: (inputId: InputIdType) => void;
   toggleUnitSystem: () => void;
+  setDynamicXAxis: (fieldKey: FieldKeyType) => void;
+  setDynamicYAxis: (fieldKey: FieldKeyType) => void;
   exportShareSnapshot: () => ShareStateSnapshot;
   applyShareSnapshot: (snapshot: ShareStateSnapshot) => void;
   updateInput: (inputId: InputIdType, controlId: InputControlIdType, rawValue: string) => void;

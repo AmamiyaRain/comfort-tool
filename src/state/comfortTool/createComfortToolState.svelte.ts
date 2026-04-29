@@ -130,6 +130,8 @@ export function createComfortToolState(): ComfortToolController {
     compareInputIds: createDefaultCompareInputIds(),
     activeInputId: InputId.Input1,
     unitSystem: UnitSystem.SI,
+    dynamicXAxis: "tdb" as FieldKeyType,
+    dynamicYAxis: "rh" as FieldKeyType,
     isLoading: false,
     errorMessage: "",
     calculationCacheByModel: createCalculationCacheByModel(),
@@ -382,6 +384,18 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
 
+  function setDynamicXAxis(fieldKey: FieldKeyType) {
+    state.ui.dynamicXAxis = fieldKey;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
+  function setDynamicYAxis(fieldKey: FieldKeyType) {
+    state.ui.dynamicYAxis = fieldKey;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
   /**
    * Updates a specific environmental or personal input variable.
    * @param inputId The ID of the input slot being modified.
@@ -412,6 +426,8 @@ export function createComfortToolState(): ComfortToolController {
     setActiveInputId,
     toggleCompareInputVisibility,
     toggleUnitSystem,
+    setDynamicXAxis,
+    setDynamicYAxis,
     exportShareSnapshot: () => createShareStateSnapshot(state),
     applyShareSnapshot: (snapshot: ShareStateSnapshot) => {
       applyShareSnapshotToState(state, snapshot);

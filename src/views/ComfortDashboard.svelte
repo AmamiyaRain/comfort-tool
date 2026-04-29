@@ -18,6 +18,14 @@
   function handleSelectChart(nextChart: ChartId) {
     toolState.actions.setSelectedChart(nextChart);
   }
+
+  function handleSelectXAxis(fieldKey: string) {
+    toolState.actions.setDynamicXAxis(fieldKey as any);
+  }
+
+  function handleSelectYAxis(fieldKey: string) {
+    toolState.actions.setDynamicYAxis(fieldKey as any);
+  }
 </script>
 
 <main id="overview" class="bg-stone-50 px-4 py-4 sm:px-6 lg:px-8">
@@ -46,6 +54,10 @@
           chartOptions={toolState.selectors.getCurrentChartOptions()}
           selectedChart={toolState.selectors.getCurrentSelectedChart()}
           onSelectChart={handleSelectChart}
+          dynamicXAxis={toolState.state.ui.dynamicXAxis}
+          dynamicYAxis={toolState.state.ui.dynamicYAxis}
+          onSelectXAxis={handleSelectXAxis}
+          onSelectYAxis={handleSelectYAxis}
           embedded={true}
         />
       </Card>
