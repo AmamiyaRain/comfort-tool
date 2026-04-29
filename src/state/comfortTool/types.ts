@@ -84,6 +84,7 @@ export type UiState = {
   unitSystem: UnitSystemType;
   dynamicXAxis: FieldKeyType;
   dynamicYAxis: FieldKeyType;
+  chartBaselineInputId: InputIdType;
   isLoading: boolean;
   errorMessage: string;
   calculationCacheByModel: ModelCalculationCacheByModelState;
@@ -104,6 +105,7 @@ export type ComfortToolActions = {
   toggleUnitSystem: () => void;
   setDynamicXAxis: (fieldKey: FieldKeyType) => void;
   setDynamicYAxis: (fieldKey: FieldKeyType) => void;
+  setChartBaselineInputId: (inputId: InputIdType) => void;
   exportShareSnapshot: () => ShareStateSnapshot;
   applyShareSnapshot: (snapshot: ShareStateSnapshot) => void;
   updateInput: (inputId: InputIdType, controlId: InputControlIdType, rawValue: string) => void;

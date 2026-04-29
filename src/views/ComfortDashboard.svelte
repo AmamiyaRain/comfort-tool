@@ -27,6 +27,10 @@
   function handleSelectYAxis(fieldKey: string) {
     toolState.actions.setDynamicYAxis(fieldKey as FieldKey);
   }
+
+  function handleSelectBaselineInput(inputId: string) {
+    toolState.actions.setChartBaselineInputId(inputId as any);
+  }
 </script>
 
 <main id="overview" class="bg-stone-50 px-4 py-4 sm:px-6 lg:px-8">
@@ -58,6 +62,10 @@
           dynamicXAxis={toolState.state.ui.dynamicXAxis}
           dynamicYAxis={toolState.state.ui.dynamicYAxis}
           dynamicAxisOptions={toolState.selectors.getDynamicAxisOptions()}
+          baselineInputId={toolState.state.ui.chartBaselineInputId}
+          onSelectBaselineInput={handleSelectBaselineInput}
+          visibleInputIds={toolState.selectors.getVisibleInputIds()}
+          compareEnabled={toolState.state.ui.compareEnabled}
           onSelectXAxis={handleSelectXAxis}
           onSelectYAxis={handleSelectYAxis}
           embedded={true}

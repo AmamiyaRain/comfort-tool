@@ -12,7 +12,9 @@ import type {
   UtciRequestDto,
   UtciResponseDto,
   UtciChartInputsRequestDto,
+  UtciChartSourceDto,
 } from "../../../models/comfortDtos";
+import { InputId as InputIdType } from "../../../models/inputSlots";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { convertFieldValueFromSi } from "../../units";
 import { calculateUtci } from "../utci";
@@ -411,6 +413,7 @@ export function buildUtciDynamicChart(
   unitSystem: UnitSystemType = UnitSystem.SI,
   dynamicXAxis?: FieldKey,
   dynamicYAxis?: FieldKey,
+  baselineInputId?: string,
 ): PlotlyChartResponseDto {
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
@@ -418,12 +421,21 @@ export function buildUtciDynamicChart(
   if (!dynamicXAxis || !dynamicYAxis || dynamicXAxis === dynamicYAxis) {
     return {
       traces: [],
-      layout: { title: "Invalid Axes Selection" },
+      layout: {
+        title: "Invalid Axes Selection",
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#f8fafc",
+        showlegend: false,
+        margin: { l: 64, r: 24, t: 48, b: 64 },
+        xaxis: {},
+        yaxis: {},
+      },
+      annotations: [],
       source: CalculationSource.FrontendGenerated,
     };
   }
 
-  const activeInputPayload = inputs[0]?.payload;
+  const activeInputPayload = (payload.inputs[baselineInputId as any] || inputs[0]?.payload);
 
   const xMeta = fieldMetaByKey[dynamicXAxis];
   const yMeta = fieldMetaByKey[dynamicYAxis];
@@ -538,8 +550,10 @@ export function buildUtciDynamicChart(
         range: [yMin, yMax],
         gridcolor: "#e2e8f0",
       },
+      legend: { orientation: "h", x: 0, y: 1.1 },
       height: 480,
     },
+    annotations: [],
     source: CalculationSource.FrontendGenerated,
   };
 }

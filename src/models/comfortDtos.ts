@@ -2,6 +2,7 @@ import type { CalculationSource, ComfortStandard } from "./calculationMetadata";
 import type { InputId as InputIdType } from "./inputSlots";
 import type { UtciStressCategory } from "./utciStress";
 import type { UnitSystem } from "./units";
+import type { FieldKey } from "./fieldKeys";
 
 export interface PmvRequestDto {
   tdb: number;
@@ -111,6 +112,7 @@ export interface PmvChartSourceDto {
   comfortZonesByInput: CompareInputMap<ComfortZoneResponseDto>;
   dynamicXAxis?: string;
   dynamicYAxis?: string;
+  baselineInputId?: InputIdType;
 }
 
 export interface RelativeHumidityChartRequestDto extends PmvChartInputsRequestDto {}
@@ -123,6 +125,7 @@ export interface UtciChartSourceDto {
   chartRequest: UtciChartInputsRequestDto;
   dynamicXAxis?: FieldKey;
   dynamicYAxis?: FieldKey;
+  baselineInputId?: InputIdType;
 }
 
 export interface AdaptiveChartInputsRequestDto {

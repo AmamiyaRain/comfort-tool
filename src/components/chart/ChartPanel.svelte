@@ -22,6 +22,10 @@
     onSelectXAxis,
     onSelectYAxis,
     dynamicAxisOptions,
+    baselineInputId,
+    onSelectBaselineInput,
+    visibleInputIds = [],
+    compareEnabled = false,
     embedded = false,
   }: {
     title: string;
@@ -38,6 +42,10 @@
     onSelectXAxis?: (fieldKey: string) => void;
     onSelectYAxis?: (fieldKey: string) => void;
     dynamicAxisOptions?: string[];
+    baselineInputId?: string;
+    onSelectBaselineInput?: (inputId: string) => void;
+    visibleInputIds?: string[];
+    compareEnabled?: boolean;
     embedded?: boolean;
   } = $props();
 
@@ -61,6 +69,10 @@
           {dynamicXAxis}
           {dynamicYAxis}
           axisOptions={dynamicAxisOptions}
+          {baselineInputId}
+          {onSelectBaselineInput}
+          {visibleInputIds}
+          {compareEnabled}
           {onSelectXAxis}
           {onSelectYAxis}
         />

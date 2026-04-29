@@ -343,7 +343,8 @@ function buildPmvChartResult(
     return buildComparePsychrometricChart(
       chartSource.chartRequest, 
       chartSource.comfortZonesByInput, 
-      unitSystem
+      unitSystem,
+      chartSource
     );
   }
 
@@ -351,7 +352,8 @@ function buildPmvChartResult(
   if (chartId === ChartId.RelativeHumidity) {
     return buildPmvRelativeHumidityChart(
       chartSource.chartRequest, 
-      unitSystem
+      unitSystem,
+      chartSource
     );
   }
 
@@ -361,7 +363,8 @@ function buildPmvChartResult(
       chartSource.chartRequest,
       chartSource.dynamicXAxis as any,
       chartSource.dynamicYAxis as any,
-      unitSystem
+      unitSystem,
+      chartSource
     );
   }
 
@@ -561,6 +564,7 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
         comfortZonesByInput: comfortZonesByInput,
         dynamicXAxis: state.ui.dynamicXAxis,
         dynamicYAxis: state.ui.dynamicYAxis,
+        baselineInputId: state.ui.chartBaselineInputId,
       },
     };
   })

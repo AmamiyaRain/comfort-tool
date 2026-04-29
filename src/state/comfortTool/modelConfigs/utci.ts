@@ -168,7 +168,7 @@ function buildUtciChartResult(
 
   // Handle the Dynamic UTCI chart type.
   if (chartId === ChartId.UtciDynamic) {
-    return buildUtciDynamicChart(chartSource.chartRequest, resultsByInput, unitSystem, chartSource.dynamicXAxis, chartSource.dynamicYAxis);
+    return buildUtciDynamicChart(chartSource.chartRequest, resultsByInput, unitSystem, chartSource.dynamicXAxis, chartSource.dynamicYAxis, chartSource.baselineInputId);
   }
 
   // Return null if the chart ID is not supported.
@@ -256,6 +256,7 @@ builder.setCalculator((state, visibleInputIds) => {
       chartRequest: chartRequest,
       dynamicXAxis: state.ui.dynamicXAxis,
       dynamicYAxis: state.ui.dynamicYAxis,
+      baselineInputId: state.ui.chartBaselineInputId,
     },
   };
 });

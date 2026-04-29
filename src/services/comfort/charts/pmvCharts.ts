@@ -8,7 +8,9 @@ import type {
   PlotlyChartResponseDto,
   PlotTraceDto,
   PmvChartInputsRequestDto,
+  PmvChartSourceDto,
 } from "../../../models/comfortDtos";
+import { InputId as InputIdType } from "../../../models/inputSlots";
 import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import {
   convertFieldValueFromSi,
@@ -142,6 +144,8 @@ export function buildComparePsychrometricChart(
   comfortZonesByInput: ComfortZonesByInput = {},
   // Unit system (SI or IP).
   unitSystem: UnitSystemType = UnitSystem.SI,
+  // Full chart source context for baseline selection.
+  chartSource?: PmvChartSourceDto,
 ): PlotlyChartResponseDto {
   // Get the inputs for the chart.
   const inputs = getCompareInputs(payload.inputs);
@@ -159,7 +163,7 @@ export function buildComparePsychrometricChart(
   const traces: PlotTraceDto[] = [];
 
   // Generate a background contour plot for the PMV ranges
-  const activeInputPayload = inputs[0]?.payload;
+  const activeInputPayload = (payload.inputs[chartSource?.baselineInputId as InputIdType] || inputs[0]?.payload);
   if (activeInputPayload) {
     const xPoints = 100;
     const yPoints = 100;
@@ -334,10 +338,11 @@ export function buildPmvDynamicChart(
   dynamicXAxis: FieldKeyType,
   dynamicYAxis: FieldKeyType,
   unitSystem: UnitSystemType = UnitSystem.SI,
+  chartSource?: PmvChartSourceDto,
 ): PlotlyChartResponseDto {
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
-  const activeInputPayload = inputs[0]?.payload;
+  const activeInputPayload = payload.inputs[chartSource?.baselineInputId as InputIdType] || inputs[0]?.payload;
 
   const xMeta = fieldMetaByKey[dynamicXAxis];
   const yMeta = fieldMetaByKey[dynamicYAxis];
@@ -462,13 +467,14 @@ export function buildPmvDynamicChart(
 export function buildPmvRelativeHumidityChart(
   payload: PmvChartInputsRequestDto,
   unitSystem: UnitSystemType = UnitSystem.SI,
+  chartSource?: PmvChartSourceDto,
 ): PlotlyChartResponseDto {
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
   const traces: PlotTraceDto[] = [];
   const temperatureDisplayUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
 
-  const activeInputPayload = inputs[0]?.payload;
+  const activeInputPayload = (payload.inputs[chartSource?.baselineInputId as InputIdType] || inputs[0]?.payload);
   if (activeInputPayload) {
     const xPoints = 100;
     const yPoints = 100;

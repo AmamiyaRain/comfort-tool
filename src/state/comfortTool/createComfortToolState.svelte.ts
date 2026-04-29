@@ -133,6 +133,7 @@ export function createComfortToolState(): ComfortToolController {
     unitSystem: UnitSystem.SI,
     dynamicXAxis: FieldKey.DryBulbTemperature,
     dynamicYAxis: FieldKey.RelativeHumidity,
+    chartBaselineInputId: InputId.Input1,
     isLoading: false,
     errorMessage: "",
     calculationCacheByModel: createCalculationCacheByModel(),
@@ -264,6 +265,7 @@ export function createComfortToolState(): ComfortToolController {
         state.ui.unitSystem,
       );
     },
+    getCurrentBaselineInputId: () => state.ui.chartBaselineInputId,
     getCurrentChartEmptyMessage: () => chartMetaById[getCurrentSelectedChartId()].emptyMessage,
     getCurrentChartOptions: () => getActiveModelConfig().chartIds.map((chartId) => ({
       name: chartMetaById[chartId].name,
@@ -334,6 +336,7 @@ export function createComfortToolState(): ComfortToolController {
    */
   function setCompareEnabled(enabled: boolean) {
     state.ui.compareEnabled = enabled;
+    
     if (enabled) {
       state.ui.compareInputIds = normalizeCompareInputIds(state.ui.compareInputIds);
       if (state.ui.compareInputIds.length < 2) {
@@ -343,8 +346,10 @@ export function createComfortToolState(): ComfortToolController {
         state.ui.activeInputId = state.ui.compareInputIds[0] ?? InputId.Input1;
       }
     } else {
+      state.ui.chartBaselineInputId = InputId.Input1;
       state.ui.activeInputId = InputId.Input1;
     }
+    
     invalidateAllModels();
     scheduleCalculationInternal({ immediate: true });
   }
@@ -398,6 +403,12 @@ export function createComfortToolState(): ComfortToolController {
     scheduleCalculationInternal({ immediate: true });
   }
 
+  function setChartBaselineInputId(inputId: InputIdType) {
+    state.ui.chartBaselineInputId = inputId;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
   /**
    * Updates a specific environmental or personal input variable.
    * @param inputId The ID of the input slot being modified.
@@ -430,6 +441,7 @@ export function createComfortToolState(): ComfortToolController {
     toggleUnitSystem,
     setDynamicXAxis,
     setDynamicYAxis,
+    setChartBaselineInputId,
     exportShareSnapshot: () => createShareStateSnapshot(state),
     applyShareSnapshot: (snapshot: ShareStateSnapshot) => {
       applyShareSnapshotToState(state, snapshot);
