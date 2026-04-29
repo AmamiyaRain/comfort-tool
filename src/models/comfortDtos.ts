@@ -121,6 +121,8 @@ export interface UtciChartInputsRequestDto {
 
 export interface UtciChartSourceDto {
   chartRequest: UtciChartInputsRequestDto;
+  dynamicXAxis?: FieldKey;
+  dynamicYAxis?: FieldKey;
 }
 
 export interface AdaptiveChartInputsRequestDto {

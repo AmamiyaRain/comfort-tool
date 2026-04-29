@@ -257,6 +257,14 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
   // Set the option normalizer for the model.
   builder.setOptionNormalizer(normalizeAdaptiveOptionsSnapshot);
 
+  // Set the dynamic axis fields for Adaptive.
+  builder.setDynamicAxisFields([
+    FieldKey.DryBulbTemperature,
+    FieldKey.MeanRadiantTemperature,
+    FieldKey.PrevailingMeanOutdoorTemperature,
+    FieldKey.RelativeAirSpeed,
+  ]);
+
   // Set the calculation engine for the model.
   builder.setCalculator((state, visibleInputIds) => {
     // Build the chart request.

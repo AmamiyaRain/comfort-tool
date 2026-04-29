@@ -7,6 +7,7 @@
   import InputPanel from "../components/input-panel/InputPanel.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
   import type { ChartId } from "../models/chartOptions";
+  import type { FieldKey } from "../models/fieldKeys";
   import type { ComfortToolController } from "../state/comfortTool/types";
 
   let {
@@ -20,11 +21,11 @@
   }
 
   function handleSelectXAxis(fieldKey: string) {
-    toolState.actions.setDynamicXAxis(fieldKey as any);
+    toolState.actions.setDynamicXAxis(fieldKey as FieldKey);
   }
 
   function handleSelectYAxis(fieldKey: string) {
-    toolState.actions.setDynamicYAxis(fieldKey as any);
+    toolState.actions.setDynamicYAxis(fieldKey as FieldKey);
   }
 </script>
 
@@ -56,6 +57,7 @@
           onSelectChart={handleSelectChart}
           dynamicXAxis={toolState.state.ui.dynamicXAxis}
           dynamicYAxis={toolState.state.ui.dynamicYAxis}
+          dynamicAxisOptions={toolState.selectors.getDynamicAxisOptions()}
           onSelectXAxis={handleSelectXAxis}
           onSelectYAxis={handleSelectYAxis}
           embedded={true}

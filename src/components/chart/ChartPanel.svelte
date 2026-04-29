@@ -21,6 +21,7 @@
     dynamicYAxis,
     onSelectXAxis,
     onSelectYAxis,
+    dynamicAxisOptions,
     embedded = false,
   }: {
     title: string;
@@ -36,6 +37,7 @@
     dynamicYAxis?: string;
     onSelectXAxis?: (fieldKey: string) => void;
     onSelectYAxis?: (fieldKey: string) => void;
+    dynamicAxisOptions?: string[];
     embedded?: boolean;
   } = $props();
 
@@ -54,10 +56,11 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2">
-      {#if selectedChart === ChartId.PmvDynamic && dynamicXAxis && dynamicYAxis && onSelectXAxis && onSelectYAxis}
+      {#if (selectedChart === ChartId.PmvDynamic || selectedChart === ChartId.UtciDynamic) && dynamicXAxis && dynamicYAxis && onSelectXAxis && onSelectYAxis}
         <ChartAxisMenu
           {dynamicXAxis}
           {dynamicYAxis}
+          axisOptions={dynamicAxisOptions}
           {onSelectXAxis}
           {onSelectYAxis}
         />

@@ -24,7 +24,35 @@ import {
   type UtciChartResultsByInput,
 } from "../helpers";
 import { inputDisplayMetaById } from "../../../models/inputSlotPresentation";
-import { buildInputAnnotation, buildInputScatterTrace, buildRectangleSelectionShape, buildTextAnnotation } from "./plotlyBuilders";
+import { buildInputAnnotation, buildInputScatterTrace, buildRectangleSelectionShape, buildTextAnnotation, buildContourTrace } from "./plotlyBuilders";
+import { utci } from "jsthermalcomfort";
+import { mapping as utciMapping } from "jsthermalcomfort/src/models/utci";
+
+const UTCI_MIN = -50;
+const UTCI_MAX = 55;
+const UTCI_RANGE = UTCI_MAX - UTCI_MIN;
+
+function n(val: number) {
+  return (val - UTCI_MIN) / UTCI_RANGE;
+}
+
+const UTCI_COLORSCALE = [
+  [0, "#0f172a"], [n(-40), "#0f172a"], // Extreme cold
+  [n(-40), "#1d4ed8"], [n(-27), "#1d4ed8"], // Very strong cold
+  [n(-27), "#2563eb"], [n(-13), "#2563eb"], // Strong cold
+  [n(-13), "#3b82f6"], [n(0), "#3b82f6"], // Moderate cold
+  [n(0), "#7dd3fc"], [n(9), "#7dd3fc"], // Slight cold
+  [n(9), "#34d399"], [n(26), "#34d399"], // No thermal stress
+  [n(26), "#fbbf24"], [n(32), "#fbbf24"], // Moderate heat
+  [n(32), "#fb923c"], [n(38), "#fb923c"], // Strong heat
+  [n(38), "#f97316"], [n(46), "#f97316"], // Very strong heat
+  [n(46), "#dc2626"], [1, "#dc2626"], // Extreme heat
+];
+
+const UTCI_CONTOURS = {
+  coloring: "heatmap",
+  showlines: false,
+};
 
 /**
  * Retrieves or computes the UTCI result for a given input.
@@ -364,6 +392,154 @@ export function buildUtciTemperatureChart(
     // Annotations.
     annotations,
     // The source of the calculation, indicating it was generated directly in the browser.
+    source: CalculationSource.FrontendGenerated,
+  };
+}
+
+/**
+ * Builds a dynamic 2D contour chart for the UTCI model based on two user-selected input axes.
+ *
+ * @param payload The base inputs to use for the non-dynamic axes.
+ * @param cachedResultsByInput Cached calculations for the scatter points.
+ * @param unitSystem The unit system to use for display.
+ * @param dynamicXAxis The field key representing the X axis.
+ * @param dynamicYAxis The field key representing the Y axis.
+ */
+export function buildUtciDynamicChart(
+  payload: UtciChartInputsRequestDto,
+  cachedResultsByInput: UtciChartResultsByInput = {},
+  unitSystem: UnitSystemType = UnitSystem.SI,
+  dynamicXAxis?: FieldKey,
+  dynamicYAxis?: FieldKey,
+): PlotlyChartResponseDto {
+  const inputs = getCompareInputs(payload.inputs);
+  const showInputLegend = inputs.length > 1;
+
+  if (!dynamicXAxis || !dynamicYAxis || dynamicXAxis === dynamicYAxis) {
+    return {
+      traces: [],
+      layout: { title: "Invalid Axes Selection" },
+      source: CalculationSource.FrontendGenerated,
+    };
+  }
+
+  const activeInputPayload = inputs[0]?.payload;
+
+  const xMeta = fieldMetaByKey[dynamicXAxis];
+  const yMeta = fieldMetaByKey[dynamicYAxis];
+
+  const xMin = convertFieldValueFromSi(dynamicXAxis, xMeta.minValue, unitSystem);
+  const xMax = convertFieldValueFromSi(dynamicXAxis, xMeta.maxValue, unitSystem);
+  const yMin = convertFieldValueFromSi(dynamicYAxis, yMeta.minValue, unitSystem);
+  const yMax = convertFieldValueFromSi(dynamicYAxis, yMeta.maxValue, unitSystem);
+
+  const xPoints = 100;
+  const yPoints = 100;
+  const xValues: number[] = [];
+  const yValues: number[] = [];
+
+  for (let i = 0; i < xPoints; i++) {
+    xValues.push(xMin + (xMax - xMin) * (i / (xPoints - 1)));
+  }
+  for (let i = 0; i < yPoints; i++) {
+    yValues.push(yMin + (yMax - yMin) * (i / (yPoints - 1)));
+  }
+
+  const zValues: number[][] = [];
+  const textValues: string[][] = [];
+
+  if (activeInputPayload) {
+    for (let i = 0; i < yPoints; i++) {
+      const row: number[] = [];
+      const textRow: string[] = [];
+      const ySi = dynamicYAxis === FieldKey.RelativeHumidity || dynamicYAxis === FieldKey.RelativeAirSpeed || dynamicYAxis === FieldKey.MetabolicRate || dynamicYAxis === FieldKey.ClothingInsulation || dynamicYAxis === FieldKey.ExternalWork 
+                  ? yValues[i]
+                  : (unitSystem === UnitSystem.IP ? (yValues[i] - 32) * 5/9 : yValues[i]);
+
+      for (let j = 0; j < xPoints; j++) {
+        const xSi = dynamicXAxis === FieldKey.RelativeHumidity || dynamicXAxis === FieldKey.RelativeAirSpeed || dynamicXAxis === FieldKey.MetabolicRate || dynamicXAxis === FieldKey.ClothingInsulation || dynamicXAxis === FieldKey.ExternalWork
+                    ? xValues[j]
+                    : (unitSystem === UnitSystem.IP ? (xValues[j] - 32) * 5/9 : xValues[j]);
+
+        // Copy baseline inputs
+        const pointArgs = {
+          ...activeInputPayload,
+          [dynamicXAxis]: xSi,
+          [dynamicYAxis]: ySi,
+        };
+
+        try {
+          const result = utci(pointArgs.tdb, pointArgs.tr, pointArgs.v, pointArgs.rh, "SI", true, false);
+          if (typeof result === "object" && typeof result.utci === "number") {
+            row.push(result.utci);
+            textRow.push(utciStressShortLabelByCategory[String(result.stress_category) as any] ?? String(result.stress_category));
+          } else {
+            row.push(NaN);
+            textRow.push("");
+          }
+        } catch (e) {
+          row.push(NaN);
+          textRow.push("");
+        }
+      }
+      zValues.push(row);
+      textValues.push(textRow);
+    }
+  }
+
+  const traces: PlotTraceDto[] = [];
+
+  if (zValues.length > 0) {
+    traces.push(buildContourTrace({
+      name: "UTCI Zones",
+      x: xValues,
+      y: yValues,
+      z: zValues,
+      text: textValues,
+      colorscale: UTCI_COLORSCALE,
+      contours: UTCI_CONTOURS,
+      zmin: UTCI_MIN,
+      zmax: UTCI_MAX,
+      hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>UTCI: %{z:.1f}<extra></extra>`,
+    }));
+  }
+
+  inputs.forEach(({ inputId, payload: inputPayload }) => {
+    let inputX = inputPayload[dynamicXAxis as keyof typeof inputPayload] as number;
+    let inputY = inputPayload[dynamicYAxis as keyof typeof inputPayload] as number;
+    
+    inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
+    inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
+
+    traces.push(buildInputScatterTrace({
+      inputId,
+      x: roundValue(inputX),
+      y: roundValue(inputY),
+      showLegend: showInputLegend,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+    }));
+  });
+
+  return {
+    traces,
+    layout: {
+      title: `UTCI Dynamic Chart (${xMeta.label} vs ${yMeta.label})`,
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#f8fafc",
+      showlegend: showInputLegend,
+      margin: { l: 64, r: 24, t: 48, b: 64 },
+      xaxis: {
+        title: `${xMeta.label} (${xMeta.displayUnits[unitSystem]})`,
+        range: [xMin, xMax],
+        gridcolor: "#e2e8f0",
+      },
+      yaxis: {
+        title: `${yMeta.label} (${yMeta.displayUnits[unitSystem]})`,
+        range: [yMin, yMax],
+        gridcolor: "#e2e8f0",
+      },
+      height: 480,
+    },
     source: CalculationSource.FrontendGenerated,
   };
 }

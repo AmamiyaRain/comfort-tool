@@ -7,23 +7,16 @@
   let {
     dynamicXAxis,
     dynamicYAxis,
+    axisOptions = [],
     onSelectXAxis,
     onSelectYAxis,
   }: {
     dynamicXAxis: string;
     dynamicYAxis: string;
+    axisOptions?: string[];
     onSelectXAxis: (fieldKey: string) => void;
     onSelectYAxis: (fieldKey: string) => void;
   } = $props();
-
-  const axisOptions = [
-    FieldKey.DryBulbTemperature,
-    FieldKey.MeanRadiantTemperature,
-    FieldKey.RelativeAirSpeed,
-    FieldKey.RelativeHumidity,
-    FieldKey.MetabolicRate,
-    FieldKey.ClothingInsulation,
-  ];
 
   const currentXLabel = $derived(fieldMetaByKey[dynamicXAxis as FieldKey]?.label ?? "X-Axis");
   const currentYLabel = $derived(fieldMetaByKey[dynamicYAxis as FieldKey]?.label ?? "Y-Axis");

@@ -11,6 +11,7 @@ import {
 } from "../../models/inputSlots";
 import { chartMetaById, type ChartId as ChartIdType } from "../../models/chartOptions";
 import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
+import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import { allFieldOrder, fieldMetaByKey } from "../../models/inputFieldsMeta";
 import type { InputControlId as InputControlIdType } from "../../models/inputControls";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
@@ -130,8 +131,8 @@ export function createComfortToolState(): ComfortToolController {
     compareInputIds: createDefaultCompareInputIds(),
     activeInputId: InputId.Input1,
     unitSystem: UnitSystem.SI,
-    dynamicXAxis: "tdb" as FieldKeyType,
-    dynamicYAxis: "rh" as FieldKeyType,
+    dynamicXAxis: FieldKey.DryBulbTemperature,
+    dynamicYAxis: FieldKey.RelativeHumidity,
     isLoading: false,
     errorMessage: "",
     calculationCacheByModel: createCalculationCacheByModel(),
@@ -271,6 +272,7 @@ export function createComfortToolState(): ComfortToolController {
     getCurrentSelectedChart: () => getCurrentSelectedChartId(),
     getCurrentChartHeightClass: () => chartMetaById[getCurrentSelectedChartId()].heightClass,
     getCurrentCacheStatus: () => getCurrentModelCache().status,
+    getDynamicAxisOptions: () => getActiveModelConfig().dynamicAxisFields || [],
   };
 
   const calculationManager = createCalculationManager(state, getVisibleInputIds);

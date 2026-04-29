@@ -120,6 +120,7 @@ export type ComfortToolSelectors = {
   getCurrentSelectedChart: () => ChartIdType;
   getCurrentChartHeightClass: () => string;
   getCurrentCacheStatus: () => CalculationCacheStatus;
+  getDynamicAxisOptions: () => FieldKeyType[];
 };
 
 export type ComfortToolController = {

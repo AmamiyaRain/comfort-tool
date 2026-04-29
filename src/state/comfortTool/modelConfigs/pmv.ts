@@ -485,6 +485,14 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
   .setDefaultOptions(Object.assign({}, defaultPmvOptions))
   // Set the option normalizer for PMV.
   .setOptionNormalizer(normalizePmvOptionsSnapshot)
+  .setDynamicAxisFields([
+    FieldKey.DryBulbTemperature,
+    FieldKey.MeanRadiantTemperature,
+    FieldKey.RelativeAirSpeed,
+    FieldKey.RelativeHumidity,
+    FieldKey.MetabolicRate,
+    FieldKey.ClothingInsulation,
+  ])
   // Set the calculator for PMV.
   .setCalculator((state, visibleInputIds) => {
     // Generate the request DTO for the chart.

@@ -4,6 +4,7 @@
  */
 import type { InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../../../models/comfortModels";
+import { FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import type { PlotlyChartResponseDto } from "../../../models/comfortDtos";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
 import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
@@ -52,6 +53,7 @@ export interface ComfortModelDefinition<ResultType, ChartSourceType> {
     resultsByInput: Record<InputIdType, ResultType | null>,
     unitSystem: UnitSystemType,
   ) => PlotlyChartResponseDto | null;
+  dynamicAxisFields: FieldKeyType[];
 }
 
 export const comfortModelConfigs = {
