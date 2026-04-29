@@ -49,8 +49,35 @@ export function buildAdaptiveChart(
   // Build the background comfort zones and data points for each input.
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const v = inputPayload.v;
-    // Generate 24 points along the TRM axis for smooth boundary curves.
-    const trmPoints = Array.from({ length: 24 }, (_, i) => trmMin + ((trmMax - trmMin) * i) / 23);
+    // Generate more points along the TRM axis for smoother boundary curves and sharp steps.
+    const baseTrmPoints = Array.from({ length: 200 }, (_, i) => trmMin + ((trmMax - trmMin) * i) / 199);
+    
+    // Find transition TRM values where the boundary crosses 25°C.
+    const findTransitionTrm = (limit: number) => {
+      // T_cmf + limit = 25
+      // 0.3x * trm + offset + limit = 25
+      const offset = isAshrae ? 17.8 : 18.8;
+      const slope = isAshrae ? 0.31 : 0.33;
+      
+      // The TRM where the base boundary hits 25.0
+      return (25.0 - limit - offset) / slope;
+    };
+
+    const trmPoints: number[] = [...baseTrmPoints];
+    if (isAshrae) {
+      const t80 = findTransitionTrm(3.5);
+      const t90 = findTransitionTrm(2.5);
+      if (t80 && t80 > trmMin && t80 < trmMax) trmPoints.push(t80 - 0.0001, t80 + 0.0001);
+      if (t90 && t90 > trmMin && t90 < trmMax) trmPoints.push(t90 - 0.0001, t90 + 0.0001);
+    } else {
+      const tI = findTransitionTrm(2.0);
+      const tII = findTransitionTrm(3.0);
+      const tIII = findTransitionTrm(4.0);
+      if (tI && tI > trmMin && tI < trmMax) trmPoints.push(tI - 0.0001, tI + 0.0001);
+      if (tII && tII > trmMin && tII < trmMax) trmPoints.push(tII - 0.0001, tII + 0.0001);
+      if (tIII && tIII > trmMin && tIII < trmMax) trmPoints.push(tIII - 0.0001, tIII + 0.0001);
+    }
+    trmPoints.sort((a, b) => a - b);
 
     // ASHRAE acceptability limits arrays.
     let lower80: number[] = [];
@@ -70,14 +97,12 @@ export function buildAdaptiveChart(
       if (isAshrae) {
         // ASHRAE 55 neutral temperature formula.
         const t_cmf = 0.31 * trm + 17.8;
-        // Calculate upper bounds including potential Cooling Effect (CE).
-        let up80_no_ce = t_cmf + 3.5;
-        let ce80 = getCe(v, up80_no_ce);
-        let up80 = up80_no_ce + ce80;
+        
+        const up80_base = t_cmf + 3.5;
+        const up80 = up80_base > 25.0 ? up80_base + getCe(v, up80_base + getCe(v, 25.1)) : up80_base;
 
-        let up90_no_ce = t_cmf + 2.5;
-        let ce90 = getCe(v, up90_no_ce);
-        let up90 = up90_no_ce + ce90;
+        const up90_base = t_cmf + 2.5;
+        const up90 = up90_base > 25.0 ? up90_base + getCe(v, up90_base + getCe(v, 25.1)) : up90_base;
 
         lower80.push(t_cmf - 3.5);
         upper80.push(up80);
@@ -86,17 +111,15 @@ export function buildAdaptiveChart(
       } else {
         // EN 16798-1 neutral temperature formula.
         const t_cmf = 0.33 * trm + 18.8;
-        let upI_no_ce = t_cmf + 2.0;
-        let ceI = getCe(v, upI_no_ce);
-        let upI = upI_no_ce + ceI;
+        
+        const upI_base = t_cmf + 2.0;
+        const upI = upI_base > 25.0 ? upI_base + getCe(v, upI_base + getCe(v, 25.1)) : upI_base;
 
-        let upII_no_ce = t_cmf + 3.0;
-        let ceII = getCe(v, upII_no_ce);
-        let upII = upII_no_ce + ceII;
+        const upII_base = t_cmf + 3.0;
+        const upII = upII_base > 25.0 ? upII_base + getCe(v, upII_base + getCe(v, 25.1)) : upII_base;
 
-        let upIII_no_ce = t_cmf + 4.0;
-        let ceIII = getCe(v, upIII_no_ce);
-        let upIII = upIII_no_ce + ceIII;
+        const upIII_base = t_cmf + 4.0;
+        const upIII = upIII_base > 25.0 ? upIII_base + getCe(v, upIII_base + getCe(v, 25.1)) : upIII_base;
 
         lowerI.push(t_cmf - 3.0);
         upperI.push(upI);

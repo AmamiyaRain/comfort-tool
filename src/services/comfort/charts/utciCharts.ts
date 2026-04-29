@@ -283,21 +283,8 @@ export function buildUtciTemperatureChart(
       markerSize: 13,
     }));
 
-    annotations.push(buildInputAnnotation({
-      // Input ID.
-      inputId,
-      // X position.
-      x: displayDryBulb,
-      // Y position.
-      y: displayUtci,
-      // Text showing input label and temperature offset.
-      text: `${inputLabel}<br>${formatSignedTemperature(temperatureOffset, unitSystem)}`,
-      // Show arrow.
-      showArrow: true,
-      // Text size.
-      textSize: 11,
-    }));
   });
+
 
   // Return the chart traces and layout.
   return {
