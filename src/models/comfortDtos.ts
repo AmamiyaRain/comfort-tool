@@ -56,6 +56,24 @@ export interface UtciResponseDto {
   source: CalculationSource;
 }
 
+export interface HeatIndexRequestDto {
+  tdb: number;
+  rh: number;
+  v?: number;
+  units: UnitSystem;
+}
+
+export interface HeatIndexResponseDto {
+  hi: number;
+  category: string;
+  humidex?: number;
+  humidexDiscomfort?: string;
+  wci?: number;
+  wciTemp?: number;
+  wciZone?: string;
+  source: CalculationSource;
+}
+
 export interface AdaptiveRequestDto {
   tdb: number;
   tr: number;
@@ -126,6 +144,14 @@ export interface UtciChartSourceDto {
   dynamicXAxis?: FieldKey;
   dynamicYAxis?: FieldKey;
   baselineInputId?: InputIdType;
+}
+
+export interface HeatIndexChartInputsRequestDto {
+  inputs: CompareInputMap<HeatIndexRequestDto>;
+}
+
+export interface HeatIndexChartSourceDto {
+  chartRequest: HeatIndexChartInputsRequestDto;
 }
 
 export interface AdaptiveChartInputsRequestDto {

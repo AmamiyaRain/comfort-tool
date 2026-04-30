@@ -3,11 +3,12 @@ export const ComfortModel = {
   Utci: "UTCI",
   AdaptiveAshrae: "ADAPTIVE_ASHRAE",
   AdaptiveEn: "ADAPTIVE_EN",
+  HeatIndex: "HEAT_INDEX",
 } as const;
 
 export type ComfortModel = (typeof ComfortModel)[keyof typeof ComfortModel];
 // The order in which the comfort models are displayed in the dropdown.
-export const comfortModelOrder: ComfortModel[] = [ComfortModel.Pmv, ComfortModel.Utci, ComfortModel.AdaptiveAshrae, ComfortModel.AdaptiveEn];
+export const comfortModelOrder: ComfortModel[] = [ComfortModel.Pmv, ComfortModel.Utci, ComfortModel.AdaptiveAshrae, ComfortModel.AdaptiveEn, ComfortModel.HeatIndex];
 
 export const comfortModelMetaById: Record<
   ComfortModel,
@@ -31,5 +32,9 @@ export const comfortModelMetaById: Record<
   [ComfortModel.AdaptiveEn]: {
     label: "Adaptive (EN 16798-1)",
     description: "EN 16798-1 Adaptive thermal comfort model for naturally ventilated buildings.",
+  },
+  [ComfortModel.HeatIndex]: {
+    label: "Heat/Cold Indices",
+    description: "Various heat and cold indices used to calculate the apparent temperature of the thermal environment.",
   },
 };

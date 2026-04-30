@@ -13,6 +13,8 @@ import type {
   UtciResponseDto,
   AdaptiveResponseDto,
   AdaptiveChartSourceDto,
+  HeatIndexResponseDto,
+  HeatIndexChartSourceDto,
 } from "../../models/comfortDtos";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
@@ -27,7 +29,7 @@ export type InputsByInputState = Record<InputIdType, InputState>;
 export type ModelOptionsState = Partial<Record<OptionKeyType, string>>;
 export type ModelOptionsByModelState = Record<ComfortModelType, ModelOptionsState>;
 export type SelectedChartByModelState = Record<ComfortModelType, ChartIdType>;
-export type ResultTone = "default" | "success" | "danger";
+export type ResultTone = "default" | "success" | "danger" | "warning" | "hiCaution" | "hiExtremeCaution" | "hiDanger" | "hiExtremeDanger";
 
 export type ResultCellViewModel = {
   text: string;
@@ -67,11 +69,20 @@ export type AdaptiveCalculationCache = ModelCalculationCacheBase & {
   chartSource: AdaptiveChartSourceDto | null;
 };
 
+export type HeatIndexResultsState = Record<InputIdType, HeatIndexResponseDto | null>;
+
+export type HeatIndexCalculationCache = ModelCalculationCacheBase & {
+  resultsByInput: HeatIndexResultsState;
+  chartSource: HeatIndexChartSourceDto | null;
+};
+
+
 export type ModelCalculationCacheByModelState = {
   [ComfortModel.Pmv]: PmvCalculationCache;
   [ComfortModel.Utci]: UtciCalculationCache;
   [ComfortModel.AdaptiveAshrae]: AdaptiveCalculationCache;
   [ComfortModel.AdaptiveEn]: AdaptiveCalculationCache;
+  [ComfortModel.HeatIndex]: HeatIndexCalculationCache;
 };
 
 export type UiState = {

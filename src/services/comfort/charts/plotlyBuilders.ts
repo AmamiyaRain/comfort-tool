@@ -9,6 +9,7 @@ export interface InputScatterTraceOptions {
   showLegend: boolean;
   hovertemplate: string;
   markerSize?: number;
+  color?: string;
 }
 
 /**
@@ -26,9 +27,11 @@ export function buildInputScatterTrace({
   showLegend,
   hovertemplate,
   markerSize = 12,
+  color,
 }: InputScatterTraceOptions): PlotTraceDto {
   const inputStyle = inputChartStyleById[inputId];
   const inputLabel = inputDisplayMetaById[inputId].label;
+  const markerColor = color ?? inputStyle.marker;
 
   return {
     type: "scatter",
@@ -38,7 +41,7 @@ export function buildInputScatterTrace({
     y: [y],
     showlegend: showLegend,
     line: {},
-    marker: { color: inputStyle.marker, size: markerSize },
+    marker: { color: markerColor, size: markerSize, line: { color: "#000000", width: 1.5 } },
     hovertemplate,
   };
 }
@@ -242,6 +245,7 @@ export interface ContourTraceOptions {
   showscale?: boolean;
   zmin?: number;
   zmax?: number;
+  colorbar?: any;
 }
 
 /**
@@ -262,6 +266,7 @@ export function buildContourTrace({
   showscale = false,
   zmin,
   zmax,
+  colorbar,
 }: ContourTraceOptions): PlotTraceDto {
   return {
     type: "contour",
@@ -275,6 +280,7 @@ export function buildContourTrace({
     showscale,
     zmin,
     zmax,
+    colorbar,
     hoverinfo: "all",
     hovertemplate,
   };

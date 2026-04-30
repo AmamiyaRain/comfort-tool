@@ -7,6 +7,9 @@ export const ChartId = {
   AdaptiveDynamic: "adaptiveDynamic",
   PmvDynamic: "pmvDynamic",
   UtciDynamic: "utciDynamic",
+  HeatIndexRanges: "heatIndexRanges",
+  Humidex: "humidex",
+  WindChill: "windChill",
 } as const;
 
 export type ChartId = (typeof ChartId)[keyof typeof ChartId];
@@ -57,6 +60,21 @@ export const chartMetaById: Record<
   [ChartId.UtciDynamic]: {
     name: "Dynamic UTCI Chart",
     emptyMessage: "No UTCI dynamic chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.HeatIndexRanges]: {
+    name: "Heat Index Chart",
+    emptyMessage: "No heat index chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.Humidex]: {
+    name: "Humidex Chart",
+    emptyMessage: "No humidex chart yet.",
+    heightClass: "h-[480px] xl:h-[480px]",
+  },
+  [ChartId.WindChill]: {
+    name: "Wind Chill Chart",
+    emptyMessage: "No wind chill chart yet.",
     heightClass: "h-[480px] xl:h-[480px]",
   },
 };

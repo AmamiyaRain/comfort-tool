@@ -117,6 +117,7 @@ function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
     [ComfortModel.Utci]: createEmptyCalculationCache(),
     [ComfortModel.AdaptiveAshrae]: createEmptyCalculationCache(),
     [ComfortModel.AdaptiveEn]: createEmptyCalculationCache(),
+    [ComfortModel.HeatIndex]: createEmptyCalculationCache(),
   } as ModelCalculationCacheByModelState;
 }
 
@@ -254,6 +255,7 @@ export function createComfortToolState(): ComfortToolController {
         getVisibleInputIds(),
         state.ui.unitSystem,
         state.ui.modelOptionsByModel[state.ui.selectedModel],
+        getCurrentSelectedChartId(),
       );
     },
     getCurrentChartResult: () => {

@@ -248,6 +248,7 @@ function buildPmvResultSections(
   visibleInputIds: InputIdType[],
   unitSystem: UnitSystemType,
   options: any,
+  selectedChartId: ChartIdType,
 ) {
   // Normalize the model options for PMV.
   const normalizedOptions = normalizePmvOptions(options);

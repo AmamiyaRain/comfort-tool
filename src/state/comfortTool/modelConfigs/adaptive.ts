@@ -297,7 +297,7 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
   });
 
   // Set the result builder for the model.
-  builder.setResultBuilder((results, visibleInputIds, unitSystem, options) => {
+  builder.setResultBuilder((results, visibleInputIds, unitSystem, options, selectedChartId) => {
     // The list of result sections.
     const sections = [];
 

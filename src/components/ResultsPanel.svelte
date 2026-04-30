@@ -51,11 +51,19 @@
             <TableBodyCell
               class={!cell
                 ? "text-stone-400"
-                : cell.tone === "success"
-                  ? "text-emerald-700"
-                  : cell.tone === "danger"
-                    ? "text-red-600"
-                    : ""}
+                : {
+                    success: "text-emerald-700",
+                    danger: "text-red-600",
+                    warning: "text-orange-500",
+                    hiCaution: "text-yellow-500",
+                    hiExtremeCaution: "text-yellow-600",
+                    hiDanger: "text-orange-500",
+                    hiExtremeDanger: "text-red-600",
+                    wcSafe: "text-[#47b5ff]",
+                    wc30min: "text-[#64b5f5]",
+                    wc10min: "text-[#5d6ac0]",
+                    wc2min: "text-[#8e24a9]",
+                  }[cell.tone] || ""}
             >
               {#if cell}
                 <!-- Display the calculated values -->
