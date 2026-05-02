@@ -304,7 +304,8 @@ export function buildAdaptiveDynamicChart(
   const xMax = convertFieldValueFromSi(dynamicXAxis, xMeta.maxValue, unitSystem);
   const yMin = convertFieldValueFromSi(dynamicYAxis, yMeta.minValue, unitSystem);
   const yMax = convertFieldValueFromSi(dynamicYAxis, yMeta.maxValue, unitSystem);
-    const xPoints = 50;
+
+    const xPoints = 50;
     const yPoints = 50;
     const xValues: number[] = [];
     const yValues: number[] = [];
@@ -427,6 +428,7 @@ export function buildAdaptiveDynamicChart(
         zmax: isAshrae ? 4 : 5,
         hoverinfo: "text",
         hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><extra></extra>`,
+        opacity: 0.80,
       } as any);
     }
 

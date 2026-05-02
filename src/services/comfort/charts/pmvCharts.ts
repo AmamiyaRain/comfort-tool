@@ -165,8 +165,8 @@ export function buildComparePsychrometricChart(
   // Generate a background contour plot for the PMV ranges
   const activeInputPayload = (payload.inputs[chartSource?.baselineInputId as InputIdType] || inputs[0]?.payload);
   if (activeInputPayload) {
-    const xPoints = 100;
-    const yPoints = 100;
+    const xPoints = 50;
+    const yPoints = 50;
     const xValuesSi: number[] = [];
     const yValuesSi: number[] = [];
     for (let i = 0; i < xPoints; i++) xValuesSi.push(chartRange.tdbMin + (chartRange.tdbMax - chartRange.tdbMin) * (i / (xPoints - 1)));
@@ -213,6 +213,7 @@ export function buildComparePsychrometricChart(
       zmin: -3.5,
       zmax: 3.5,
       hovertemplate: `Tdb: %{x:.1f} ${temperatureDisplayUnits}<br>Humidity ratio: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      opacity: 0.80,
     }));
   }
 
@@ -352,8 +353,8 @@ export function buildPmvDynamicChart(
   const yMin = convertFieldValueFromSi(dynamicYAxis, yMeta.minValue, unitSystem);
   const yMax = convertFieldValueFromSi(dynamicYAxis, yMeta.maxValue, unitSystem);
 
-  const xPoints = 100;
-  const yPoints = 100;
+  const xPoints = 50;
+  const yPoints = 50;
   const xValues: number[] = [];
   const yValues: number[] = [];
 
@@ -406,6 +407,7 @@ export function buildPmvDynamicChart(
   const traces: PlotTraceDto[] = [];
 
   if (zValues.length > 0) {
+    // PMV dynamic chart contour plot.
     traces.push(buildContourTrace({
       name: "PMV",
       x: xValues,
@@ -418,6 +420,7 @@ export function buildPmvDynamicChart(
       zmin: -3.5,
       zmax: 3.5,
       hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      opacity: 0.80,
     }));
   }
 
@@ -476,8 +479,8 @@ export function buildPmvRelativeHumidityChart(
 
   const activeInputPayload = (payload.inputs[chartSource?.baselineInputId as InputIdType] || inputs[0]?.payload);
   if (activeInputPayload) {
-    const xPoints = 100;
-    const yPoints = 100;
+    const xPoints = 50;
+    const yPoints = 50;
     const xValuesSi: number[] = [];
     const yValuesSi: number[] = [];
     for (let i = 0; i < xPoints; i++) xValuesSi.push(10 + (40 - 10) * (i / (xPoints - 1)));
@@ -520,6 +523,7 @@ export function buildPmvRelativeHumidityChart(
       zmin: -3.5,
       zmax: 3.5,
       hovertemplate: `Tdb: %{x:.1f} ${temperatureDisplayUnits}<br>RH: %{y:.0f}%<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      opacity: 0.80,
     }));
   }
 

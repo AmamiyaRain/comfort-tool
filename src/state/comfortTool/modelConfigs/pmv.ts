@@ -26,7 +26,7 @@ import {
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { CalculationSource, ComfortStandard } from "../../../models/calculationMetadata";
-import { type ComfortZonesByInput } from "../../../services/comfort/helpers";
+import { type ComfortZonesByInput, getPmvZone } from "../../../services/comfort/helpers";
 import {
   buildComparePsychrometricChart,
   buildPmvDynamicChart,
@@ -294,6 +294,13 @@ function buildPmvResultSections(
         text: result.pmv.toFixed(2),
         tone: "default",
       };
+    }),
+  );
+  
+  // Add the "Zone" section. Example: "Neutral"
+  sections.push(
+    buildResultSection("Zone", results, visibleInputIds, (result) => {
+      return getPmvZone(result.pmv);
     }),
   );
 

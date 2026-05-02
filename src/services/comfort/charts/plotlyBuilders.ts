@@ -246,6 +246,7 @@ export interface ContourTraceOptions {
   zmin?: number;
   zmax?: number;
   colorbar?: any;
+  opacity?: number;
 }
 
 /**
@@ -267,6 +268,7 @@ export function buildContourTrace({
   zmin,
   zmax,
   colorbar,
+  opacity,
 }: ContourTraceOptions): PlotTraceDto {
   return {
     type: "contour",
@@ -281,6 +283,7 @@ export function buildContourTrace({
     zmin,
     zmax,
     colorbar,
+    opacity,
     hoverinfo: "all",
     hovertemplate,
   };

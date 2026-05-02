@@ -15,6 +15,8 @@ import type {
 } from "../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 import { convertFieldValueFromSi } from "../units";
+import type { ResultTone } from "../../state/comfortTool/types";
+import { UtciStressCategory } from "../../models/utciStress";
 
 // Heat Index thresholds in Celsius
 export const HI_CAUTION = 27;
@@ -43,6 +45,38 @@ export function getHeatIndexCategory(hiSi: number): string {
   if (hiSi >= HI_EXTREME_CAUTION) return "Extreme Caution";
   if (hiSi >= HI_CAUTION) return "Caution";
   return "Safe";
+}
+
+/**
+ * Determines the PMV thermal sensation zone.
+ */
+export function getPmvZone(pmv: number): { text: string; tone: ResultTone } {
+  if (pmv >= 2.5) return { text: "Hot", tone: "pmvHot" };
+  if (pmv >= 1.5) return { text: "Warm", tone: "pmvWarm" };
+  if (pmv >= 0.5) return { text: "Slightly Warm", tone: "pmvSlightlyWarm" };
+  if (pmv > -0.5) return { text: "Neutral", tone: "pmvNeutral" };
+  if (pmv > -1.5) return { text: "Slightly Cool", tone: "pmvSlightlyCool" };
+  if (pmv > -2.5) return { text: "Cool", tone: "pmvCool" };
+  return { text: "Cold", tone: "pmvCold" };
+}
+
+/**
+ * Determines the UTCI stress category tone.
+ */
+export function getUtciStressTone(category: string): ResultTone {
+  switch (category) {
+    case UtciStressCategory.ExtremeColdStress: return "utciExtremeCold";
+    case UtciStressCategory.VeryStrongColdStress: return "utciVeryStrongCold";
+    case UtciStressCategory.StrongColdStress: return "utciStrongCold";
+    case UtciStressCategory.ModerateColdStress: return "utciModerateCold";
+    case UtciStressCategory.SlightColdStress: return "utciSlightCold";
+    case UtciStressCategory.NoThermalStress: return "utciNoStress";
+    case UtciStressCategory.ModerateHeatStress: return "utciModerateHeat";
+    case UtciStressCategory.StrongHeatStress: return "utciStrongHeat";
+    case UtciStressCategory.VeryStrongHeatStress: return "utciVeryStrongHeat";
+    case UtciStressCategory.ExtremeHeatStress: return "utciExtremeHeat";
+    default: return "default";
+  }
 }
 
 /**

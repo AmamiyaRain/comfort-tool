@@ -13,8 +13,8 @@ import type {
   UtciResponseDto,
   AdaptiveResponseDto,
   AdaptiveChartSourceDto,
-  HeatIndexResponseDto,
-  HeatIndexChartSourceDto,
+  ThermalIndicesResponseDto,
+  ThermalIndicesChartSourceDto,
 } from "../../models/comfortDtos";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
@@ -24,67 +24,87 @@ import type { UnitSystem as UnitSystemType } from "../../models/units";
 import { ComfortModel } from "../../models/comfortModels";
 import type { ShareStateSnapshot } from "./shareState";
 
+// State for a single input.
 export type InputState = Record<FieldKeyType, number>;
+// State for multiple inputs.
 export type InputsByInputState = Record<InputIdType, InputState>;
+// State for model options.
 export type ModelOptionsState = Partial<Record<OptionKeyType, string>>;
+// State for model options by model.
 export type ModelOptionsByModelState = Record<ComfortModelType, ModelOptionsState>;
+// State of the currently selected chart for each model.
 export type SelectedChartByModelState = Record<ComfortModelType, ChartIdType>;
-export type ResultTone = "default" | "success" | "danger" | "warning" | "hiCaution" | "hiExtremeCaution" | "hiDanger" | "hiExtremeDanger";
 
+// Defines the color coding for the result cells.
+export type ResultTone = "default" | "success" | "danger" | "warning" | "hiCaution" | "hiExtremeCaution" | "hiDanger" | "hiExtremeDanger" | "wcSafe" | "wc30min" | "wc10min" | "wc2min" | "pmvCold" | "pmvCool" | "pmvSlightlyCool" | "pmvNeutral" | "pmvSlightlyWarm" | "pmvWarm" | "pmvHot" | "utciExtremeCold" | "utciVeryStrongCold" | "utciStrongCold" | "utciModerateCold" | "utciSlightCold" | "utciNoStress" | "utciModerateHeat" | "utciStrongHeat" | "utciVeryStrongHeat" | "utciExtremeHeat";
+
+// View model for a single result cell.
 export type ResultCellViewModel = {
   text: string;
   subtext?: string;
   tone?: ResultTone;
 };
 
+// View model for a single result section.
 export type ResultSectionViewModel = {
   title: string;
   group?: string;
   valuesByInput: Partial<Record<InputIdType, ResultCellViewModel | null>>;
 };
 
+// Cache status for calculations.
 export type CalculationCacheStatus = "empty" | "stale" | "ready";
+// State for PMV results.
 export type PmvResultsState = Record<InputIdType, PmvResponseDto | null>;
+// State for UTCI results.
 export type UtciResultsState = Record<InputIdType, UtciResponseDto | null>;
 
+// Base type for model calculation caches.
 type ModelCalculationCacheBase = {
   status: CalculationCacheStatus;
   lastVisibleInputIds: InputIdType[];
 };
 
+// PMV Calculation Cache
 export type PmvCalculationCache = ModelCalculationCacheBase & {
   resultsByInput: PmvResultsState;
   chartSource: PmvChartSourceDto | null;
 };
 
+// UTCI Calculation Cache
 export type UtciCalculationCache = ModelCalculationCacheBase & {
   resultsByInput: UtciResultsState;
   chartSource: UtciChartSourceDto | null;
 };
 
+// Adaptive Results State
 export type AdaptiveResultsState = Record<InputIdType, AdaptiveResponseDto | null>;
 
+// Adaptive Calculation Cache
 export type AdaptiveCalculationCache = ModelCalculationCacheBase & {
   resultsByInput: AdaptiveResultsState;
   chartSource: AdaptiveChartSourceDto | null;
 };
 
-export type HeatIndexResultsState = Record<InputIdType, HeatIndexResponseDto | null>;
+// Thermal Indices Results State
+export type ThermalIndicesResultsState = Record<InputIdType, ThermalIndicesResponseDto | null>;
 
-export type HeatIndexCalculationCache = ModelCalculationCacheBase & {
-  resultsByInput: HeatIndexResultsState;
-  chartSource: HeatIndexChartSourceDto | null;
+// Thermal Indices Calculation Cache
+export type ThermalIndicesCalculationCache = ModelCalculationCacheBase & {
+  resultsByInput: ThermalIndicesResultsState;
+  chartSource: ThermalIndicesChartSourceDto | null;
 };
 
-
+// Mapping of models to their respective calculation caches.
 export type ModelCalculationCacheByModelState = {
   [ComfortModel.Pmv]: PmvCalculationCache;
   [ComfortModel.Utci]: UtciCalculationCache;
   [ComfortModel.AdaptiveAshrae]: AdaptiveCalculationCache;
   [ComfortModel.AdaptiveEn]: AdaptiveCalculationCache;
-  [ComfortModel.HeatIndex]: HeatIndexCalculationCache;
+  [ComfortModel.HeatIndex]: ThermalIndicesCalculationCache;
 };
 
+// UI state for the comfort tool.
 export type UiState = {
   selectedModel: ComfortModelType;
   selectedChartByModel: SelectedChartByModelState;
@@ -101,11 +121,13 @@ export type UiState = {
   calculationCacheByModel: ModelCalculationCacheByModelState;
 };
 
+// The main state slice for the comfort tool, containing both input data and UI state.
 export type ComfortToolStateSlice = {
   inputsByInput: InputsByInputState;
   ui: UiState;
 };
 
+// Actions for updating the comfort tool state.
 export type ComfortToolActions = {
   setSelectedModel: (nextModel: ComfortModelType) => void;
   setSelectedChart: (nextChart: ChartIdType) => void;
@@ -123,6 +145,7 @@ export type ComfortToolActions = {
   scheduleCalculation: (options?: { immediate?: boolean }) => void;
 };
 
+// Selectors for retrieving computed values from the state.
 export type ComfortToolSelectors = {
   getVisibleInputIds: () => InputIdType[];
   getInputControls: () => InputControlViewModel[];
@@ -136,6 +159,7 @@ export type ComfortToolSelectors = {
   getDynamicAxisOptions: () => FieldKeyType[];
 };
 
+// Controller that combines state, actions, and selectors for the comfort tool.
 export type ComfortToolController = {
   state: ComfortToolStateSlice;
   actions: ComfortToolActions;

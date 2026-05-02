@@ -14,6 +14,7 @@ import { createControlBehavior } from "../../../services/comfort/controls/contro
 import { buildUtciStressChart, buildUtciTemperatureChart, buildUtciDynamicChart } from "../../../services/comfort/charts/utciCharts";
 import { calculateUtci } from "../../../services/comfort/utci";
 import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units";
+import { getUtciStressTone } from "../../../services/comfort/helpers";
 
 const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature, ChartId.UtciDynamic];
 
@@ -128,7 +129,7 @@ function buildUtciResultSections(
     buildResultSection("Stress Category", results, visibleInputIds, (result) => {
       return {
         text: result.stressCategory,
-        tone: "default",
+        tone: getUtciStressTone(result.stressCategory),
       };
     }),
   );

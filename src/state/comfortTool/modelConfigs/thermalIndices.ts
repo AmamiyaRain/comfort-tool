@@ -212,7 +212,7 @@ function buildChartResult(
   return null;
 }
 
-// Initialize the Heat Index model builder
+// Initialize the Thermal Indices model builder
 const builder = new ComfortModelBuilder<ThermalIndicesResponseDto, ThermalIndicesChartSourceDto>(ComfortModel.HeatIndex);
 
 builder.addControl({
@@ -286,16 +286,16 @@ builder.addControl({
   }),
 });
 
-// Set the default chart for the heat index model
+// Set the default chart for the thermal indices model
 builder.setDefaultChart(ChartId.HeatIndexRanges, thermalIndicesChartIds);
-// Set the dynamic axis fields for the heat index model
+// Set the dynamic axis fields for the thermal indices model
 builder.setDynamicAxisFields([FieldKey.DryBulbTemperature, FieldKey.RelativeHumidity, FieldKey.RelativeAirSpeed]);
-// Set the default options for the heat index model
+// Set the default options for the thermal indices model
 builder.setDefaultOptions({});
-// Set the option normalizer for the heat index model
+// Set the option normalizer for the thermal indices model
 builder.setOptionNormalizer(normalizeThermalIndicesOptions);
 
-// Set the calculator for the heat index model
+// Set the calculator for the thermal indices model
 builder.setCalculator((state, visibleInputIds) => {
   // Create an empty results object
   const resultsByInput = createEmptyResults<ThermalIndicesResponseDto>();
@@ -315,9 +315,9 @@ builder.setCalculator((state, visibleInputIds) => {
   };
 });
 
-// Set the result builder for the heat index model
+// Set the result builder for the thermal indices model
 builder.setResultBuilder(buildThermalIndicesResultSections);
-// Set the chart builder for the heat index model
+// Set the chart builder for the thermal indices model
 builder.setChartBuilder(buildChartResult);
 // Export the thermal indices model configuration
 export const thermalIndicesModelConfig = builder.build();

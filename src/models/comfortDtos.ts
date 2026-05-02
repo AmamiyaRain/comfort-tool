@@ -217,13 +217,15 @@ export interface PlotTraceDto {
   showlegend?: boolean | null;
   fill?: string | null;
   fillcolor?: string | null;
-  line?: Record<string, string | number>;
-  marker?: Record<string, string | number>;
+  line?: any;
+  marker?: any;
   colorscale?: any[];
   contours?: any;
   zmin?: number;
   zmax?: number;
   showscale?: boolean;
+  colorbar?: any;
+  opacity?: number;
   hoverinfo?: string;
   hovertemplate?: string | null;
 }
