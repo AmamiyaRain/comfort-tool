@@ -1,9 +1,18 @@
+/**
+ * Data transfer objects (DTOs) for comfort calculations.
+ * Defines the expected structure for requests and responses
+ * across comfort models and thermal indices.
+ */
+
 import type { CalculationSource, ComfortStandard } from "./calculationMetadata";
 import type { InputId as InputIdType } from "./inputSlots";
 import type { UtciStressCategory } from "./utciStress";
 import type { UnitSystem } from "./units";
 import type { FieldKey } from "./fieldKeys";
 
+// PMV Request DTO, contains dry-bulb temperature, mean radiant temperature, air speed,
+// relative humidity, metabolic rate, clothing insulation, weighted clothing insulation
+// and whether the occupant has air speed control
 export interface PmvRequestDto {
   tdb: number;
   tr: number;
@@ -16,6 +25,8 @@ export interface PmvRequestDto {
   units: UnitSystem;
 }
 
+// PMV Response DTO, contains predicted mean vote (pmv), predicted percentage of dissatisfied (ppd),
+// air speed (vr) and compliance status
 export interface PmvResponseDto {
   pmv: number;
   ppd: number;
@@ -25,23 +36,27 @@ export interface PmvResponseDto {
   source: CalculationSource;
 }
 
+// Comfort Point DTO, contains dry-bulb temperature and relative humidity
 export interface ComfortPointDto {
   tdb: number;
   rh: number;
 }
 
+// Comfort Zone Request DTO, contains relative humidity range and number of points
 export interface ComfortZoneRequestDto extends PmvRequestDto {
   rhMin: number;
   rhMax: number;
   rhPoints: number;
 }
 
+// Comfort Zone Response DTO, contains comfort zones boundaries (cool and warm edges)
 export interface ComfortZoneResponseDto {
   coolEdge: ComfortPointDto[];
   warmEdge: ComfortPointDto[];
   source: CalculationSource;
 }
 
+// UTCI Request DTO, contains dry-bulb temperature, mean radiant temperature, wind speed and relative humidity
 export interface UtciRequestDto {
   tdb: number;
   tr: number;
@@ -50,20 +65,23 @@ export interface UtciRequestDto {
   units: UnitSystem;
 }
 
+// UTCI Response DTO, contains utci and stress category
 export interface UtciResponseDto {
   utci: number;
   stressCategory: UtciStressCategory;
   source: CalculationSource;
 }
 
-export interface HeatIndexRequestDto {
+// Thermal Indices Request DTO, contains heat index, humidex and wind chill index
+export interface ThermalIndicesRequestDto {
   tdb: number;
   rh: number;
   v?: number;
   units: UnitSystem;
 }
 
-export interface HeatIndexResponseDto {
+// Thermal Indices Response DTO, contains heat index, humidex and wind chill index
+export interface ThermalIndicesResponseDto {
   hi: number;
   category: string;
   humidex?: number;
@@ -74,6 +92,8 @@ export interface HeatIndexResponseDto {
   source: CalculationSource;
 }
 
+// Adaptive Request DTO, contains dry-bulb temperature, mean radiant temperature, 
+// running mean outdoor temperature, air speed and units
 export interface AdaptiveRequestDto {
   tdb: number;
   tr: number;
@@ -82,6 +102,8 @@ export interface AdaptiveRequestDto {
   units: UnitSystem;
 }
 
+// Adaptive Response DTO, contains operative temperature (t_cmf), acceptability (*_80, *_90, *_cat_*),
+// temperature range (tmp_cmf_*_low, tmp_cmf_*_up) and compliance status
 export interface AdaptiveResponseDto {
   t_cmf: number;
   acceptability_80?: boolean;
@@ -109,6 +131,7 @@ export interface AdaptiveResponseDto {
   source: CalculationSource;
 }
 
+// Chart Range DTO, contains dry-bulb temperature range and humidity ratio range
 interface ChartRangeDto {
   tdbMin: number;
   tdbMax: number;
@@ -117,14 +140,18 @@ interface ChartRangeDto {
   humidityRatioMax: number;
 }
 
+// Compare Input Map DTO, contains comfort zone requests for each input
 export type CompareInputMap<T> = Partial<Record<InputIdType, T>>;
 
+// PMV Chart Inputs Request DTO, contains comfort zone requests for each input
 export interface PmvChartInputsRequestDto {
   inputs: CompareInputMap<ComfortZoneRequestDto>;
   chartRange: ChartRangeDto;
   rhCurves: number[];
 }
 
+// PMV Chart Source DTO, contains chart requests for each input,
+// comfort zones by input, dynamic x-axis, dynamic y-axis, and baseline input
 export interface PmvChartSourceDto {
   chartRequest: PmvChartInputsRequestDto;
   comfortZonesByInput: CompareInputMap<ComfortZoneResponseDto>;
@@ -133,12 +160,16 @@ export interface PmvChartSourceDto {
   baselineInputId?: InputIdType;
 }
 
+// Relative Humidity Chart Request DTO, contains comfort zone requests for each input
 export interface RelativeHumidityChartRequestDto extends PmvChartInputsRequestDto {}
 
+// Utci Chart Inputs Request DTO, contains utci requests for each input
 export interface UtciChartInputsRequestDto {
   inputs: CompareInputMap<UtciRequestDto>;
 }
 
+// Utci Chart Source DTO, contains chart requests for each input,
+// dynamic x-axis, dynamic y-axis, and baseline input
 export interface UtciChartSourceDto {
   chartRequest: UtciChartInputsRequestDto;
   dynamicXAxis?: FieldKey;
@@ -146,18 +177,23 @@ export interface UtciChartSourceDto {
   baselineInputId?: InputIdType;
 }
 
-export interface HeatIndexChartInputsRequestDto {
-  inputs: CompareInputMap<HeatIndexRequestDto>;
+// Thermal Indices Chart Inputs Request DTO, contains thermal indices requests for each input
+export interface ThermalIndicesChartInputsRequestDto {
+  inputs: CompareInputMap<ThermalIndicesRequestDto>;
 }
 
-export interface HeatIndexChartSourceDto {
-  chartRequest: HeatIndexChartInputsRequestDto;
+// Thermal Indices Chart Source DTO, contains chart requests for each input
+export interface ThermalIndicesChartSourceDto {
+  chartRequest: ThermalIndicesChartInputsRequestDto;
 }
 
+// Adaptive Chart Inputs Request DTO, contains adaptive requests for each input
 export interface AdaptiveChartInputsRequestDto {
   inputs: CompareInputMap<AdaptiveRequestDto>;
 }
 
+// Adaptive Chart Source DTO, contains chart requests for each input,
+// results by input, standard mode, dynamic x-axis, dynamic y-axis, and baseline input
 export interface AdaptiveChartSourceDto {
   chartRequest: AdaptiveChartInputsRequestDto;
   resultsByInput: CompareInputMap<AdaptiveResponseDto>;
@@ -167,6 +203,9 @@ export interface AdaptiveChartSourceDto {
   baselineInputId?: InputIdType;
 }
 
+// Plot Trace DTO, contains plot trace data, including type, mode, name, x, y, z, text, 
+// showlegend, fill, fillcolor, line, marker, colorscale, contours, zmin, zmax, showscale,
+// hoverinfo and hovertemplate
 export interface PlotTraceDto {
   type: "scatter" | "contour";
   mode?: string;
@@ -189,6 +228,7 @@ export interface PlotTraceDto {
   hovertemplate?: string | null;
 }
 
+// Plot Annotation DTO, contains plot annotation data, including x, y, text, showarrow and font
 export interface PlotAnnotationDto {
   x: number;
   y: number;
@@ -197,6 +237,8 @@ export interface PlotAnnotationDto {
   font: Record<string, string | number>;
 }
 
+// Plot Layout DTO, contains plot layout data, including title, paper_bgcolor, plot_bgcolor,
+// showlegend, margin, xaxis, yaxis, shapes, legend and height
 export interface PlotLayoutDto {
   title: string;
   paper_bgcolor: string;
@@ -210,6 +252,7 @@ export interface PlotLayoutDto {
   height?: number | null;
 }
 
+// Plotly Chart Response DTO, contains plot trace data, plot layout data, plot annotation data, and source
 export interface PlotlyChartResponseDto {
   traces: PlotTraceDto[];
   layout: PlotLayoutDto;
