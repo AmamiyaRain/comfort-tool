@@ -34,7 +34,7 @@ export const comfortModelMetaById: Record<
     description: "EN 16798-1 Adaptive thermal comfort model for naturally ventilated buildings.",
   },
   [ComfortModel.HeatIndex]: {
-    label: "Heat/Cold Indices",
+    label: "Thermal Indices",
     description: "Various heat and cold indices used to calculate the apparent temperature of the thermal environment.",
   },
 };
