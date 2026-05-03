@@ -1,9 +1,17 @@
 <script lang="ts">
-  import { Button, Dropdown, DropdownItem, Heading, Input, Label } from "flowbite-svelte";
+  import {
+    Button,
+    Dropdown,
+    DropdownItem,
+    Heading,
+    Input,
+    Label,
+  } from "flowbite-svelte";
   import PresetNumericInput from "../PresetNumericInput.svelte";
   import { inputDisplayMetaById } from "../../models/inputSlotPresentation";
   import type { InputId as InputIdType } from "../../models/inputSlots";
   import type { InputControlViewModel } from "../../models/inputControls";
+  import type { OptionKey } from "../../models/inputModes";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
   let {
@@ -42,7 +50,10 @@
     return value;
   }
 
-  function commitFieldValue(inputId: InputIdType, inputElement: HTMLInputElement) {
+  function commitFieldValue(
+    inputId: InputIdType,
+    inputElement: HTMLInputElement,
+  ) {
     const rawValue = inputElement.value.trim();
     toolState.actions.setActiveInputId(inputId);
 
@@ -68,13 +79,13 @@
   let dropdownOpen = $state(false);
 
   // Updates a model option and automatically closes the "More" dropdown selection.
-  function handleSelectItem(optionKey: string, value: string) {
+  function handleSelectItem(optionKey: OptionKey, value: string) {
     toolState.actions.setModelOption(optionKey, value);
     dropdownOpen = false;
   }
 </script>
 
-<section class="px-1 py-0.5">
+<section class="py-0.5">
   <header class="flex items-start justify-between gap-3">
     <div class="flex min-w-0 flex-wrap items-center gap-2">
       <Label class="text-sm font-medium text-sky-700">
@@ -150,9 +161,16 @@
     {/if}
   </header>
 
-  <ul class="mt-1 grid gap-2" style={`grid-template-columns: ${getMatrixTemplateColumns()};`}>
+  <ul
+    class="mt-1 grid gap-2"
+    style={`grid-template-columns: ${getMatrixTemplateColumns()};`}
+  >
     {#each getVisibleInputIds() as inputId}
-      <li class={toolState.state.ui.activeInputId === inputId ? "rounded-sm bg-sky-50/50 p-1" : "p-1"}>
+      <li
+        class={toolState.state.ui.activeInputId === inputId
+          ? "rounded-lg bg-sky-50/50 py-1"
+          : "py-1"}
+      >
         {#if control.editorKind === "preset"}
           <PresetNumericInput
             items={control.presetOptions}
@@ -179,7 +197,8 @@
             onchange={(event) => commitFieldValue(inputId, event.currentTarget)}
             onblur={(event) => {
               if (!event.currentTarget.value.trim()) {
-                event.currentTarget.value = control.displayValuesByInput[inputId] ?? "";
+                event.currentTarget.value =
+                  control.displayValuesByInput[inputId] ?? "";
               }
             }}
             onkeydown={(event) => {
@@ -191,11 +210,12 @@
 
               if (event.key === "Escape") {
                 event.preventDefault();
-                event.currentTarget.value = control.displayValuesByInput[inputId] ?? "";
+                event.currentTarget.value =
+                  control.displayValuesByInput[inputId] ?? "";
                 event.currentTarget.blur();
               }
             }}
-            class="rounded-sm border-stone-300 bg-white"
+            class="w-full rounded-lg border-stone-300 bg-white"
           />
         {/if}
       </li>

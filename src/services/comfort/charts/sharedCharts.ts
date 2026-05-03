@@ -46,15 +46,8 @@ export function buildRelativeHumidityChart(
       showLegend: showInputLegend,
       hovertemplate: `${inputMeta.label}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
     }));
-    annotations.push(buildInputAnnotation({
-      inputId,
-      x: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, inputPayload.tdb, unitSystem)),
-      y: roundValue(inputPayload.rh),
-      text: inputMeta.shortLabel,
-      showArrow: true,
-      textSize: 11,
-    }));
   });
+
   return {
     traces,
     layout: {
@@ -77,7 +70,7 @@ export function buildRelativeHumidityChart(
         gridcolor: "#e2e8f0",
       },
       legend: { orientation: "h", x: 0, y: 1.1 },
-      height: 420,
+      height: 480,
     },
     annotations,
     source: CalculationSource.FrontendGenerated,

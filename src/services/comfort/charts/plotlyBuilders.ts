@@ -9,6 +9,7 @@ export interface InputScatterTraceOptions {
   showLegend: boolean;
   hovertemplate: string;
   markerSize?: number;
+  color?: string;
 }
 
 /**
@@ -26,9 +27,11 @@ export function buildInputScatterTrace({
   showLegend,
   hovertemplate,
   markerSize = 12,
+  color,
 }: InputScatterTraceOptions): PlotTraceDto {
   const inputStyle = inputChartStyleById[inputId];
   const inputLabel = inputDisplayMetaById[inputId].label;
+  const markerColor = color ?? inputStyle.marker;
 
   return {
     type: "scatter",
@@ -38,7 +41,7 @@ export function buildInputScatterTrace({
     y: [y],
     showlegend: showLegend,
     line: {},
-    marker: { color: inputStyle.marker, size: markerSize },
+    marker: { color: markerColor, size: markerSize, line: { color: "#000000", width: 1.5 } },
     hovertemplate,
   };
 }
@@ -227,5 +230,61 @@ export function buildRectangleSelectionShape({
     fillcolor: fillColor,
     line: { width: 0 },
     opacity,
+  };
+}
+
+export interface ContourTraceOptions {
+  name: string;
+  x: number[];
+  y: number[];
+  z: number[][];
+  text?: string[][];
+  colorscale: any[];
+  contours: any;
+  hovertemplate: string;
+  showscale?: boolean;
+  zmin?: number;
+  zmax?: number;
+  colorbar?: any;
+  opacity?: number;
+}
+
+/**
+ * Builds a contour trace to visualize multi-zone comfort boundaries.
+ *
+ * @param options configuration object defining the contour ranges and styling.
+ * @returns A PlotTraceDto for the contour plot.
+ */
+export function buildContourTrace({
+  name,
+  x,
+  y,
+  z,
+  text,
+  colorscale,
+  contours,
+  hovertemplate,
+  showscale = false,
+  zmin,
+  zmax,
+  colorbar,
+  opacity,
+}: ContourTraceOptions): PlotTraceDto {
+  return {
+    type: "contour",
+    name,
+    x,
+    y,
+    z,
+    text,
+    colorscale,
+    contours,
+    showscale,
+    zmin,
+    zmax,
+    colorbar,
+    opacity,
+    hoverinfo: "all",
+    hovertemplate,
   };
 }

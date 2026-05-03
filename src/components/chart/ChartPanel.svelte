@@ -2,7 +2,9 @@
   import { Card, Heading } from "flowbite-svelte";
   import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
-  import type { ChartId } from "../../models/chartOptions";
+  import ChartAxisMenu from "./ChartAxisMenu.svelte";
+  import ChartLegend from "./ChartLegend.svelte";
+  import { ChartId } from "../../models/chartOptions";
   import type { PlotlyChartResponseDto } from "../../models/comfortDtos";
 
   let {
@@ -15,6 +17,15 @@
     chartOptions,
     selectedChart,
     onSelectChart,
+    dynamicXAxis,
+    dynamicYAxis,
+    onSelectXAxis,
+    onSelectYAxis,
+    dynamicAxisOptions,
+    baselineInputId,
+    onSelectBaselineInput,
+    visibleInputIds = [],
+    compareEnabled = false,
     embedded = false,
   }: {
     title: string;
@@ -26,6 +37,15 @@
     chartOptions: Array<{ name: string; value: ChartId }>;
     selectedChart: ChartId;
     onSelectChart: (chartId: ChartId) => void;
+    dynamicXAxis?: string;
+    dynamicYAxis?: string;
+    onSelectXAxis?: (fieldKey: string) => void;
+    onSelectYAxis?: (fieldKey: string) => void;
+    dynamicAxisOptions?: string[];
+    baselineInputId?: string;
+    onSelectBaselineInput?: (inputId: string) => void;
+    visibleInputIds?: string[];
+    compareEnabled?: boolean;
     embedded?: boolean;
   } = $props();
 
@@ -43,13 +63,28 @@
       {/if}
     </div>
 
-    <ChartExportMenu
-      {chartOptions}
-      {selectedChart}
-      activeChartId={selectedChart}
-      onSelectChart={onSelectChart}
-      onExport={(type) => exportChart?.(type)}
-    />
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      {#if (selectedChart === ChartId.PmvDynamic || selectedChart === ChartId.UtciDynamic || selectedChart === ChartId.AdaptiveDynamic) && dynamicXAxis && dynamicYAxis && onSelectXAxis && onSelectYAxis}
+        <ChartAxisMenu
+          {dynamicXAxis}
+          {dynamicYAxis}
+          axisOptions={dynamicAxisOptions}
+          {baselineInputId}
+          {onSelectBaselineInput}
+          {visibleInputIds}
+          {compareEnabled}
+          {onSelectXAxis}
+          {onSelectYAxis}
+        />
+      {/if}
+      <ChartExportMenu
+        {chartOptions}
+        {selectedChart}
+        activeChartId={selectedChart}
+        onSelectChart={onSelectChart}
+        onExport={(type) => exportChart?.(type)}
+      />
+    </div>
   </header>
 
   <div class={`mt-4 ${heightClass} relative overflow-hidden rounded-lg bg-stone-50/50`}>
@@ -61,6 +96,8 @@
       onRegisterExport={(handler) => (exportChart = handler)}
     />
   </div>
+
+  <ChartLegend {selectedChart} />
 {/snippet}
 
 {#if embedded}

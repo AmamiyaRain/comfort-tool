@@ -11,6 +11,7 @@ import {
 } from "../../models/inputSlots";
 import { chartMetaById, type ChartId as ChartIdType } from "../../models/chartOptions";
 import { ComfortModel, comfortModelOrder, type ComfortModel as ComfortModelType } from "../../models/comfortModels";
+import { FieldKey, type FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import { allFieldOrder, fieldMetaByKey } from "../../models/inputFieldsMeta";
 import type { InputControlId as InputControlIdType } from "../../models/inputControls";
 import type { OptionKey as OptionKeyType } from "../../models/inputModes";
@@ -116,6 +117,7 @@ function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
     [ComfortModel.Utci]: createEmptyCalculationCache(),
     [ComfortModel.AdaptiveAshrae]: createEmptyCalculationCache(),
     [ComfortModel.AdaptiveEn]: createEmptyCalculationCache(),
+    [ComfortModel.HeatIndex]: createEmptyCalculationCache(),
   } as ModelCalculationCacheByModelState;
 }
 
@@ -130,6 +132,9 @@ export function createComfortToolState(): ComfortToolController {
     compareInputIds: createDefaultCompareInputIds(),
     activeInputId: InputId.Input1,
     unitSystem: UnitSystem.SI,
+    dynamicXAxis: FieldKey.DryBulbTemperature,
+    dynamicYAxis: FieldKey.RelativeHumidity,
+    chartBaselineInputId: InputId.Input1,
     isLoading: false,
     errorMessage: "",
     calculationCacheByModel: createCalculationCacheByModel(),
@@ -249,6 +254,8 @@ export function createComfortToolState(): ComfortToolController {
         cache.resultsByInput,
         getVisibleInputIds(),
         state.ui.unitSystem,
+        state.ui.modelOptionsByModel[state.ui.selectedModel],
+        getCurrentSelectedChartId(),
       );
     },
     getCurrentChartResult: () => {
@@ -260,6 +267,7 @@ export function createComfortToolState(): ComfortToolController {
         state.ui.unitSystem,
       );
     },
+    getCurrentBaselineInputId: () => state.ui.chartBaselineInputId,
     getCurrentChartEmptyMessage: () => chartMetaById[getCurrentSelectedChartId()].emptyMessage,
     getCurrentChartOptions: () => getActiveModelConfig().chartIds.map((chartId) => ({
       name: chartMetaById[chartId].name,
@@ -268,6 +276,7 @@ export function createComfortToolState(): ComfortToolController {
     getCurrentSelectedChart: () => getCurrentSelectedChartId(),
     getCurrentChartHeightClass: () => chartMetaById[getCurrentSelectedChartId()].heightClass,
     getCurrentCacheStatus: () => getCurrentModelCache().status,
+    getDynamicAxisOptions: () => getActiveModelConfig().dynamicAxisFields || [],
   };
 
   const calculationManager = createCalculationManager(state, getVisibleInputIds);
@@ -287,6 +296,18 @@ export function createComfortToolState(): ComfortToolController {
   function setSelectedModel(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
     state.ui.errorMessage = "";
+
+    // Ensure dynamic axes are valid for the new model.
+    const config = getComfortModelConfig(nextModel);
+    if (config.dynamicAxisFields && config.dynamicAxisFields.length >= 2) {
+      if (!config.dynamicAxisFields.includes(state.ui.dynamicXAxis as any)) {
+        state.ui.dynamicXAxis = config.dynamicAxisFields[0];
+      }
+      if (!config.dynamicAxisFields.includes(state.ui.dynamicYAxis as any)) {
+        state.ui.dynamicYAxis = config.dynamicAxisFields[config.dynamicAxisFields.length - 1];
+      }
+    }
+
     scheduleCalculationInternal({ immediate: true });
   }
 
@@ -329,6 +350,7 @@ export function createComfortToolState(): ComfortToolController {
    */
   function setCompareEnabled(enabled: boolean) {
     state.ui.compareEnabled = enabled;
+    
     if (enabled) {
       state.ui.compareInputIds = normalizeCompareInputIds(state.ui.compareInputIds);
       if (state.ui.compareInputIds.length < 2) {
@@ -338,8 +360,10 @@ export function createComfortToolState(): ComfortToolController {
         state.ui.activeInputId = state.ui.compareInputIds[0] ?? InputId.Input1;
       }
     } else {
+      state.ui.chartBaselineInputId = InputId.Input1;
       state.ui.activeInputId = InputId.Input1;
     }
+    
     invalidateAllModels();
     scheduleCalculationInternal({ immediate: true });
   }
@@ -381,6 +405,24 @@ export function createComfortToolState(): ComfortToolController {
     state.ui.unitSystem = state.ui.unitSystem === UnitSystem.SI ? UnitSystem.IP : UnitSystem.SI;
   }
 
+  function setDynamicXAxis(fieldKey: FieldKeyType) {
+    state.ui.dynamicXAxis = fieldKey;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
+  function setDynamicYAxis(fieldKey: FieldKeyType) {
+    state.ui.dynamicYAxis = fieldKey;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
+  function setChartBaselineInputId(inputId: InputIdType) {
+    state.ui.chartBaselineInputId = inputId;
+    invalidateAllModels();
+    scheduleCalculationInternal({ immediate: true });
+  }
+
   /**
    * Updates a specific environmental or personal input variable.
    * @param inputId The ID of the input slot being modified.
@@ -411,6 +453,9 @@ export function createComfortToolState(): ComfortToolController {
     setActiveInputId,
     toggleCompareInputVisibility,
     toggleUnitSystem,
+    setDynamicXAxis,
+    setDynamicYAxis,
+    setChartBaselineInputId,
     exportShareSnapshot: () => createShareStateSnapshot(state),
     applyShareSnapshot: (snapshot: ShareStateSnapshot) => {
       applyShareSnapshotToState(state, snapshot);

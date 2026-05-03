@@ -7,6 +7,7 @@
   import InputPanel from "../components/input-panel/InputPanel.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
   import type { ChartId } from "../models/chartOptions";
+  import type { FieldKey } from "../models/fieldKeys";
   import type { ComfortToolController } from "../state/comfortTool/types";
 
   let {
@@ -17,6 +18,18 @@
 
   function handleSelectChart(nextChart: ChartId) {
     toolState.actions.setSelectedChart(nextChart);
+  }
+
+  function handleSelectXAxis(fieldKey: string) {
+    toolState.actions.setDynamicXAxis(fieldKey as FieldKey);
+  }
+
+  function handleSelectYAxis(fieldKey: string) {
+    toolState.actions.setDynamicYAxis(fieldKey as FieldKey);
+  }
+
+  function handleSelectBaselineInput(inputId: string) {
+    toolState.actions.setChartBaselineInputId(inputId as any);
   }
 </script>
 
@@ -46,6 +59,15 @@
           chartOptions={toolState.selectors.getCurrentChartOptions()}
           selectedChart={toolState.selectors.getCurrentSelectedChart()}
           onSelectChart={handleSelectChart}
+          dynamicXAxis={toolState.state.ui.dynamicXAxis}
+          dynamicYAxis={toolState.state.ui.dynamicYAxis}
+          dynamicAxisOptions={toolState.selectors.getDynamicAxisOptions()}
+          baselineInputId={toolState.state.ui.chartBaselineInputId}
+          onSelectBaselineInput={handleSelectBaselineInput}
+          visibleInputIds={toolState.selectors.getVisibleInputIds()}
+          compareEnabled={toolState.state.ui.compareEnabled}
+          onSelectXAxis={handleSelectXAxis}
+          onSelectYAxis={handleSelectYAxis}
           embedded={true}
         />
       </Card>

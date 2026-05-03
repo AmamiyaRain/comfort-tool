@@ -11,11 +11,12 @@ import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { InputControlId } from "../../../models/inputControls";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { createControlBehavior } from "../../../services/comfort/controls/controlBehaviors";
-import { buildUtciStressChart, buildUtciTemperatureChart } from "../../../services/comfort/charts/utciCharts";
+import { buildUtciStressChart, buildUtciTemperatureChart, buildUtciDynamicChart } from "../../../services/comfort/charts/utciCharts";
 import { calculateUtci } from "../../../services/comfort/utci";
 import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units";
+import { getUtciStressTone } from "../../../services/comfort/helpers";
 
-const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature];
+const utciChartIds: ChartIdType[] = [ChartId.Stress, ChartId.AirTemperature, ChartId.UtciDynamic];
 
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
 
@@ -95,6 +96,8 @@ function buildUtciResultSections(
   results: Record<InputIdType, UtciResponseDto | null>,
   visibleInputIds: InputIdType[],
   unitSystem: UnitSystemType,
+  options: any,
+  selectedChartId: ChartIdType,
 ) {
   // Get the temperature units for display. Example: "°C"
   const temperatureUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
@@ -126,7 +129,7 @@ function buildUtciResultSections(
     buildResultSection("Stress Category", results, visibleInputIds, (result) => {
       return {
         text: result.stressCategory,
-        tone: "default",
+        tone: getUtciStressTone(result.stressCategory),
       };
     }),
   );
@@ -163,6 +166,11 @@ function buildUtciChartResult(
   // Handle the Air Temperature chart type.
   if (chartId === ChartId.AirTemperature) {
     return buildUtciTemperatureChart(chartSource.chartRequest, resultsByInput, unitSystem);
+  }
+
+  // Handle the Dynamic UTCI chart type.
+  if (chartId === ChartId.UtciDynamic) {
+    return buildUtciDynamicChart(chartSource.chartRequest, resultsByInput, unitSystem, chartSource.dynamicXAxis, chartSource.dynamicYAxis, chartSource.baselineInputId);
   }
 
   // Return null if the chart ID is not supported.
@@ -215,6 +223,14 @@ builder.addControl({
 // Set the available charts and the default chart.
 builder.setDefaultChart(ChartId.Stress, utciChartIds);
 
+// Set the dynamic axis fields for UTCI.
+builder.setDynamicAxisFields([
+  FieldKey.DryBulbTemperature,
+  FieldKey.MeanRadiantTemperature,
+  FieldKey.WindSpeed,
+  FieldKey.RelativeHumidity,
+]);
+
 // Set the default options (UTCI has none).
 builder.setDefaultOptions({});
 
@@ -240,6 +256,9 @@ builder.setCalculator((state, visibleInputIds) => {
     resultsByInput: resultsByInput,
     chartSource: {
       chartRequest: chartRequest,
+      dynamicXAxis: state.ui.dynamicXAxis,
+      dynamicYAxis: state.ui.dynamicYAxis,
+      baselineInputId: state.ui.chartBaselineInputId,
     },
   };
 });

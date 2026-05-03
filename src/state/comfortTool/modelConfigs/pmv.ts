@@ -26,11 +26,12 @@ import {
 } from "../../../models/inputModes";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../../models/units";
 import { CalculationSource, ComfortStandard } from "../../../models/calculationMetadata";
+import { type ComfortZonesByInput, getPmvZone } from "../../../services/comfort/helpers";
 import {
-  type ComfortZonesByInput,
-} from "../../../services/comfort/helpers";
-import { buildComparePsychrometricChart } from "../../../services/comfort/charts/pmvCharts";
-import { buildRelativeHumidityChart } from "../../../services/comfort/charts/sharedCharts";
+  buildComparePsychrometricChart,
+  buildPmvDynamicChart,
+  buildPmvRelativeHumidityChart,
+} from "../../../services/comfort/charts/pmvCharts";
 import { calculateComfortZone } from "../../../services/comfort/comfortZone";
 import { check_standard_compliance_array } from "jsthermalcomfort";
 import { pmv_ppd_ashrae, PMV_COMFORT_LIMIT } from "../../../services/comfort/pmv";
@@ -46,8 +47,10 @@ import {
 } from "../../../services/comfort/controls/controlBehaviors";
 import { createSingleInputPatch, type InputControlBehavior } from "../../../services/comfort/controls/types";
 import { clothingTypicalEnsembles, metabolicActivityOptions } from "../../../services/comfort/referenceValues";
+import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
+import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units";
 
-const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity];
+const pmvChartIds: ChartIdType[] = [ChartId.Psychrometric, ChartId.RelativeHumidity, ChartId.PmvDynamic];
 
 const clothingPresetOptions = clothingTypicalEnsembles.map((ensemble) => ({
   id: ensemble.id,
@@ -243,8 +246,13 @@ function toPmvChartInputsRequest(
 function buildPmvResultSections(
   results: Record<InputIdType, PmvResponseDto | null>,
   visibleInputIds: InputIdType[],
-  _unitSystem: UnitSystemType,
+  unitSystem: UnitSystemType,
+  options: any,
+  selectedChartId: ChartIdType,
 ) {
+  // Normalize the model options for PMV.
+  const normalizedOptions = normalizePmvOptions(options);
+
   // The list of result table sections.
   const sections = [];
 
@@ -258,6 +266,27 @@ function buildPmvResultSections(
     }),
   );
 
+  // Add the "Relative air speed" section if the air speed input mode is "Measured air speed".
+  if (normalizedOptions[OptionKey.AirSpeedInputMode] === AirSpeedInputMode.Measured) {
+    const airSpeedUnits = fieldMetaByKey[FieldKey.RelativeAirSpeed].displayUnits[unitSystem];
+    sections.push(
+      buildResultSection("Relative air speed", results, visibleInputIds, (result) => {
+        // Convert the SI value to the user's preferred unit system.
+        const displayValue = convertFieldValueFromSi(FieldKey.RelativeAirSpeed, result.vr, unitSystem);
+        // Format the value as a string with the correct number of decimals.
+        const formattedValue = formatDisplayValue(
+          displayValue,
+          fieldMetaByKey[FieldKey.RelativeAirSpeed].decimals,
+        );
+
+        return {
+          text: `${formattedValue} ${airSpeedUnits}`,
+          tone: "default",
+        };
+      }),
+    );
+  }
+
   // Add the raw PMV value section. Example: "-0.50"
   sections.push(
     buildResultSection("PMV", results, visibleInputIds, (result) => {
@@ -265,6 +294,13 @@ function buildPmvResultSections(
         text: result.pmv.toFixed(2),
         tone: "default",
       };
+    }),
+  );
+  
+  // Add the "Zone" section. Example: "Neutral"
+  sections.push(
+    buildResultSection("Zone", results, visibleInputIds, (result) => {
+      return getPmvZone(result.pmv);
     }),
   );
 
@@ -315,16 +351,28 @@ function buildPmvChartResult(
     return buildComparePsychrometricChart(
       chartSource.chartRequest, 
       chartSource.comfortZonesByInput, 
-      unitSystem
+      unitSystem,
+      chartSource
     );
   }
 
   // Handle the Relative Humidity chart type.
   if (chartId === ChartId.RelativeHumidity) {
-    return buildRelativeHumidityChart(
+    return buildPmvRelativeHumidityChart(
       chartSource.chartRequest, 
-      chartSource.comfortZonesByInput, 
-      unitSystem
+      unitSystem,
+      chartSource
+    );
+  }
+
+  // Handle the Dynamic PMV chart type.
+  if (chartId === ChartId.PmvDynamic && chartSource.dynamicXAxis && chartSource.dynamicYAxis) {
+    return buildPmvDynamicChart(
+      chartSource.chartRequest,
+      chartSource.dynamicXAxis as any,
+      chartSource.dynamicYAxis as any,
+      unitSystem,
+      chartSource
     );
   }
 
@@ -448,6 +496,14 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
   .setDefaultOptions(Object.assign({}, defaultPmvOptions))
   // Set the option normalizer for PMV.
   .setOptionNormalizer(normalizePmvOptionsSnapshot)
+  .setDynamicAxisFields([
+    FieldKey.DryBulbTemperature,
+    FieldKey.MeanRadiantTemperature,
+    FieldKey.RelativeAirSpeed,
+    FieldKey.RelativeHumidity,
+    FieldKey.MetabolicRate,
+    FieldKey.ClothingInsulation,
+  ])
   // Set the calculator for PMV.
   .setCalculator((state, visibleInputIds) => {
     // Generate the request DTO for the chart.
@@ -492,6 +548,7 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
       resultsByInput[inputId] = {
         pmv: result.pmv,
         ppd: result.ppd,
+        vr: request.vr,
         isCompliant: !compliance.tdb.some((value) => Number.isNaN(value))
           && !compliance.tr.some((value) => Number.isNaN(value))
           && !compliance.v.some((value) => Number.isNaN(value))
@@ -513,6 +570,9 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
         chartRequest: compareChartRequest,
         // The comfort zones for each visible input.
         comfortZonesByInput: comfortZonesByInput,
+        dynamicXAxis: state.ui.dynamicXAxis,
+        dynamicYAxis: state.ui.dynamicYAxis,
+        baselineInputId: state.ui.chartBaselineInputId,
       },
     };
   })

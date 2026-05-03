@@ -132,9 +132,11 @@
     <ButtonGroup>
       {#each clothingToolModes as toolMode}
         <Button
-          color={toolMode.id === activeToolMode ? "primary" : "alternative"}
           size="sm"
           onclick={() => (activeToolMode = toolMode.id)}
+          class={toolMode.id === activeToolMode
+            ? "bg-sky-700 text-white hover:bg-sky-800"
+            : "bg-white text-black border border-stone-200 hover:bg-stone-50"}
         >
           {toolMode.label}
         </Button>
@@ -147,10 +149,12 @@
         <ButtonGroup>
           {#each visibleInputIds as inputId}
             <Button
-              color={inputId === targetInputId ? "primary" : "alternative"}
               size="xs"
               onclick={() => handleSelectTargetInput(inputId)}
               title={inputDisplayMetaById[inputId].label}
+              class={inputId === targetInputId
+                ? "bg-sky-700 text-white hover:bg-sky-800"
+                : "bg-white text-black border border-stone-200 hover:bg-stone-50"}
             >
               {inputDisplayMetaById[inputId].shortLabel}
             </Button>
@@ -188,7 +192,11 @@
             {/if}
           </header>
           <footer class="flex shrink-0 items-center gap-2">
-            <Button color="primary" onclick={applyPredictedClothingValue} disabled={predictedClothingValue === null}>
+            <Button
+              onclick={applyPredictedClothingValue}
+              disabled={predictedClothingValue === null}
+              class="bg-white text-black border border-stone-200 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               Apply
             </Button>
           </footer>
@@ -239,8 +247,18 @@
             {/if}
           </header>
           <footer class="flex shrink-0 items-center gap-2">
-            <Button color="alternative" onclick={clearSelection}>Clear</Button>
-            <Button color="primary" onclick={() => applyClothingValue(customClothingValue)} disabled={selectedGarmentIds.length === 0}>
+            <Button
+              color="alternative"
+              onclick={clearSelection}
+              class="bg-white text-black border border-stone-200 hover:bg-stone-50"
+            >
+              Clear
+            </Button>
+            <Button
+              onclick={() => applyClothingValue(customClothingValue)}
+              disabled={selectedGarmentIds.length === 0}
+              class="bg-white text-black border border-stone-200 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               Apply
             </Button>
           </footer>

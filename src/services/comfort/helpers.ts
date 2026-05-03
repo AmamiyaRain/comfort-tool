@@ -1,3 +1,7 @@
+/**
+ * Helper functions for input ordering, dtos, and Thermal Indices constants.
+ */
+
 import {
   inputOrder,
   type InputId as InputIdType,
@@ -6,13 +10,96 @@ import { FieldKey } from "../../models/fieldKeys";
 import { fieldMetaByKey } from "../../models/inputFieldsMeta";
 import type {
   CompareInputMap,
-  ComfortZoneRequestDto,
   ComfortZoneResponseDto,
-  UtciRequestDto,
   UtciResponseDto,
 } from "../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 import { convertFieldValueFromSi } from "../units";
+import type { ResultTone } from "../../state/comfortTool/types";
+import { UtciStressCategory } from "../../models/utciStress";
+
+// Heat Index thresholds in Celsius
+export const HI_CAUTION = 27;
+export const HI_EXTREME_CAUTION = 32;
+export const HI_DANGER = 39;
+export const HI_EXTREME_DANGER = 51;
+
+// Humidex discomfort thresholds in Celsius
+export const HUMIDEX_NOTICEABLE = 30;
+export const HUMIDEX_EVIDENT = 35;
+export const HUMIDEX_INTENSE = 40;
+export const HUMIDEX_DANGEROUS = 45;
+export const HUMIDEX_STROKE_PROBABLE = 54;
+
+// Wind Chill frostbite thresholds in SI units (W/m2)
+export const WCI_FROSTBITE_30 = 1400;
+export const WCI_FROSTBITE_10 = 1600;
+export const WCI_FROSTBITE_2 = 2300;
+
+/**
+ * Determines the Heat Index risk category based on Celsius value.
+ */
+export function getHeatIndexCategory(hiSi: number): string {
+  if (hiSi >= HI_EXTREME_DANGER) return "Extreme Danger";
+  if (hiSi >= HI_DANGER) return "Danger";
+  if (hiSi >= HI_EXTREME_CAUTION) return "Extreme Caution";
+  if (hiSi >= HI_CAUTION) return "Caution";
+  return "Safe";
+}
+
+/**
+ * Determines the PMV thermal sensation zone.
+ */
+export function getPmvZone(pmv: number): { text: string; tone: ResultTone } {
+  if (pmv >= 2.5) return { text: "Hot", tone: "pmvHot" };
+  if (pmv >= 1.5) return { text: "Warm", tone: "pmvWarm" };
+  if (pmv >= 0.5) return { text: "Slightly Warm", tone: "pmvSlightlyWarm" };
+  if (pmv > -0.5) return { text: "Neutral", tone: "pmvNeutral" };
+  if (pmv > -1.5) return { text: "Slightly Cool", tone: "pmvSlightlyCool" };
+  if (pmv > -2.5) return { text: "Cool", tone: "pmvCool" };
+  return { text: "Cold", tone: "pmvCold" };
+}
+
+/**
+ * Determines the UTCI stress category tone.
+ */
+export function getUtciStressTone(category: string): ResultTone {
+  switch (category) {
+    case UtciStressCategory.ExtremeColdStress: return "utciExtremeCold";
+    case UtciStressCategory.VeryStrongColdStress: return "utciVeryStrongCold";
+    case UtciStressCategory.StrongColdStress: return "utciStrongCold";
+    case UtciStressCategory.ModerateColdStress: return "utciModerateCold";
+    case UtciStressCategory.SlightColdStress: return "utciSlightCold";
+    case UtciStressCategory.NoThermalStress: return "utciNoStress";
+    case UtciStressCategory.ModerateHeatStress: return "utciModerateHeat";
+    case UtciStressCategory.StrongHeatStress: return "utciStrongHeat";
+    case UtciStressCategory.VeryStrongHeatStress: return "utciVeryStrongHeat";
+    case UtciStressCategory.ExtremeHeatStress: return "utciExtremeHeat";
+    default: return "default";
+  }
+}
+
+/**
+ * Determines the Humidex discomfort level.
+ */
+export function getHumidexDiscomfort(h: number): string {
+  if (h >= HUMIDEX_STROKE_PROBABLE) return "Stroke Probable";
+  if (h >= HUMIDEX_DANGEROUS) return "Dangerous";
+  if (h >= HUMIDEX_INTENSE) return "Intense";
+  if (h >= HUMIDEX_EVIDENT) return "Evident";
+  if (h >= HUMIDEX_NOTICEABLE) return "Noticeable";
+  return "Little/None";
+}
+
+/**
+ * Determines the Wind Chill frostbite risk zone.
+ */
+export function getWindChillZone(wci: number): string {
+  if (wci >= WCI_FROSTBITE_2) return "2 min frostbite";
+  if (wci >= WCI_FROSTBITE_10) return "10 min frostbite";
+  if (wci >= WCI_FROSTBITE_30) return "30 min frostbite";
+  return "Safe";
+}
 
 export type ComfortZonesByInput = Partial<Record<InputIdType, ComfortZoneResponseDto>>;
 export type UtciChartResultsByInput = Partial<Record<InputIdType, UtciResponseDto>>;
@@ -28,7 +115,7 @@ export function roundValue(value: number, decimals = 3): number {
 }
 
 /**
- * Asserts that a value is finite, throwing an error otherwise.
+ * Asserts that a value is finite, throwing an error for non-finite values such as NaN and Infinity.
  * @param label The label for the value (used in error messages).
  * @param value The number to check.
  * @returns The value if finite.
@@ -47,9 +134,12 @@ export function ensureFiniteValue(label: string, value: number): number {
  * @param unitSystem The active unit system.
  * @returns A formatted string (e.g., "+25.0 °C").
  */
-export function formatSignedTemperature(value: number, unitSystem: unitSystemType = UnitSystem.SI): string {
+export function formatSignedTemperature(value: number, unitSystem: UnitSystemType = UnitSystem.SI): string {
+  // Convert the temperature to the target unit system
   const convertedValue = convertFieldValueFromSi(FieldKey.DryBulbTemperature, value, unitSystem);
+  // Round the temperature to one decimal place
   const rounded = roundValue(convertedValue, 1);
+  // Return the temperature with a sign prefix and unit
   return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}`;
 }
 
@@ -65,14 +155,22 @@ export function getPaddedAxisRange(
   fallback: [number, number],
   padding = 4,
 ): [number, number] {
+  // Return the fallback range if no values are provided
   if (values.length === 0) {
     return fallback;
   }
 
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const paddedMinimum = Math.max(fallback[0], Math.floor((minimum - padding) / 5) * 5);
-  const paddedMaximum = Math.min(fallback[1], Math.ceil((maximum + padding) / 5) * 5);
+  // Find the minimum and maximum values in the array
+  const rawMin = values.reduce((min, current) => Math.min(min, current));
+  const rawMax = values.reduce((max, current) => Math.max(max, current));
+
+  // Round down/up to nearest 5 after applying padding
+  const roundedMin = Math.floor((rawMin - padding) / 5) * 5;
+  const roundedMax = Math.ceil((rawMax + padding) / 5) * 5;
+
+  // Clamp the results within the fallback boundaries
+  const paddedMinimum = Math.max(fallback[0], roundedMin);
+  const paddedMaximum = Math.min(fallback[1], roundedMax);
 
   if (paddedMinimum === paddedMaximum) {
     return [
@@ -84,9 +182,19 @@ export function getPaddedAxisRange(
   return [paddedMinimum, paddedMaximum];
 }
 
+/**
+ * Helper function to get ordered inputs from a map of inputs.
+ * @param inputsByInput The map of inputs keyed by InputIdType.
+ * @returns An array of inputs in the correct order.
+ */
 export function getCompareInputs<T>(inputsByInput: CompareInputMap<T>): Array<{ inputId: InputIdType; payload: T }> {
-  return inputOrder.flatMap((inputId) => {
-    const payload = inputsByInput[inputId];
-    return payload ? [{ inputId, payload }] : [];
-  });
+  return inputOrder
+    // Filter out inputs that don't exist in the map
+    .filter((inputId) => !!inputsByInput[inputId])
+    // Get inputs in order
+    .map((inputId) => ({
+      inputId,
+      payload: inputsByInput[inputId] as T,
+    }));
 }
+
