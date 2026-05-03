@@ -92,7 +92,7 @@
   }
 </script>
 
-<section class="grid h-full min-h-0 gap-6 p-5 md:p-6">
+<section class="h-full min-h-0 p-5 md:p-6">
   <div class="grid h-full min-h-0 gap-6 xl:grid-cols-3">
     <ClothingZonePicker
       {activeZoneId}

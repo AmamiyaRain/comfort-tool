@@ -40,6 +40,13 @@
     return `repeat(${getVisibleInputIds().length}, minmax(0, 1fr))`;
   }
 
+  const dropdownClass = "w-72 overflow-hidden rounded-xl py-1 shadow-lg";
+  const clothingToolsDropdownClass = "w-64 overflow-hidden rounded-xl py-1 shadow-lg";
+  const dropdownHeaderClass = "border-b border-stone-100 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-stone-500";
+  const dropdownSectionTitleClass = "px-4 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400";
+  const dropdownItemClass = "flex flex-col items-start gap-0.5 px-4 py-2 text-left";
+  const subtleButtonClass = "tool-button-subtle focus:ring-0";
+
   function clampToRange(value: number) {
     if (control.minValue !== undefined && value < control.minValue) {
       return control.minValue;
@@ -100,7 +107,7 @@
           id={getAdvancedMenuTriggerId()}
           color="none"
           pill
-          class="inline-flex items-center gap-1 border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900 focus:ring-0"
+          class={subtleButtonClass}
         >
           More
           <span class="text-[10px]">▼</span>
@@ -109,12 +116,12 @@
         <Dropdown
           bind:open={dropdownOpen}
           triggeredBy={`#${getAdvancedMenuTriggerId()}`}
-          class="w-72 overflow-hidden rounded-xl py-1 shadow-lg"
+          class={dropdownClass}
         >
           <Heading
             slot="header"
             tag="h6"
-            class="border-b border-stone-100 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-stone-500"
+            class={dropdownHeaderClass}
           >
             {menu.title}
           </Heading>
@@ -122,7 +129,7 @@
             {#if section.title}
               <Heading
                 tag="h6"
-                class="px-4 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400"
+                class={dropdownSectionTitleClass}
               >
                 {section.title}
               </Heading>
@@ -130,7 +137,7 @@
 
             {#each section.items as item}
               <DropdownItem
-                class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+                class={dropdownItemClass}
                 onclick={() => handleSelectItem(item.optionKey, item.value)}
               >
                 <span class={item.active ? "font-semibold text-stone-900" : ""}>
@@ -148,7 +155,7 @@
           id={`clothing-builder-trigger-${control.id}`}
           color="none"
           pill
-          class="inline-flex items-center gap-1 border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900 focus:ring-0"
+          class={subtleButtonClass}
         >
           Clothing tools
           <span class="text-[10px]">▼</span>
@@ -157,10 +164,10 @@
         <Dropdown
           bind:open={clothingToolsDropdownOpen}
           triggeredBy={`#clothing-builder-trigger-${control.id}`}
-          class="w-64 overflow-hidden rounded-xl py-1 shadow-lg"
+          class={clothingToolsDropdownClass}
         >
           <DropdownItem
-            class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+            class={dropdownItemClass}
             onclick={() => {
               clothingToolsDropdownOpen = false;
               onOpenClothingBuilder();
@@ -170,7 +177,7 @@
             <span class="text-xs text-stone-500">Build a clothing total by body region.</span>
           </DropdownItem>
           <DropdownItem
-            class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+            class={dropdownItemClass}
             onclick={() => {
               clothingToolsDropdownOpen = false;
               onOpenQuickClothingEstimate();

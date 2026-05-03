@@ -41,7 +41,7 @@
   }
 </script>
 
-<Card size="none" class="w-full border border-stone-300 bg-white p-3 shadow-sm">
+<Card size="none" class="w-full border-stone-300 bg-white p-3 shadow-sm">
   <header class="flex items-start justify-between gap-3 pb-2">
     <h2 class="text-base font-semibold text-stone-900">Inputs</h2>
   </header>
@@ -90,7 +90,7 @@
   size="xl"
   autoclose={false}
   outsideclose={true}
-  class="max-h-[calc(100svh-2rem)] overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-2xl"
+  class="modal-shell-soft"
   classHeader="items-start justify-end gap-4 px-5 py-4 md:px-6"
   classBody="h-[84svh] overflow-hidden p-0"
 >
@@ -111,7 +111,7 @@
   size="md"
   autoclose={false}
   outsideclose={true}
-  class="max-h-[calc(100svh-2rem)] overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-2xl"
+  class="modal-shell-soft"
   classHeader="items-start justify-end gap-4 px-5 py-4 md:px-6"
   classBody="overflow-y-auto p-0"
 >
