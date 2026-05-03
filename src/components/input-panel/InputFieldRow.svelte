@@ -18,10 +18,12 @@
     toolState,
     control,
     onOpenClothingBuilder,
+    onOpenQuickClothingEstimate,
   }: {
     toolState: ComfortToolController;
     control: InputControlViewModel;
     onOpenClothingBuilder: () => void;
+    onOpenQuickClothingEstimate: () => void;
   } = $props();
 
   let menu = $derived(control.menu);
@@ -77,6 +79,7 @@
     );
   }
   let dropdownOpen = $state(false);
+  let clothingToolsDropdownOpen = $state(false);
 
   // Updates a model option and automatically closes the "More" dropdown selection.
   function handleSelectItem(optionKey: OptionKey, value: string) {
@@ -145,12 +148,38 @@
           id={`clothing-builder-trigger-${control.id}`}
           color="none"
           pill
-          onclick={onOpenClothingBuilder}
           class="inline-flex items-center gap-1 border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900 focus:ring-0"
         >
-          More
+          Clothing tools
           <span class="text-[10px]">▼</span>
         </Button>
+
+        <Dropdown
+          bind:open={clothingToolsDropdownOpen}
+          triggeredBy={`#clothing-builder-trigger-${control.id}`}
+          class="w-64 overflow-hidden rounded-xl py-1 shadow-lg"
+        >
+          <DropdownItem
+            class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+            onclick={() => {
+              clothingToolsDropdownOpen = false;
+              onOpenClothingBuilder();
+            }}
+          >
+            <span class="font-semibold text-stone-900">Custom clothing</span>
+            <span class="text-xs text-stone-500">Build a clothing total by body region.</span>
+          </DropdownItem>
+          <DropdownItem
+            class="flex flex-col items-start gap-0.5 px-4 py-2 text-left"
+            onclick={() => {
+              clothingToolsDropdownOpen = false;
+              onOpenQuickClothingEstimate();
+            }}
+          >
+            <span class="font-semibold text-stone-900">Quick estimate</span>
+            <span class="text-xs text-stone-500">Estimate clo from morning outdoor temperature.</span>
+          </DropdownItem>
+        </Dropdown>
       {/if}
     </div>
 
