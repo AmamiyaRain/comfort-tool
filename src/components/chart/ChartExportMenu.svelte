@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * @component
+   * UI for selecting the active chart type and triggering image exports (PNG/SVG).
+   * Displays the current chart name in a dropdown and provides action buttons for saving the visualization.
+   */
   import { Button, Dropdown, DropdownItem } from "flowbite-svelte";
   import { ChevronDownOutline } from "flowbite-svelte-icons";
   import { chartMetaById } from "../../models/chartOptions";
@@ -32,9 +37,6 @@
 </Button>
 
 <Dropdown triggeredBy={`#chart-select-trigger-${activeChartId}`} class="w-48 shadow-lg">
-  <div slot="header" class="px-4 py-2 text-xs font-semibold text-stone-500 uppercase tracking-wider">
-    Select Chart
-  </div>
   {#each chartOptions as option}
     <DropdownItem
       onclick={() => onSelectChart(option.value)}

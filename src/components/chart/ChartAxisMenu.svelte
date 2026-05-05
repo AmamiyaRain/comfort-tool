@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * @component
+   * Controls for selecting dynamic chart axes (X and Y) and the baseline input.
+   * Provides dropdown menus for parameter selection and input slot comparison.
+   */
   import { Button, Dropdown, DropdownItem } from "flowbite-svelte";
   import { ChevronDownOutline } from "flowbite-svelte-icons";
   import { FieldKey } from "../../models/fieldKeys";
@@ -47,7 +52,7 @@
         <DropdownItem 
           onclick={() => onSelectBaselineInput(inputId)} 
           disabled={!visibleInputIds.includes(inputId)}
-          class="text-left"
+          class="text-left {!visibleInputIds.includes(inputId) ? 'cursor-not-allowed opacity-40 bg-stone-50' : ''}"
         >
           <div class="flex items-center justify-between gap-4 w-full">
             <span class={baselineInputId === inputId ? "font-bold text-teal-700" : "text-stone-700"}>
@@ -73,7 +78,11 @@
       Select X Axis
     </div>
     {#each axisOptions as option}
-      <DropdownItem onclick={() => onSelectXAxis(option)} class="text-left">
+      <DropdownItem 
+        onclick={() => onSelectXAxis(option)} 
+        class="text-left {dynamicYAxis === option ? 'cursor-not-allowed opacity-40 bg-stone-50' : ''}"
+        disabled={dynamicYAxis === option}
+      >
         <span class={dynamicXAxis === option ? "font-bold text-teal-700" : "text-stone-700"}>
           {fieldMetaByKey[option].label}
         </span>
@@ -91,7 +100,11 @@
       Select Y Axis
     </div>
     {#each axisOptions as option}
-      <DropdownItem onclick={() => onSelectYAxis(option)} class="text-left">
+      <DropdownItem 
+        onclick={() => onSelectYAxis(option)} 
+        class="text-left {dynamicXAxis === option ? 'cursor-not-allowed opacity-40 bg-stone-50' : ''}"
+        disabled={dynamicXAxis === option}
+      >
         <span class={dynamicYAxis === option ? "font-bold text-teal-700" : "text-stone-700"}>
           {fieldMetaByKey[option].label}
         </span>

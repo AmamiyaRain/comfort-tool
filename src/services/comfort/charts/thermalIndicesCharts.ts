@@ -1,7 +1,10 @@
-/** Thermal Indices Charting Service
- *  These charts display relationships between air temperature, relative humidity, air speed, and thermal indices.
-*/
-
+/**
+ * Thermal Indices Chart Services
+ * 
+ * Provides visualization logic for common thermal indices, including the 
+ * Heat Index, Humidex, and Wind Chill Index. Handles the creation of range 
+ * charts and category-based heatmaps.
+ */
 import { FieldKey } from "../../../models/fieldKeys";
 import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
 import { CalculationSource } from "../../../models/calculationMetadata";
@@ -139,14 +142,8 @@ export function buildHeatIndexRangesChart(
       zmax: 4,
       contours: { coloring: "heatmap", showlines: false },
       hovertemplate: "Category: %{text}<extra></extra>",
-      showscale: true,
-      colorbar: {
-        tickmode: "array",
-        tickvals: [0.4, 1.2, 2.0, 2.8, 3.6],
-        ticktext: ["Safe", "Caution", "Extreme Caution", "Danger", "Extreme Danger"],
-        thickness: 15,
-        len: 0.8
-      }
+      showscale: false,
+      isZone: true,
     })
   ];
 
@@ -176,7 +173,7 @@ export function buildHeatIndexRangesChart(
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       showlegend: showInputLegend,
-      margin: { l: 60, r: 40, t: 60, b: 60 },
+      margin: { l: 60, r: 24, t: 60, b: 60 },
       xaxis: { title: "Relative Humidity (%)", range: [0, 100] },
       yaxis: { title: `Air Temperature (${yMeta.displayUnits[unitSystem]})`, range: [yMin, yMax] }
     },
@@ -228,22 +225,22 @@ export function buildHumidexChart(
   const zValues: number[][] = [];
   const textValues: string[][] = [];
 
-  // Calculate the heat index for each x value
-  for (let i = 0; i < yPoints; i++) {
-    const row: number[] = [];
-    const textRow: string[] = [];
-    const ySi = convertFieldValueToSi(FieldKey.DryBulbTemperature, yValues[i], unitSystem);
-
-    // Calculate the heat index for each x value
-    for (let j = 0; j < xPoints; j++) {
-      const xSi = xValues[j];
-
-      // Try to calculate the heat index
-      try {
-        const result = humidex(ySi, xSi, { round: true });
-        const h = result.humidex;
-        
-        // Check which range the heat index falls into
+    // Calculate the humidex for each x value
+    for (let i = 0; i < yPoints; i++) {
+      const row: number[] = [];
+      const textRow: string[] = [];
+      const ySi = convertFieldValueToSi(FieldKey.DryBulbTemperature, yValues[i], unitSystem);
+  
+      // Calculate the humidex for each x value
+      for (let j = 0; j < xPoints; j++) {
+        const xSi = xValues[j];
+  
+        // Try to calculate the humidex
+        try {
+          const result = humidex(ySi, xSi, { round: true });
+          const h = result.humidex;
+          
+          // Check which range the humidex falls into
         let rangeValue = 0;
         if (h >= HUMIDEX_STROKE_PROBABLE) rangeValue = 5;
         else if (h >= HUMIDEX_DANGEROUS) rangeValue = 4;
@@ -284,14 +281,8 @@ export function buildHumidexChart(
       zmax: 5,
       contours: { coloring: "heatmap", showlines: false },
       hovertemplate: "Discomfort: %{text}<extra></extra>",
-      showscale: true,
-      colorbar: {
-        tickmode: "array",
-        tickvals: [0.4, 1.25, 2.1, 2.9, 3.75, 4.6],
-        ticktext: ["Little/None", "Noticeable", "Evident", "Intense", "Dangerous", "Stroke Probable"],
-        thickness: 15,
-        len: 0.8
-      }
+      showscale: false,
+      isZone: true,
     })
   ];
 
@@ -320,7 +311,7 @@ export function buildHumidexChart(
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       showlegend: showInputLegend,
-      margin: { l: 60, r: 40, t: 60, b: 60 },
+      margin: { l: 60, r: 24, t: 60, b: 60 },
       xaxis: { title: "Relative Humidity (%)", range: [0, 100] },
       yaxis: { title: `Air Temperature (${yMeta.displayUnits[unitSystem]})`, range: [yMin, yMax] }
     },
@@ -328,6 +319,7 @@ export function buildHumidexChart(
     source: CalculationSource.JsThermalComfort
   };
 }
+
 
 /**
  * Builds the Wind Chill Chart.
@@ -427,14 +419,8 @@ export function buildWindChillChart(
       zmax: 3,
       contours: { coloring: "heatmap", showlines: false },
       hovertemplate: "Frostbite Risk: %{text}<extra></extra>",
-      showscale: true,
-      colorbar: {
-        tickmode: "array",
-        tickvals: [0.4, 1.15, 1.9, 2.6],
-        ticktext: ["Safe", "30 min frostbite", "10 min frostbite", "2 min frostbite"],
-        thickness: 15,
-        len: 0.8
-      }
+      showscale: false,
+      isZone: true,
     })
   ];
 
@@ -462,7 +448,7 @@ export function buildWindChillChart(
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       showlegend: showInputLegend,
-      margin: { l: 60, r: 40, t: 60, b: 60 },
+      margin: { l: 60, r: 24, t: 60, b: 60 },
       xaxis: { title: `Wind Speed (${vMeta.displayUnits[unitSystem]})`, range: [xMin, xMax] },
       yaxis: { title: `Air Temperature (${yMeta.displayUnits[unitSystem]})`, range: [yMin, yMax] }
     },

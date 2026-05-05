@@ -1,3 +1,10 @@
+/**
+ * Adaptive Comfort Chart Services
+ * 
+ * Provides functions for building Adaptive comfort model charts (ASHRAE 55 and 
+ * EN 16798-1). Handles the generation of static comfort polygons and dynamic 
+ * heatmaps based on prevailing outdoor conditions and indoor operative temperatures.
+ */
 import { t_o } from "jsthermalcomfort";
 import { FieldKey } from "../../../models/fieldKeys";
 import { fieldMetaByKey } from "../../../models/inputFieldsMeta";
@@ -18,7 +25,7 @@ import { getCe, calculateAdaptive } from "../adaptive";
 import { InputId as InputIdType } from "../../../models/inputSlots";
 import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 
-// Discrete colorscales for Adaptive Dynamic Chart (Option A)
+// Discrete colorscales for Adaptive ASHRAE 55 Dynamic Chart.
 const ADAPTIVE_ASHRAE_COLORSCALE = [
   [0, "#3b82f6"],     // 1: Too cool (Blue)
   [0.25, "#3b82f6"],
@@ -29,15 +36,15 @@ const ADAPTIVE_ASHRAE_COLORSCALE = [
   [0.75, "#ef4444"],  // 4: Too warm (Red)
   [1, "#ef4444"],
 ];
-
+// Discrete colorscales for Adaptive EN 16798-1 Dynamic Chart.
 const ADAPTIVE_EN_COLORSCALE = [
   [0, "#3b82f6"],     // 1: Too cool (Blue)
   [0.2, "#3b82f6"],
-  [0.2, "#fde047"],   // 2: Category III (Yellow)
+  [0.2, "#fde047"],   // 2: EN Category III (Yellow)
   [0.4, "#fde047"],
-  [0.4, "#86efac"],   // 3: Category II (Light Green)
+  [0.4, "#86efac"],   // 3: EN Category II / ASHRAE 80% (Light Green)
   [0.6, "#86efac"],
-  [0.6, "#22c55e"],   // 4: Category I (Green)
+  [0.6, "#22c55e"],   // 4: EN Category I / ASHRAE 90% (Green)
   [0.8, "#22c55e"],
   [0.8, "#ef4444"],   // 5: Too warm (Red)
   [1, "#ef4444"],
@@ -72,6 +79,7 @@ export function buildAdaptiveChart(
   const isAshrae = standardMode === AdaptiveStandardMode.Ashrae;
   // Set prevailing mean outdoor temperature (TRM) limits.
   const trmMin = 10;
+  // Set the maximum TRM to 33.5 if it's ASHRAE 55, else 30 for EN 16798-1.
   const trmMax = isAshrae ? 33.5 : 30;
 
   // Build the background comfort zones and data points for each input.
@@ -90,14 +98,17 @@ export function buildAdaptiveChart(
       // The TRM where the base boundary hits 25.0
       return (25.0 - limit - offset) / slope;
     };
-
+    // Add the transition points to the TRM points to create the sharp steps.
     const trmPoints: number[] = [...baseTrmPoints];
+    // For ASHRAE 55, add the transition points for 80% and 90% acceptability.
     if (isAshrae) {
       const t80 = findTransitionTrm(3.5);
       const t90 = findTransitionTrm(2.5);
       if (t80 && t80 > trmMin && t80 < trmMax) trmPoints.push(t80 - 0.0001, t80 + 0.0001);
       if (t90 && t90 > trmMin && t90 < trmMax) trmPoints.push(t90 - 0.0001, t90 + 0.0001);
-    } else {
+    } 
+    // For EN 16798-1, add the transition points for Category I, II, and III.
+    else { 
       const tI = findTransitionTrm(2.0);
       const tII = findTransitionTrm(3.0);
       const tIII = findTransitionTrm(4.0);
@@ -105,6 +116,7 @@ export function buildAdaptiveChart(
       if (tII && tII > trmMin && tII < trmMax) trmPoints.push(tII - 0.0001, tII + 0.0001);
       if (tIII && tIII > trmMin && tIII < trmMax) trmPoints.push(tIII - 0.0001, tIII + 0.0001);
     }
+    // Sort the TRM points to create the sharp steps.
     trmPoints.sort((a, b) => a - b);
 
     // ASHRAE acceptability limits arrays.
@@ -121,6 +133,7 @@ export function buildAdaptiveChart(
     let lowerIII: number[] = [];
     let upperIII: number[] = [];
 
+    // Calculate the comfort zones for each input.
     trmPoints.forEach((trm) => {
       if (isAshrae) {
         // ASHRAE 55 neutral temperature formula.
@@ -181,6 +194,7 @@ export function buildAdaptiveChart(
         polygonY: polygonY.map((y) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, y, unitSystem))),
         // Tooltip text shown when hovering over the shaded comfort zone.
         hovertemplate: `Trm %{x:.1f} ${temperatureDisplayUnits}<br>To %{y:.1f} ${temperatureDisplayUnits}<extra></extra>`,
+        isZone: true,
       }));
     };
     // Create the comfort zones.
@@ -267,6 +281,17 @@ export function buildAdaptiveChart(
   };
 }
 
+/**
+ * Builds the adaptive comfort chart with dynamic X and Y axes.
+ * 
+ * @param payload Adaptive chart's inputs request data transfer object (DTO).
+ * @param standardMode The selected standard (ASHRAE 55 or EN 16798-1).
+ * @param unitSystem The active unit system (SI or IP).
+ * @param dynamicXAxis The X-axis field key.
+ * @param dynamicYAxis The Y-axis field key.
+ * @param baselineInputId The baseline input ID.
+ * @returns Complete plotly response bindings (traces and layout).
+ */
 export function buildAdaptiveDynamicChart(
   payload: AdaptiveChartInputsRequestDto,
   standardMode: AdaptiveStandardMode,
@@ -275,9 +300,11 @@ export function buildAdaptiveDynamicChart(
   dynamicYAxis?: FieldKeyType,
   baselineInputId?: string,
 ): PlotlyChartResponseDto {
+  // Get the inputs for the chart.
   const inputs = getCompareInputs(payload.inputs);
   const showInputLegend = inputs.length > 1;
 
+  // Check if the X and Y axes are valid.
   if (!dynamicXAxis || !dynamicYAxis || dynamicXAxis === dynamicYAxis) {
     return {
       traces: [],
@@ -295,102 +322,143 @@ export function buildAdaptiveDynamicChart(
     };
   }
 
+  // Get the active input payload.
   const activeInputPayload = (payload.inputs[baselineInputId as any] || inputs[0]?.payload);
 
+  // Get the metadata for the X and Y axes.
   const xMeta = fieldMetaByKey[dynamicXAxis];
   const yMeta = fieldMetaByKey[dynamicYAxis];
 
+  // Get the minimum and maximum values for the X and Y axes.
   const xMin = convertFieldValueFromSi(dynamicXAxis, xMeta.minValue, unitSystem);
   const xMax = convertFieldValueFromSi(dynamicXAxis, xMeta.maxValue, unitSystem);
   const yMin = convertFieldValueFromSi(dynamicYAxis, yMeta.minValue, unitSystem);
   const yMax = convertFieldValueFromSi(dynamicYAxis, yMeta.maxValue, unitSystem);
 
+  // Create the data points for the X and Y axes.
     const xPoints = 50;
     const yPoints = 50;
     const xValues: number[] = [];
     const yValues: number[] = [];
 
+    // Create the data points for the X and Y axes.
     for (let i = 0; i < xPoints; i++) xValues.push(xMin + (xMax - xMin) * (i / (xPoints - 1)));
     for (let i = 0; i < yPoints; i++) yValues.push(yMin + (yMax - yMin) * (i / (yPoints - 1)));
 
+    // Create the Z values and text values for the chart.
     const zValues: (number | null)[][] = [];
     const textValues: string[][] = [];
 
+    // Check if the standard mode is ASHRAE.
     const isAshrae = standardMode === AdaptiveStandardMode.Ashrae;
 
+    // Get the active input payload. If the active input payload is not found, return an empty array.
     if (activeInputPayload) {
+      // Get the X and Y axis keys.
       const xKey = (dynamicXAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicXAxis) as string;
       const yKey = (dynamicYAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicYAxis) as string;
+      // Get the standard mode. If the standard mode is ASHRAE, return "ASHRAE", otherwise return "ISO".
+      const toStandard = isAshrae ? "ASHRAE" : "ISO";
 
+      // Loop through the Y values.
       for (let i = 0; i < yPoints; i++) {
         const row: (number | null)[] = [];
         const textRow: string[] = [];
         const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
 
+        // Loop through the X values.
         for (let j = 0; j < xPoints; j++) {
           const xSi = convertFieldValueToSi(dynamicXAxis, xValues[j], unitSystem);
 
-          const pointArgs = {
-            ...activeInputPayload,
-            [xKey]: xSi,
-            [yKey]: ySi,
-          } as AdaptiveRequestDto;
+          // Create the point arguments by copying the active input payload.
+          const pointArgs = { ...activeInputPayload } as AdaptiveRequestDto;
+          
+          // Set the X and Y axis values. 
+          // If the dynamic X axis is operative temperature, set the tdb and tr values to the X value.
+          if (dynamicXAxis === FieldKey.OperativeTemperature) {
+            pointArgs.tdb = xSi;
+            pointArgs.tr = xSi;
+          } else {
+            (pointArgs as any)[xKey] = xSi;
+          }
 
-          // Skip calculation if any core parameter is NaN to avoid library hangs.
+          // If the dynamic Y axis is operative temperature, set the tdb and tr values to the Y value.
+          if (dynamicYAxis === FieldKey.OperativeTemperature) {
+            pointArgs.tdb = ySi;
+            pointArgs.tr = ySi;
+          } else {
+            (pointArgs as any)[yKey] = ySi;
+          }
+
+          // Skip calculation if any core parameter is NaN to avoid any calculation issues.
           if (Number.isNaN(pointArgs.tdb) || Number.isNaN(pointArgs.tr) || Number.isNaN(pointArgs.trm) || Number.isNaN(pointArgs.v)) {
             row.push(null);
             textRow.push("Out of range");
             continue;
           }
 
+          // Try to calculate the result.
           try {
             const result = calculateAdaptive(pointArgs, standardMode);
-            
+
+            // Set the row value based on the result of the calculation and the standard mode.
             if (isAshrae) {
+              // If the result is acceptable for 90%, set the row value to 4 and the text value to "90% Acceptability".
               if (result.acceptability_90) {
-                row.push(3);
+                row.push(4);
                 textRow.push("90% Acceptability");
+              // If the result is acceptable for 80%, set the row value to 3 and the text value to "80% Acceptability".
               } else if (result.acceptability_80) {
-                row.push(2);
+                row.push(3);
                 textRow.push("80% Acceptability");
+              // If the status is too cool, set the row value to 1 and the text value to "Too cool".
               } else if (result.status_80 === "Too cool") {
                 row.push(1);
                 textRow.push("Too cool");
+              // Otherwise, set the row value to 5 and the text value to "Too warm".
               } else {
-                row.push(4);
+                row.push(5);
                 textRow.push("Too warm");
               }
             } else {
+              // If the result is acceptable for Category I, set the row value to 4 and the text value to "Category I".
               if (result.acceptability_cat_i) {
                 row.push(4);
                 textRow.push("Category I");
+              // If the result is acceptable for Category II, set the row value to 3 and the text value to "Category II".
               } else if (result.acceptability_cat_ii) {
                 row.push(3);
                 textRow.push("Category II");
+              // If the result is acceptable for Category III, set the row value to 2 and the text value to "Category III".
               } else if (result.acceptability_cat_iii) {
                 row.push(2);
                 textRow.push("Category III");
+              // If the status is too cool, set the row value to 1 and the text value to "Too cool".
               } else if (result.status_cat_iii === "Too cool") {
                 row.push(1);
                 textRow.push("Too cool");
+              // Otherwise, set the row value to 5 and the text value to "Too warm". 
               } else {
                 row.push(5);
                 textRow.push("Too warm");
               }
             }
+          // If the calculation fails, set the row value to null and the text value to "Out of range".
           } catch (e) {
             row.push(null);
             textRow.push("Out of range");
           }
         }
+        // Push the row and text row to the Z values and text values.
         zValues.push(row);
         textValues.push(textRow);
       }
     }
-
+    // Create the traces for the chart.
     const traces: PlotTraceDto[] = [];
 
     if (zValues.length > 0) {
+      // Define the color scale for ASHRAE.
       const ashraeColorScale: any = [
         [0, "#3b82f6"], // Too cool (Value 1)
         [0.25, "#3b82f6"],
@@ -402,6 +470,7 @@ export function buildAdaptiveDynamicChart(
         [1, "#ef4444"],
       ];
 
+      // Define the color scale for EN.
       const enColorScale: any = [
         [0, "#3b82f6"], // Too cool (Value 1)
         [0.2, "#3b82f6"],
@@ -415,6 +484,7 @@ export function buildAdaptiveDynamicChart(
         [1, "#ef4444"],
       ];
 
+      // Push the trace to the traces array.
       traces.push({
         type: "heatmap",
         name: "Adaptive Zones",
@@ -429,28 +499,47 @@ export function buildAdaptiveDynamicChart(
         hoverinfo: "text",
         hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><extra></extra>`,
         opacity: 0.80,
+        isZone: true,
       } as any);
     }
 
-  inputs.forEach(({ inputId, payload: inputPayload }) => {
-    const xKey = (dynamicXAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicXAxis) as string;
-    const yKey = (dynamicYAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicYAxis) as string;
+    // Plot each input as a scatter trace.
+    inputs.forEach(({ inputId, payload: inputPayload }) => {
+      const toStandard = isAshrae ? "ASHRAE" : "ISO";
+      // Calculate the X value based on the dynamic X axis.
+      let inputX: number;
+      // If the dynamic X axis is Operative Temperature, calculate the X value using the t_o function.
+      if (dynamicXAxis === FieldKey.OperativeTemperature) {
+        inputX = t_o(inputPayload.tdb, inputPayload.tr, inputPayload.v, toStandard);
+      // Otherwise, get the X value from the input payload.
+      } else {
+        const xKey = (dynamicXAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicXAxis) as string;
+        inputX = inputPayload[xKey as keyof typeof inputPayload] as number;
+      }
+      // Calculate the Y value based on the dynamic Y axis.
+      let inputY: number;
+      // If the dynamic Y axis is Operative Temperature, calculate the Y value using the t_o function.
+      if (dynamicYAxis === FieldKey.OperativeTemperature) {
+        inputY = t_o(inputPayload.tdb, inputPayload.tr, inputPayload.v, toStandard);
+      // Otherwise, get the Y value from the input payload.
+      } else {
+        const yKey = (dynamicYAxis === FieldKey.RelativeAirSpeed ? "v" : dynamicYAxis) as string;
+        inputY = inputPayload[yKey as keyof typeof inputPayload] as number;
+      }
+      // Convert the input X and Y values to the correct unit system.
+      inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
+      inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
 
-    let inputX = inputPayload[xKey as keyof typeof inputPayload] as number;
-    let inputY = inputPayload[yKey as keyof typeof inputPayload] as number;
-    
-    inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
-    inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
-
-    traces.push(buildInputScatterTrace({
-      inputId,
-      x: roundValue(inputX),
-      y: roundValue(inputY),
-      showLegend: showInputLegend,
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
-    }));
-  });
-
+      // Push the input trace to the traces array.
+      traces.push(buildInputScatterTrace({
+        inputId,
+        x: roundValue(inputX),
+        y: roundValue(inputY),
+        showLegend: showInputLegend,
+        hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+      }));
+    });
+  // Return the traces and layout.
   return {
     traces,
     layout: {

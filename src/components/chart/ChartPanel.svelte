@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Card, Heading } from "flowbite-svelte";
+  /**
+   * @component
+   * The primary container for comfort tool visualizations.
+   * Orchestrates the display of the chart canvas, header information, axis selection, 
+   * legends, and export controls.
+   */
+  import { Card, Heading, Toggle } from "flowbite-svelte";
   import PlotlyCanvas from "./PlotlyCanvas.svelte";
   import ChartExportMenu from "./ChartExportMenu.svelte";
   import ChartAxisMenu from "./ChartAxisMenu.svelte";
@@ -50,6 +56,13 @@
   } = $props();
 
   let exportChart: ((type: "png" | "svg") => void) | undefined = $state(undefined);
+  let showZones = $state(true);
+
+  // Reset zone visibility whenever the active chart changes.
+  $effect(() => {
+    selectedChart;
+    showZones = true;
+  });
 </script>
 
 {#snippet content()}
@@ -77,13 +90,25 @@
           {onSelectYAxis}
         />
       {/if}
-      <ChartExportMenu
-        {chartOptions}
-        {selectedChart}
-        activeChartId={selectedChart}
-        onSelectChart={onSelectChart}
-        onExport={(type) => exportChart?.(type)}
-      />
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs font-medium text-stone-500">Zones</span>
+        <Toggle
+          checked={showZones}
+          onchange={(e) => (showZones = e.currentTarget.checked)}
+          color="teal"
+          size="small"
+        />
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs font-medium text-stone-500">Chart:</span>
+        <ChartExportMenu
+          {chartOptions}
+          {selectedChart}
+          activeChartId={selectedChart}
+          onSelectChart={onSelectChart}
+          onExport={(type) => exportChart?.(type)}
+        />
+      </div>
     </div>
   </header>
 
@@ -93,6 +118,7 @@
       {isLoading}
       {emptyMessage}
       {heightClass}
+      {showZones}
       onRegisterExport={(handler) => (exportChart = handler)}
     />
   </div>
