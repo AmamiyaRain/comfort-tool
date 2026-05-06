@@ -243,7 +243,7 @@ export function buildComparePsychrometricChart(
       // Only show PMV values between -3.5 and 3.5
       zmin: -3.5,
       zmax: 3.5,
-      hovertemplate: `Tdb: %{x:.1f} ${temperatureDisplayUnits}<br>Humidity ratio: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
       opacity: 0.80,
       isZone: true,
     }));
@@ -280,8 +280,8 @@ export function buildComparePsychrometricChart(
       // Color of the curve.
       color: "#94a3b8",
       // Hover template for the curve.
-      hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-      `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+      hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
     }));
   });
 
@@ -307,10 +307,19 @@ export function buildComparePsychrometricChart(
         polygonX,
         polygonY,
         // Tooltip text for the comfort zone.
-        hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+        hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
+        `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
         isZone: true,
       }));
+    }
+
+    // Calculate PMV and Zone for the scatter dot.
+    let pmvText = "";
+    try {
+      const pmvRes = pmv_ppd(inputPayload.tdb, inputPayload.tr, inputPayload.vr, inputPayload.rh, inputPayload.met, inputPayload.clo, inputPayload.wme, "ASHRAE", { limit_inputs: false });
+      pmvText = `<br><b>Zone: ${getPmvZoneMeta(pmvRes.pmv).label}</b><br>PMV: ${roundValue(pmvRes.pmv, 2)}`;
+    } catch {
+      // Ignore errors.
     }
 
     // Add the data point for the current conditions.
@@ -321,8 +330,8 @@ export function buildComparePsychrometricChart(
       y: roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
       showLegend: showInputLegend,
       // Tooltip text for the data point.
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>Tdb %{x:.1f} ${temperatureDisplayUnits}<br>` +
-      `Humidity ratio %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
+      `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}${pmvText}<extra></extra>`,
     }));
   });
 
@@ -503,13 +512,22 @@ export function buildPmvDynamicChart(
     inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
     inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
 
+    // Calculate PMV and Zone for the dynamic scatter dot.
+    let pmvText = "";
+    try {
+      const pmvRes = pmv_ppd(inputPayload.tdb, inputPayload.tr, inputPayload.vr, inputPayload.rh, inputPayload.met, inputPayload.clo, inputPayload.wme, "ASHRAE", { limit_inputs: false });
+      pmvText = `<br><b>Zone: ${getPmvZoneMeta(pmvRes.pmv).label}</b><br>PMV: ${roundValue(pmvRes.pmv, 2)}`;
+    } catch {
+      // Ignore errors.
+    }
+
     // Add the input trace.
     traces.push(buildInputScatterTrace({
       inputId,
       x: roundValue(inputX),
       y: roundValue(inputY),
       showLegend: showInputLegend,
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}${pmvText}<extra></extra>`,
     }));
   });
 

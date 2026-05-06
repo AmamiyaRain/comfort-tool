@@ -191,8 +191,8 @@ export function buildHeatIndexRangesChart(
       [0.6, "#f97316"], [0.8, "#f97316"], // Danger
       [0.8, "#dc2626"], [1, "#dc2626"] // Extreme Danger
     ],
-    hovertemplateContour: "Category: %{text}<extra></extra>",
-    getHovertemplateScatter: (label, cached) => `${label}<br>RH: %{x:.1f}%<br>Air Temp: %{y:.1f}°<br>Heat Index: ${roundValue(cached?.hi, 1)}°<extra></extra>`,
+    hovertemplateContour: `${fieldMetaByKey[FieldKey.RelativeHumidity].label}: %{x:.1f}%<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Category: %{text}</b><extra></extra>`,
+    getHovertemplateScatter: (label, cached) => `${label}<br>${fieldMetaByKey[FieldKey.RelativeHumidity].label}: %{x:.1f}%<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Category: ${cached?.category || ""}</b><br>Heat Index: ${roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, cached?.hi, unitSystem), 1)}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<extra></extra>`,
     getScatterXSi: (p) => p.rh,
     getScatterYSi: (p) => p.tdb,
     calculatePoint: (xSi, ySi) => {
@@ -235,8 +235,8 @@ export function buildHumidexChart(
       [0.666, "#f97316"], [0.833, "#f97316"], // Dangerous
       [0.833, "#dc2626"], [1, "#dc2626"] // Stroke Probable
     ],
-    hovertemplateContour: "Discomfort: %{text}<extra></extra>",
-    getHovertemplateScatter: (label, cached) => `${label}<br>RH: %{x:.1f}%<br>Air Temp: %{y:.1f}°<br>Humidex: ${roundValue(cached?.humidex, 1)}<extra></extra>`,
+    hovertemplateContour: `${fieldMetaByKey[FieldKey.RelativeHumidity].label}: %{x:.1f}%<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Discomfort: %{text}</b><extra></extra>`,
+    getHovertemplateScatter: (label, cached) => `${label}<br>${fieldMetaByKey[FieldKey.RelativeHumidity].label}: %{x:.1f}%<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Discomfort: ${cached?.humidexDiscomfort || ""}</b><br>Humidex: ${roundValue(cached?.humidex, 1)}<extra></extra>`,
     getScatterXSi: (p) => p.rh,
     getScatterYSi: (p) => p.tdb,
     calculatePoint: (xSi, ySi) => {
@@ -267,7 +267,7 @@ export function buildWindChillChart(
 ): PlotlyChartResponseDto {
   return buildThermalIndexRangeChart(payload, cachedResultsByInput, unitSystem, {
     title: "Wind Chill Frostbite Risk",
-    xKey: FieldKey.RelativeAirSpeed,
+    xKey: FieldKey.WindSpeed,
     yKey: FieldKey.DryBulbTemperature,
     xRangeSi: { min: 1, max: 20 },
     yRangeSi: { min: -45, max: 0 },
@@ -278,8 +278,8 @@ export function buildWindChillChart(
       [0.5, "#5c6bc0"], [0.75, "#5c6bc0"], // 10 min
       [0.75, "#8e24aa"], [1, "#8e24aa"] // 2 min
     ],
-    hovertemplateContour: "Frostbite Risk: %{text}<extra></extra>",
-    getHovertemplateScatter: (label, cached) => `${label}<br>Wind Speed: %{x:.2f}<br>Air Temp: %{y:.1f}°<br>Wind Chill: ${roundValue(cached?.wciTemp, 1)}°<extra></extra>`,
+    hovertemplateContour: `${fieldMetaByKey[FieldKey.WindSpeed].label}: %{x:.1f} ${fieldMetaByKey[FieldKey.WindSpeed].displayUnits[unitSystem]}<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Frostbite Risk: %{text}</b><extra></extra>`,
+    getHovertemplateScatter: (label, cached) => `${label}<br>${fieldMetaByKey[FieldKey.WindSpeed].label}: %{x:.2f} ${fieldMetaByKey[FieldKey.WindSpeed].displayUnits[unitSystem]}<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{y:.1f}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<br><b>Frostbite Risk: ${cached?.wciZone || ""}</b><br>Wind Chill Index: ${roundValue(cached?.wci, 0)} W/m²<br>Wind Chill Temperature: ${roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, cached?.wciTemp, unitSystem), 1)}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<extra></extra>`,
     getScatterXSi: (p) => p.v || 0,
     getScatterYSi: (p) => p.tdb,
     calculatePoint: (xSi, ySi) => {
@@ -465,7 +465,7 @@ export function buildThermalIndicesDynamicChart(
       zmin: 0,
       zmax: zMaxs[modelId as any] || 1,
       contours: { coloring: "heatmap", showlines: false },
-      hovertemplate: "%{text}<extra></extra>",
+      hovertemplate: `${xMeta.label}: %{x:.1f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.1f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><extra></extra>`,
       showscale: false,
       isZone: true,
     })
@@ -482,9 +482,17 @@ export function buildThermalIndicesDynamicChart(
     const cached = cachedResultsByInput[input.inputId];
     
     let indexValue = "";
-    if (modelId === "HEAT_INDEX") indexValue = `HI: ${roundValue(cached?.hi, 1)}°`;
-    else if (modelId === "HUMIDEX") indexValue = `Humidex: ${roundValue(cached?.humidex, 1)}`;
-    else if (modelId === "WIND_CHILL") indexValue = `WC: ${roundValue(cached?.wciTemp, 1)}°`;
+    let indexCategory = "";
+    if (modelId === "HEAT_INDEX") {
+      indexValue = `HI: ${roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, cached?.hi, unitSystem), 1)}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}`;
+      indexCategory = cached?.category || "";
+    } else if (modelId === "HUMIDEX") {
+      indexValue = `Humidex: ${roundValue(cached?.humidex, 1)}`;
+      indexCategory = cached?.humidexDiscomfort || "";
+    } else if (modelId === "WIND_CHILL") {
+      indexValue = `Wind Chill Index: ${roundValue(cached?.wci, 0)} W/m²<br>Wind Chill Temperature: ${roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, cached?.wciTemp, unitSystem), 1)}${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}`;
+      indexCategory = cached?.wciZone || "";
+    }
 
     traces.push(
       buildInputScatterTrace({
@@ -492,7 +500,7 @@ export function buildThermalIndicesDynamicChart(
         x: xVal,
         y: yVal,
         showLegend: showInputLegend,
-        hovertemplate: `${inputDisplayMetaById[input.inputId].label}<br>${xMeta.label}: %{x:.1f}<br>${yMeta.label}: %{y:.1f}<br>${indexValue}<extra></extra>`,
+        hovertemplate: `${inputDisplayMetaById[input.inputId].label}<br>${xMeta.label}: %{x:.1f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.1f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: ${indexCategory}</b><br>${indexValue}<extra></extra>`,
       })
     );
   });

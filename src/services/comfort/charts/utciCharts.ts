@@ -169,7 +169,7 @@ export function buildUtciStressChart(
       x: displayUtci,
       y: yPosition,
       showLegend: showInputLegend,
-      hovertemplate: `${inputLabel}<br>UTCI %{x:.1f} ${temperatureDisplayUnits}<br>${result.stressCategory}<extra></extra>`,
+      hovertemplate: `${inputLabel}<br>UTCI: %{x:.1f} ${temperatureDisplayUnits}<br><b>Stress Category: ${result.stressCategory}</b><extra></extra>`,
       markerSize: 14,
     }));
   });
@@ -294,6 +294,7 @@ export function buildUtciDynamicChart(
   // Initialize z values and text values.
   const zValues: number[][] = [];
   const textValues: string[][] = [];
+  const customValues: number[][] = [];
 
   // Check if active input payload exists.
   if (activeInputPayload) {
@@ -301,6 +302,7 @@ export function buildUtciDynamicChart(
     for (let i = 0; i < yPoints; i++) {
       const row: number[] = [];
       const textRow: string[] = [];
+      const customRow: number[] = [];
 
       // Convert the current y-axis display value to its SI equivalent.
       const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
@@ -344,20 +346,24 @@ export function buildUtciDynamicChart(
           if (typeof result === "object" && typeof result.utci === "number") {
             row.push(result.utci);
             textRow.push(shortLabel);
+            customRow.push(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
           } else {
             // Push NaN and empty string if UTCI doesn't exist.
             row.push(NaN);
             textRow.push("");
+            customRow.push(NaN);
           }
         // Catch errors.
         } catch (e) {
           row.push(NaN);
           textRow.push("");
+          customRow.push(NaN);
         }
       }
       // Push row to z values.
       zValues.push(row);
       textValues.push(textRow);
+      customValues.push(customRow);
     }
   }
 
@@ -376,7 +382,8 @@ export function buildUtciDynamicChart(
       showscale: false,
       zmin: UTCI_MIN,
       zmax: UTCI_MAX,
-      hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>UTCI: %{z:.1f}<extra></extra>`,
+      hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>UTCI: %{customdata:.1f} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<extra></extra>`,
+      customdata: customValues,
       opacity: 0.75,
       isZone: true,
     }));
@@ -402,13 +409,25 @@ export function buildUtciDynamicChart(
     inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
     inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
 
+    // Calculate UTCI and Stress Category for the scatter dot.
+    let utciText = "";
+    try {
+      const utciRes = utci(inputPayload.tdb, inputPayload.tr, inputPayload.v, inputPayload.rh, "SI", true, false);
+      const categoryName = String(utciRes.stress_category);
+      const shortLabel = utciStressShortLabelByCategory[categoryName as any] ?? categoryName;
+      const displayUtciVal = convertFieldValueFromSi(FieldKey.DryBulbTemperature, utciRes.utci, unitSystem);
+      utciText = `<br><b>Zone: ${shortLabel}</b><br>UTCI: ${roundValue(displayUtciVal, 1)} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}`;
+    } catch {
+      // Ignore errors.
+    }
+
     // Push the input scatter trace if the values exist.
     traces.push(buildInputScatterTrace({
       inputId,
       x: roundValue(inputX),
       y: roundValue(inputY),
       showLegend: showInputLegend,
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}${utciText}<extra></extra>`,
     }));
   });
 

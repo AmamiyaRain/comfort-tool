@@ -162,12 +162,14 @@ export function buildAdaptiveChart(
     const addPolygon = (lower: number[], upper: number[], nameSuffix: string) => {
       const polygonX = trmPoints.concat(trmPoints.slice().reverse());
       const polygonY = lower.concat(upper.slice().reverse());
+      const xLabel = `${isAshrae ? "Prevailing" : "Running"} ${fieldMetaByKey[FieldKey.PrevailingMeanOutdoorTemperature].label.toLowerCase()}`;
+      const yLabel = fieldMetaByKey[FieldKey.OperativeTemperature].label;
       traces.push(buildComfortPolygonTrace({
         inputId: baselineInput.inputId,
         nameSuffix,
         polygonX: polygonX.map((x) => roundValue(convertFieldValueFromSi(FieldKey.PrevailingMeanOutdoorTemperature, x, unitSystem))),
         polygonY: polygonY.map((y) => roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, y, unitSystem))),
-        hovertemplate: `Trm %{x:.1f} ${temperatureDisplayUnits}<br>To %{y:.1f} ${temperatureDisplayUnits}<extra></extra>`,
+        hovertemplate: `${xLabel}: %{x:.1f} ${temperatureDisplayUnits}<br>${yLabel}: %{y:.1f} ${temperatureDisplayUnits}<extra></extra>`,
         isZone: true,
       }));
     };
@@ -185,16 +187,18 @@ export function buildAdaptiveChart(
   // Create data points for each input.
   inputs.forEach(({ inputId, payload: inputPayload }) => {
     const to = t_o(inputPayload.tdb, inputPayload.tr, inputPayload.v, standardMode === AdaptiveStandardMode.Ashrae ? "ASHRAE" : "ISO");
-    traces.push(buildInputScatterTrace({
-      inputId,
-      x: roundValue(convertFieldValueFromSi(FieldKey.PrevailingMeanOutdoorTemperature, inputPayload.trm, unitSystem)),
-      y: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, to, unitSystem)),
-      showLegend: showInputLegend,
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>` +
-        `Trm %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `To %{y:.1f} ${temperatureDisplayUnits}<extra></extra>`,
-      markerSize: 14,
-    }));
+      const xLabel = `${isAshrae ? "Prevailing" : "Running"} ${fieldMetaByKey[FieldKey.PrevailingMeanOutdoorTemperature].label.toLowerCase()}`;
+      const yLabel = fieldMetaByKey[FieldKey.OperativeTemperature].label;
+      traces.push(buildInputScatterTrace({
+        inputId,
+        x: roundValue(convertFieldValueFromSi(FieldKey.PrevailingMeanOutdoorTemperature, inputPayload.trm, unitSystem)),
+        y: roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, to, unitSystem)),
+        showLegend: showInputLegend,
+        hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>` +
+          `${xLabel}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
+          `${yLabel}: %{y:.1f} ${temperatureDisplayUnits}<extra></extra>`,
+        markerSize: 14,
+      }));
   });
 
   // Return the chart traces and layout.
@@ -423,12 +427,39 @@ export function buildAdaptiveDynamicChart(
       inputX = convertFieldValueFromSi(dynamicXAxis, inputX, unitSystem);
       inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
 
+      // Calculate Adaptive zone for the scatter dot.
+      let adaptiveText = "";
+      try {
+        const adRes = calculateAdaptive({
+          tdb: inputPayload.tdb,
+          tr: inputPayload.tr,
+          trm: inputPayload.trm,
+          v: inputPayload.v,
+          units: UnitSystem.SI,
+        }, standardMode);
+        
+        let zoneLabel = "";
+        if (standardMode === AdaptiveStandardMode.Ashrae) {
+          if (adRes.acceptability_90) zoneLabel = "90% Acceptability";
+          else if (adRes.acceptability_80) zoneLabel = "80% Acceptability";
+          else zoneLabel = inputPayload.tdb > (0.31 * inputPayload.trm + 17.8) ? "Too Warm" : "Too Cool";
+        } else {
+          if (adRes.acceptability_cat_i) zoneLabel = "Category I";
+          else if (adRes.acceptability_cat_ii) zoneLabel = "Category II";
+          else if (adRes.acceptability_cat_iii) zoneLabel = "Category III";
+          else zoneLabel = inputPayload.tdb > (0.33 * inputPayload.trm + 18.8) ? "Too Warm" : "Too Cool";
+        }
+        adaptiveText = `<br><b>Zone: ${zoneLabel}</b>`;
+      } catch {
+        // Ignore errors.
+      }
+
       traces.push(buildInputScatterTrace({
         inputId,
         x: roundValue(inputX),
         y: roundValue(inputY),
         showLegend: showInputLegend,
-        hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label} %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label} %{y:.2f} ${yMeta.displayUnits[unitSystem]}<extra></extra>`,
+        hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}${adaptiveText}<extra></extra>`,
       }));
     });
 

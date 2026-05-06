@@ -230,6 +230,8 @@ export interface PlotTraceDto {
   hovertemplate?: string | null;
   /** When true, this trace is a background zone overlay that can be hidden via the Zones toggle. */
   isZone?: boolean;
+  /** Custom data associated with each point in the trace, often used in hovertemplates. */
+  customdata?: any[] | any[][];
 }
 
 // Plot Annotation DTO, contains plot annotation data, including x, y, text, showarrow and font
