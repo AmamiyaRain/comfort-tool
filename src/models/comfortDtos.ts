@@ -6,7 +6,7 @@
 
 import type { CalculationSource, ComfortStandard } from "./calculationMetadata";
 import type { InputId as InputIdType } from "./inputSlots";
-import type { UtciStressCategory } from "./utciStress";
+import type { UtciStressCategory } from "../services/comfort/helpers";
 import type { UnitSystem } from "./units";
 import type { FieldKey } from "./fieldKeys";
 
