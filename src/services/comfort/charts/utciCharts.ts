@@ -59,9 +59,12 @@ const UTCI_COLORSCALE = [
   [n(46), "#dc2626"], [1, "#dc2626"], // Extreme heat
 ];
 
+const UTCI_LEVELS = utciStressBands.slice(0, -1).map((band) => band.maximum);
+
 const UTCI_CONTOURS = {
   coloring: "heatmap",
   showlines: false,
+  line: { width: 0 },
 };
 
 const UTCI_COLORBAR = {
@@ -151,6 +154,7 @@ export function buildUtciStressChart(
       zmin: UTCI_MIN,
       zmax: UTCI_MAX,
       opacity: 0.75,
+      line: { width: 0 },
       isZone: true,
     })
   ];
@@ -203,7 +207,8 @@ export function buildUtciStressChart(
       xaxis: {
         title: `UTCI (${temperatureDisplayUnits})`,
         range: stressRange,
-        gridcolor: "#e2e8f0",
+        showgrid: false,
+        zeroline: false,
       },
       yaxis: {
         title: "",
@@ -385,6 +390,7 @@ export function buildUtciDynamicChart(
       hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>UTCI: %{customdata:.1f} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<extra></extra>`,
       customdata: customValues,
       opacity: 0.75,
+      line: { width: 0 },
       isZone: true,
     }));
   }
@@ -443,12 +449,14 @@ export function buildUtciDynamicChart(
       xaxis: {
         title: `${xMeta.label} (${xMeta.displayUnits[unitSystem]})`,
         range: [xMin, xMax],
-        gridcolor: "#e2e8f0",
+        showgrid: false,
+        zeroline: false,
       },
       yaxis: {
         title: `${yMeta.label} (${yMeta.displayUnits[unitSystem]})`,
         range: [yMin, yMax],
-        gridcolor: "#e2e8f0",
+        showgrid: false,
+        zeroline: false,
       },
       legend: { orientation: "h", x: 0, y: 1.1 },
       height: 480,

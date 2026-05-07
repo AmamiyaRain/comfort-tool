@@ -347,6 +347,7 @@ export interface ContourTraceOptions {
   zmax?: number;
   colorbar?: any;
   opacity?: number;
+  line?: any;
   isZone?: boolean;
   customdata?: any[][];
 }
@@ -371,6 +372,7 @@ export function buildContourTrace({
   zmax,
   colorbar,
   opacity,
+  line,
   isZone,
   customdata,
 }: ContourTraceOptions): PlotTraceDto {
@@ -388,6 +390,7 @@ export function buildContourTrace({
     zmax,
     colorbar,
     opacity,
+    line,
     hoverinfo: "all",
     hovertemplate,
     isZone,
