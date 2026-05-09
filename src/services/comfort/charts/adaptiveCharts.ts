@@ -15,7 +15,6 @@ import type {
   PlotlyChartResponseDto,
   PlotTraceDto,
   AdaptiveChartInputsRequestDto,
-  AdaptiveRequestDto,
 } from "../../../models/comfortDtos";
 import { convertFieldValueFromSi, convertFieldValueToSi } from "../../units";
 import {
@@ -27,7 +26,6 @@ import {
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildContourTrace } from "./plotlyBuilders";
 import { AdaptiveStandardMode } from "../../../models/inputModes";
 import { getCe, calculateAdaptive } from "../adaptive";
-import { InputId as InputIdType } from "../../../models/inputSlots";
 import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 
 // Discrete colorscales for Adaptive ASHRAE 55 Dynamic Chart (Monotonic 1-5).
@@ -103,20 +101,14 @@ export function buildAdaptiveChart(
   if (baselineInput) {
     const v = baselineInput.payload.v;
     const baseTrmPoints = Array.from({ length: 500 }, (_, i) => trmMin + ((trmMax - trmMin) * i) / 499);
-    
-    const findTransitionTrm = (limit: number) => {
-      const offset = isAshrae ? 17.8 : 18.8;
-      const slope = isAshrae ? 0.31 : 0.33;
-      return (25.0 - limit - offset) / slope;
-    };
 
     const trmPoints: number[] = [...baseTrmPoints];
-    if (isAshrae) {
-      const t80 = findTransitionTrm(3.5);
-      const t90 = findTransitionTrm(2.5);
-      if (t80 && t80 > trmMin && t80 < trmMax) trmPoints.push(t80 - 0.0001, t80 + 0.0001);
-      if (t90 && t90 > trmMin && t90 < trmMax) trmPoints.push(t90 - 0.0001, t90 + 0.0001);
-    } else { 
+    if (!isAshrae) {
+      const findTransitionTrm = (limit: number) => {
+        const offset = 18.8;
+        const slope = 0.33;
+        return (25.0 - limit - offset) / slope;
+      };
       const tI = findTransitionTrm(2.0);
       const tII = findTransitionTrm(3.0);
       const tIII = findTransitionTrm(4.0);
@@ -139,15 +131,44 @@ export function buildAdaptiveChart(
 
     trmPoints.forEach((trm) => {
       if (isAshrae) {
-        const t_cmf = 0.31 * trm + 17.8;
-        const up80_base = t_cmf + 3.5;
-        const up80 = up80_base > 25.0 ? up80_base + getCe(v, up80_base + getCe(v, 25.1)) : up80_base;
-        const up90_base = t_cmf + 2.5;
-        const up90 = up90_base > 25.0 ? up90_base + getCe(v, up90_base + getCe(v, 25.1)) : up90_base;
-        lower80.push(t_cmf - 3.5);
-        upper80.push(up80);
-        lower90.push(t_cmf - 2.5);
-        upper90.push(up90);
+        const neutralOperativeTemperature = 24;
+        const baseResult = calculateAdaptive(
+          {
+            ...baselineInput.payload,
+            tdb: neutralOperativeTemperature,
+            tr: neutralOperativeTemperature,
+            trm,
+            v,
+            units: UnitSystem.SI,
+          },
+          AdaptiveStandardMode.Ashrae,
+        );
+        const upper80Result = calculateAdaptive(
+          {
+            ...baselineInput.payload,
+            tdb: baseResult.tmp_cmf_80_up,
+            tr: baseResult.tmp_cmf_80_up,
+            trm,
+            v,
+            units: UnitSystem.SI,
+          },
+          AdaptiveStandardMode.Ashrae,
+        );
+        const upper90Result = calculateAdaptive(
+          {
+            ...baselineInput.payload,
+            tdb: baseResult.tmp_cmf_90_up,
+            tr: baseResult.tmp_cmf_90_up,
+            trm,
+            v,
+            units: UnitSystem.SI,
+          },
+          AdaptiveStandardMode.Ashrae,
+        );
+        lower80.push(baseResult.tmp_cmf_80_low);
+        upper80.push(upper80Result.tmp_cmf_80_up);
+        lower90.push(baseResult.tmp_cmf_90_low);
+        upper90.push(upper90Result.tmp_cmf_90_up);
       } else {
         const t_cmf = 0.33 * trm + 18.8;
         const upI_base = t_cmf + 2.0;
@@ -338,8 +359,7 @@ export function buildAdaptiveDynamicChart(
           }, standardMode);
 
           if (standardMode === AdaptiveStandardMode.Ashrae) {
-            const t_cmf = 0.31 * trm + 17.8;
-            const isWarm = tdb > t_cmf;
+            const isWarm = tdb > result.t_cmf;
 
             if (result.acceptability_90) {
               row.push(3);
@@ -432,7 +452,7 @@ export function buildAdaptiveDynamicChart(
         if (standardMode === AdaptiveStandardMode.Ashrae) {
           if (adRes.acceptability_90) zoneLabel = "90% Acceptability";
           else if (adRes.acceptability_80) zoneLabel = "80% Acceptability";
-          else zoneLabel = inputPayload.tdb > (0.31 * inputPayload.trm + 17.8) ? "Too Warm" : "Too Cool";
+          else zoneLabel = inputPayload.tdb > adRes.t_cmf ? "Too Warm" : "Too Cool";
         } else {
           if (adRes.acceptability_cat_i) zoneLabel = "Category I";
           else if (adRes.acceptability_cat_ii) zoneLabel = "Category II";
