@@ -19,7 +19,8 @@ import type { ComfortToolStateSlice, ModelOptionsState, ResultSectionViewModel }
 import { pmvModelConfig } from "./pmv";
 import { utciModelConfig } from "./utci";
 import { adaptiveAshraeModelConfig, adaptiveEnModelConfig } from "./adaptive";
-import { heatIndexModelConfig, humidexModelConfig, windChillModelConfig } from "./thermalIndices";
+import { humidexModelConfig, windChillModelConfig } from "./thermalIndices";
+import { heatIndexModelConfig } from "../../../comfortModels/heatIndex";
 
 /**
  * Type for model calculation outputs, containing results by input and chart source.

@@ -1,10 +1,11 @@
 import { inputOrder, type InputId as InputIdType } from "../../../models/inputSlots";
-import type { ResultSectionViewModel, ResultTone, ModelOptionsState } from "../types";
+import type { ResultSectionViewModel, ModelOptionsState } from "../types";
 import type { ComfortModelDefinition, ModelOptionChangeHandler } from "./index";
 import type { ComfortModel as ComfortModelType } from "../../../models/comfortModels";
 import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
 import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
+import type { ResultTone } from "../../../models/resultTones";
 import type { InputControlDefinition } from "../../../services/comfort/controls/types";
 import type { ThermalZone } from "../../../models/thermalZone";
 
@@ -43,7 +44,7 @@ export function buildResultSection<T>(
   title: string,
   resultsByInput: Record<InputIdType, T | null>,
   visibleInputIds: InputIdType[],
-  formatter: (result: T) => { text: string; tone: ResultTone },
+  formatter: (result: T) => { text: string; subtext?: string; tone?: ResultTone },
   group?: string,
 ): ResultSectionViewModel {
   return {
@@ -59,7 +60,7 @@ export function buildResultSection<T>(
 
       acc[inputId] = formattedValue;
       return acc;
-    }, {} as Record<InputIdType, { text: string; tone: ResultTone } | null>),
+    }, {} as Record<InputIdType, { text: string; subtext?: string; tone?: ResultTone } | null>),
   };
 }
 
@@ -85,6 +86,24 @@ export class ComfortModelBuilder<ResultType, ChartSourceType> {
    */
   constructor(id: ComfortModelType) {
     this.config.id = id;
+  }
+
+  /**
+   * Sets the display label for the comfort model in the model selection menu.
+   * @param label Display label string.
+   */
+  setLabel(label: string): this {
+    this.config.label = label;
+    return this;
+  }
+
+  /**
+   * Sets the detailed description for the comfort model in the model selection menu.
+   * @param description Description string.
+   */
+  setDescription(description: string): this {
+    this.config.description = description;
+    return this;
   }
 
   /**

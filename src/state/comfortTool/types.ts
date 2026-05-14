@@ -5,17 +5,7 @@
  */
 import type { InputId as InputIdType } from "../../models/inputSlots";
 import type { ComfortModel as ComfortModelType } from "../../models/comfortModels";
-import type {
-  PlotlyChartResponseDto,
-  PmvChartSourceDto,
-  PmvResponseDto,
-  UtciChartSourceDto,
-  UtciResponseDto,
-  AdaptiveResponseDto,
-  AdaptiveChartSourceDto,
-  ThermalIndicesResponseDto,
-  ThermalIndicesChartSourceDto,
-} from "../../models/comfortDtos";
+import type { PlotlyChartResponseDto } from "../../models/comfortDtos";
 import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../models/chartOptions";
 import type { InputControlId as InputControlIdType, InputControlViewModel } from "../../models/inputControls";

@@ -59,6 +59,8 @@ function findTemperatureBracket(
           units: UnitSystem.SI,
         };
 
+    // Typecast to 'any' bypasses strict object validation because 'airspeed_control'
+    // is missing from the exported jsthermalcomfort type definitions but expected at runtime.
     const complianceWarnings = check_standard_compliance("ASHRAE", {
       tdb: normalizedPayload.tdb,
       tr: normalizedPayload.tr,
@@ -66,7 +68,7 @@ function findTemperatureBracket(
       met: normalizedPayload.met,
       clo: normalizedPayload.clo,
       airspeed_control: normalizedPayload.occupantHasAirSpeedControl,
-    });
+    } as any);
 
     if (complianceWarnings.length > 0) {
       previousTemperature = null;

@@ -6,6 +6,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateThermalIndices } from "./thermalIndices";
 import { UnitSystem } from "../../models/units";
+import { convertFieldValueFromSi } from "../units";
+import { FieldKey } from "../../models/fieldKeys";
 
 describe("thermalIndices service", () => {
   it("calculates Heat Index correctly in SI", () => {
@@ -28,8 +30,9 @@ describe("thermalIndices service", () => {
       units: UnitSystem.IP,
     });
     
-    expect(result.hi).toBeGreaterThan(115);
-    expect(result.hi).toBeLessThan(125);
+    const hiF = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.hi, UnitSystem.IP);
+    expect(hiF).toBeGreaterThan(115);
+    expect(hiF).toBeLessThan(125);
     expect(result.category).toBe("Danger"); // 122°F is ~50°C, which is Danger (< 51)
   });
 
@@ -44,8 +47,9 @@ describe("thermalIndices service", () => {
       units: UnitSystem.IP,
     });
     
-    expect(result.wciTemp).toBeLessThan(10);
-    expect(result.wciTemp).toBeGreaterThan(-10);
+    const wciTempF = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.wciTemp!, UnitSystem.IP);
+    expect(wciTempF).toBeLessThan(10);
+    expect(wciTempF).toBeGreaterThan(-10);
     expect(result.wciZone).toBe("Safe");
   });
 
@@ -57,7 +61,8 @@ describe("thermalIndices service", () => {
       units: UnitSystem.IP,
     });
     
-    expect(result.hi).toBeGreaterThan(130);
+    const hiF = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.hi, UnitSystem.IP);
+    expect(hiF).toBeGreaterThan(130);
     expect(result.category).toBe("Extreme Danger");
   });
 });

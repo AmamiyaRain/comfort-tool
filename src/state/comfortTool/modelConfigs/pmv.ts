@@ -77,12 +77,14 @@ import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection }
  * Validates an untyped object layer.
  * It strips away unknown properties and ensures that values map perfectly back to explicitly defined ENUM constants.
  * @param value The unvalidated options object structure.
- * @returns A fully normalized options map, or null if critically invalid.
+ * @returns A fully normalized options map or defaultPmvOptions if not a valid record.
  */
 function normalizePmvOptionsSnapshot(value: unknown) {
   // Check if the input value is a valid record.
   if (!isRecord(value)) {
-    return null;
+    // Return default options if the input is not a record.
+    // This prevents premature parser exits during snapshot applications.
+    return Object.assign({}, defaultPmvOptions); 
   }
 
   // Get the individual option values from the input record.
@@ -524,6 +526,8 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
           airspeed_control: request.occupantHasAirSpeedControl,
         },
       );
+      // Typecast to 'any' bypasses strict object validation because 'airspeed_control'
+      // is missing from the exported jsthermalcomfort type definitions but expected at runtime.
       const complianceWarnings = check_standard_compliance("ASHRAE", {
         tdb: request.tdb,
         tr: request.tr,
@@ -531,7 +535,7 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
         met: request.met,
         clo: request.clo,
         airspeed_control: request.occupantHasAirSpeedControl,
-      });
+      } as any);
 
       resultsByInput[inputId] = {
         pmv: result.pmv,

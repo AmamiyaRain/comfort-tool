@@ -34,7 +34,7 @@ const SHARE_STATE_PARAM = "state";
 const comfortModelValues = new Set<ComfortModelType>(Object.values(ComfortModel));
 const inputIdValues = new Set<InputIdType>(Object.values(InputId));
 const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
-const fieldKeyValues = Object.values(FieldKey);
+const fieldKeyValues = allFieldOrder;
 
 /**
  * Cleanses and reconstructs the compare slots array.
@@ -55,25 +55,31 @@ export function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[]
 function toUrl(source: URL | Location | string): URL {
   return new URL(typeof source === "string" ? source : source.href);
 }
-
+/**
+ * Encodes a string into a URL-safe Base64 string by using the browser's btoa function and replacing the characters that are not URL-safe.
+ * @param value The string to encode.
+ * @returns The Base64 encoded string.
+ */
 function encodeBase64Url(value: string): string {
-  const encoded = typeof globalThis.btoa === "function"
-    ? globalThis.btoa(value)
-    : Buffer.from(value, "utf8").toString("base64");
-
+  const encoded = globalThis.btoa(value);
   return encoded.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
-
+/**
+ * Decodes a URL-safe Base64 string into a string by using the browser's atob function and replacing the characters that are not URL-safe.
+ * @param value The Base64 encoded string.
+ * @returns The decoded string.
+ */
 function decodeBase64Url(value: string): string {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const paddingLength = (4 - (normalized.length % 4)) % 4;
   const padded = `${normalized}${"=".repeat(paddingLength)}`;
-
-  return typeof globalThis.atob === "function"
-    ? globalThis.atob(padded)
-    : Buffer.from(padded, "base64").toString("utf8");
+  return globalThis.atob(padded);
 }
-
+/**
+ * Checks if a value is a record (an object that is not null and not an array).
+ * @param value The value to check.
+ * @returns True if the value is a record, false otherwise.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -81,7 +87,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
-
+/**
+ * Parses the inputsByInput object from the ShareStateSnapshot and validates it. This is used when deserializing the share state.
+ * @param value The value to parse.
+ * @returns The inputsByInput object or null if parsing fails.
+ */
 function parseInputsByInput(value: unknown): ShareStateSnapshot["inputsByInput"] | null {
   if (!isRecord(value)) {
     return null;
@@ -109,7 +119,11 @@ function parseInputsByInput(value: unknown): ShareStateSnapshot["inputsByInput"]
 
   return inputsByInput;
 }
-
+/**
+ * Parses the models object from the ShareStateSnapshot and validates it. This is used when deserializing the share state.
+ * @param value The value to parse.
+ * @returns The models object or null if parsing fails.
+ */
 function parseModelSnapshots(value: unknown): ShareStateSnapshot["models"] | null {
   if (!isRecord(value)) {
     return null;
@@ -148,14 +162,19 @@ function parseModelSnapshots(value: unknown): ShareStateSnapshot["models"] | nul
 }
 
 /**
- * Serializes a tool state snapshot into a Base64URL encoded string.
+ * Serializes a tool state snapshot into a Base64URL encoded string by stringifying the snapshot 
+ * and then encoding it using the encodeBase64Url function.
  * @param snapshot The data structure to serialize.
  * @returns A URL-safe string representation of the state.
  */
 export function serializeShareState(snapshot: ShareStateSnapshot): string {
   return encodeBase64Url(JSON.stringify(snapshot));
 }
-
+/**
+ * Parses the share state snapshot and validates it. This is used when deserializing the share state.
+ * @param parsed The value to parse.
+ * @returns The share state snapshot or null if parsing fails.
+ */
 function parseShareStateSnapshotV6(parsed: Record<string, unknown>): ShareStateSnapshot | null {
   if (
     !comfortModelValues.has(parsed.selectedModel as ComfortModelType) ||
@@ -203,7 +222,7 @@ export function parseShareStateSnapshot(value: unknown): ShareStateSnapshot | nu
 }
 
 /**
- * Decompresses and validates a state snapshot from a Base64URL string.
+ * Decompresses and validates a state snapshot from a Base64URL string by decoding it and then parsing it.
  * @param encodedSnapshot The string to decode.
  * @returns A validated ShareStateSnapshot object, or null if the input is invalid.
  */
@@ -214,7 +233,11 @@ export function deserializeShareState(encodedSnapshot: string): ShareStateSnapsh
     return null;
   }
 }
-
+/**
+ * Creates a share state snapshot from the current state by copying the relevant data.
+ * @param state The current state.
+ * @returns A share state snapshot.
+ */
 export function createShareStateSnapshot(state: ComfortToolStateSlice): ShareStateSnapshot {
   return {
     version: SHARE_STATE_VERSION,
@@ -239,7 +262,12 @@ export function createShareStateSnapshot(state: ComfortToolStateSlice): ShareSta
     }, {} as ShareStateSnapshot["inputsByInput"]),
   };
 }
-
+/**
+ * Applies a share state snapshot to the current state by copying the relevant data 
+ * and updating the state immutably.
+ * @param state The current state.
+ * @param snapshot The share state snapshot to apply.
+ */
 export function applyShareSnapshotToState(state: ComfortToolStateSlice, snapshot: ShareStateSnapshot) {
   state.ui.selectedModel = snapshot.selectedModel;
   comfortModelOrder.forEach((modelId) => {
@@ -261,7 +289,7 @@ export function applyShareSnapshotToState(state: ComfortToolStateSlice, snapshot
 }
 
 /**
- * Generates a fully qualified URL containing the serialized tool state.
+ * Generates a fully qualified URL containing the serialized tool state by serializing the snapshot and then encoding it.
  * @param snapshot The state to include in the URL.
  * @param locationSource The current location context (to preserve the base URL).
  * @returns The shareable URL string.
@@ -273,7 +301,7 @@ export function buildShareUrl(snapshot: ShareStateSnapshot, locationSource: URL 
 }
 
 /**
- * Attempts to extract and deserialize a state snapshot from the provided URL.
+ * Attempts to extract and deserialize a state snapshot from the provided URL by getting the search param and then deserializing it.
  * @param locationSource The URL string or object to read from.
  * @returns The deserialized snapshot if successful, otherwise null.
  */

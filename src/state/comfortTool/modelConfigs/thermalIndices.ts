@@ -16,7 +16,7 @@ import { createControlBehavior, buildDefaultPresentation } from "../../../servic
 import { calculateThermalIndices } from "../../../services/comfort/thermalIndices";
 import { convertFieldValueFromSi, formatDisplayValue } from "../../../services/units/index";
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "./builder";
-import { buildHeatIndexRangesChart, buildHumidexChart, buildWindChillChart, buildThermalIndicesDynamicChart } from "../../../services/comfort/charts/thermalIndicesCharts";
+import { buildHumidexChart, buildWindChillChart, buildThermalIndicesDynamicChart } from "../../../services/comfort/charts/thermalIndicesCharts";
 import {
   HUMIDEX_NOTICEABLE,
   HUMIDEX_EVIDENT,
@@ -35,8 +35,7 @@ import {
  * Ensures model options are normalized to an empty object if valid.
  */
 function normalizeOptions(value: unknown) {
-  if (isRecord(value)) return {};
-  return null;
+  return isRecord(value) ? value : {};
 }
 
 /**
@@ -70,86 +69,6 @@ function toThermalIndicesChartInputsRequest(
     }, {} as ThermalIndicesChartInputsRequestDto["inputs"]),
   };
 }
-
-// ── Heat Index Model ─────────────────────────────────────────────────────────
-
-const heatIndexBuilder = new ComfortModelBuilder<ThermalIndicesResponseDto, ThermalIndicesChartSourceDto>(ComfortModel.HeatIndex);
-
-heatIndexBuilder.addControl({
-  id: InputControlId.Temperature,
-  behavior: createControlBehavior({
-    controlId: InputControlId.Temperature,
-    fieldKey: FieldKey.DryBulbTemperature,
-  }),
-});
-
-heatIndexBuilder.addControl({
-  id: InputControlId.Humidity,
-  behavior: createControlBehavior({
-    controlId: InputControlId.Humidity,
-    fieldKey: FieldKey.RelativeHumidity,
-  }),
-});
-
-heatIndexBuilder.setCalculator((state, visibleInputIds) => {
-  // todo there seems to be many code repetitions for these three indices in the code
-  const resultsByInput = createEmptyResults<ThermalIndicesResponseDto>();
-  visibleInputIds.forEach((inputId) => {
-    resultsByInput[inputId] = calculateThermalIndices(toThermalIndicesRequest(state, inputId));
-  });
-  return {
-    resultsByInput,
-    chartSource: { 
-      chartRequest: toThermalIndicesChartInputsRequest(state, visibleInputIds),
-      dynamicXAxis: state.ui.dynamicXAxis,
-      dynamicYAxis: state.ui.dynamicYAxis
-    },
-  };
-});
-
-heatIndexBuilder.setResultBuilder((results, visibleInputIds, unitSystem) => {
-  const temperatureUnits = fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem];
-  return [
-    buildResultSection("Heat Index", results, visibleInputIds, (result) => {
-      const displayValue = convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.hi, unitSystem);
-      const formattedValue = formatDisplayValue(displayValue, fieldMetaByKey[FieldKey.DryBulbTemperature].decimals);
-
-      let tone: any = "default";
-      if (result.category === "Extreme Danger") tone = "hiExtremeDanger";
-      else if (result.category === "Danger") tone = "hiDanger";
-      else if (result.category === "Extreme Caution") tone = "hiExtremeCaution";
-      else if (result.category === "Caution") tone = "hiCaution";
-
-      return {
-        text: `${formattedValue} ${temperatureUnits}`,
-        subtext: result.category,
-        tone,
-      };
-    }),
-  ];
-});
-
-heatIndexBuilder.setChartBuilder((chartId, chartSource, resultsByInput, unitSystem) => {
-  if (!chartSource) return null;
-  if (chartId === ChartId.HeatIndexDynamic) {
-    return buildThermalIndicesDynamicChart(
-      ComfortModel.HeatIndex,
-      chartSource.chartRequest,
-      resultsByInput,
-      unitSystem,
-      chartSource.dynamicXAxis,
-      chartSource.dynamicYAxis
-    );
-  }
-  return buildHeatIndexRangesChart(chartSource.chartRequest, resultsByInput, unitSystem);
-});
-
-heatIndexBuilder.setDefaultChart(ChartId.HeatIndexRanges, [ChartId.HeatIndexRanges, ChartId.HeatIndexDynamic]);
-heatIndexBuilder.setDynamicAxisFields([FieldKey.DryBulbTemperature, FieldKey.RelativeHumidity]);
-heatIndexBuilder.setDefaultOptions({});
-heatIndexBuilder.setOptionNormalizer(normalizeOptions);
-
-export const heatIndexModelConfig = heatIndexBuilder.build();
 
 // ── Humidex Model ───────────────────────────────────────────────────────────
 

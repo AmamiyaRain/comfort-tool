@@ -41,7 +41,9 @@ const adaptiveChartIds: ChartIdType[] = [ChartId.Adaptive, ChartId.AdaptiveDynam
 
 function normalizeAdaptiveOptionsSnapshot(value: unknown) {
   if (!isRecord(value)) {
-    return null;
+    // Return default options if the input is not a record.
+    // This prevents premature parser exits during snapshot applications.
+    return Object.assign({}, defaultAdaptiveOptions);
   }
 
   const nextOptions = Object.assign({}, defaultAdaptiveOptions);

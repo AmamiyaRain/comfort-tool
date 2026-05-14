@@ -33,12 +33,14 @@ const utciTemperatureModeValues = new Set<string>(Object.values(TemperatureMode)
  * Since UTCI exposes no complex advanced user options, normalization cleanly rejects complex objects 
  * and enforces an empty options record `{}`.
  * @param value Unvalidated unknown state shape.
- * @returns An empty valid options map `{}`, or null if not a record.
+ * @returns An empty valid options map `{}`, or default UtciModelOptions if not a record.
  */
-function normalizeUtciOptions(value: unknown): UtciModelOptions | null {
+function normalizeUtciOptions(value: unknown): UtciModelOptions {
   // Check if the input value is a valid record.
   if (!isRecord(value)) {
-    return null;
+    // Return default options if the input is not a record.
+    // This prevents premature parser exits during snapshot applications.
+    return Object.assign({}, defaultUtciOptions);
   }
 
   const nextTemperatureMode = value[OptionKey.TemperatureMode];
