@@ -11,6 +11,7 @@
   import ChartLegend from "./ChartLegend.svelte";
   import {
     ChartId,
+    chartMetaById,
     type ChartId as ChartIdType,
   } from "../../models/chartOptions";
   import type { PlotlyChartResponseDto } from "../../models/comfortDtos";
@@ -70,16 +71,8 @@
     showZones = true;
   });
 
-  // Disable dynamic axis selection for heat index, humidex, and wind chill dynamic charts
-  const lockYAxis = $derived(
-    (
-      [
-        ChartId.HeatIndexDynamic,
-        ChartId.HumidexDynamic,
-        ChartId.WindChillDynamic,
-      ] as ChartIdType[]
-    ).includes(selectedChart),
-  );
+  // Disable dynamic axis selection based on the currently selected chart's metadata properties (disabled when lockYAxis is true)
+  const lockYAxis = $derived(!!chartMetaById[selectedChart]?.lockYAxis);
 </script>
 
 {#snippet content()}
@@ -96,7 +89,8 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2 pr-[24px]">
-      {#if (compareEnabled || ([ChartId.PmvDynamic, ChartId.UtciDynamic, ChartId.AdaptiveDynamic, ChartId.HeatIndexDynamic, ChartId.HumidexDynamic, ChartId.WindChillDynamic] as ChartIdType[]).includes(selectedChart)) && baselineInputId && onSelectBaselineInput}
+      {#if (compareEnabled || chartMetaById[selectedChart]?.isDynamic) && baselineInputId && onSelectBaselineInput}
+        <!-- Only show the axis menu when the chart is dynamic (determined by metadata), a baseline input is selected, and the user has enabled comparison mode -->
         <ChartAxisMenu
           {dynamicXAxis}
           {dynamicYAxis}

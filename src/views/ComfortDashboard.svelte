@@ -13,6 +13,7 @@
   import ResultsPanel from "../components/ResultsPanel.svelte";
   import type { ChartId } from "../models/chartOptions";
   import type { FieldKey } from "../models/fieldKeys";
+  import { getComfortModelConfig } from "../state/comfortTool/modelConfigs";
   import type { ComfortToolController } from "../state/comfortTool/types";
 
   let {
@@ -55,6 +56,7 @@
           resultSections={toolState.selectors.getResultSections()}
           errorMessage={toolState.state.ui.errorMessage}
           isLoading={toolState.state.ui.isLoading}
+          toneToClass={getComfortModelConfig(toolState.state.ui.selectedModel).toneToClass}
           embedded={true}
         />
 

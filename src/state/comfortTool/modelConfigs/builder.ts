@@ -6,6 +6,7 @@ import type { FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
 import type { OptionKey as OptionKeyType } from "../../../models/inputModes";
 import type { InputControlDefinition } from "../../../services/comfort/controls/types";
+import type { ThermalZone } from "../../../models/thermalZone";
 
 /**
  * Utility to verify if a value is a non-null object (and not an array).
@@ -74,6 +75,8 @@ export class ComfortModelBuilder<ResultType, ChartSourceType> {
   private config: Partial<ComfortModelDefinition<ResultType, ChartSourceType>> = {
     controls: [],
     optionHandlersByKey: {},
+    zones: [],
+    toneToClass: {},
   };
 
   /**
@@ -166,6 +169,24 @@ export class ComfortModelBuilder<ResultType, ChartSourceType> {
    */
   setDynamicAxisFields(fields: FieldKeyType[]): this {
     this.config.dynamicAxisFields = fields;
+    return this;
+  }
+
+  /**
+   * Defines the boundary zones associated with this model.
+   * @param zones Array of ThermalZone instances.
+   */
+  setZones(zones: ThermalZone[]): this {
+    this.config.zones = zones;
+    return this;
+  }
+
+  /**
+   * Defines the mapping between tone keys and UI CSS classes.
+   * @param map Record mapping tone keys to CSS utility class strings.
+   */
+  setToneToClass(map: Record<string, string>): this {
+    this.config.toneToClass = map;
     return this;
   }
 

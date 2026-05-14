@@ -4,6 +4,7 @@
  */
 import type { InputId as InputIdType } from "../../../models/inputSlots";
 import { ComfortModel, type ComfortModel as ComfortModelType } from "../../../models/comfortModels";
+import type { ThermalZone } from "../../../models/thermalZone";
 import { FieldKey, type FieldKey as FieldKeyType } from "../../../models/fieldKeys";
 import type { PlotlyChartResponseDto } from "../../../models/comfortDtos";
 import type { ChartId as ChartIdType } from "../../../models/chartOptions";
@@ -48,6 +49,8 @@ export type ModelOptionChangeHandler = (
  */
 export interface ComfortModelDefinition<ResultType, ChartSourceType> {
   id: ComfortModelType;
+  label: string;
+  description: string;
   controls: InputControlDefinition[];
   optionHandlersByKey: Partial<Record<OptionKeyType, ModelOptionChangeHandler>>;
   chartIds: ChartIdType[];
@@ -76,9 +79,11 @@ export interface ComfortModelDefinition<ResultType, ChartSourceType> {
     unitSystem: UnitSystemType,
   ) => PlotlyChartResponseDto | null;
   dynamicAxisFields: FieldKeyType[];
+  toneToClass: Record<string, string>;
+  zones: ThermalZone[];
 }
 
-// Specific comfort model configurations, keyed by model id
+// Model Registry: Mapping of comfort model ids to their definitions
 export const comfortModelConfigs = {
   [ComfortModel.Pmv]: pmvModelConfig,
   [ComfortModel.Utci]: utciModelConfig,
@@ -88,6 +93,17 @@ export const comfortModelConfigs = {
   [ComfortModel.Humidex]: humidexModelConfig,
   [ComfortModel.WindChill]: windChillModelConfig,
 } as const;
+
+// Comfort model order based on registry keys
+export const comfortModelOrder = Object.keys(comfortModelConfigs) as ComfortModelType[];
+
+// Comfort model metadata for dropdown (label, description)
+export const comfortModelMetaById = Object.fromEntries(
+  Object.entries(comfortModelConfigs).map(([id, config]) => [
+    id,
+    { label: config.label, description: config.description }
+  ])
+);
 
 // Gets the model config for a given model id
 export function getComfortModelConfig(modelId: ComfortModelType) {

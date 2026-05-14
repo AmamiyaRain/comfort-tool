@@ -36,7 +36,6 @@ const inputIdValues = new Set<InputIdType>(Object.values(InputId));
 const unitSystemValues = new Set<UnitSystemType>(Object.values(UnitSystem));
 const fieldKeyValues = Object.values(FieldKey);
 
-// todo AI normalizeCompareInputIds is defined identically in createComfortToolState.svelte.ts. One copy should be removed. Since this logic is stateless and not UI-specific, keeping it here and importing it from the controller is probably the right move.
 /**
  * Cleanses and reconstructs the compare slots array.
  * Ensures that Input 1 is always present as the baseline and that other elements
@@ -44,25 +43,17 @@ const fieldKeyValues = Object.values(FieldKey);
  * @param inputIds The unsorted or incomplete list of input IDs.
  * @returns A sanitized and ordered array of input IDs.
  */
-function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
+export function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
   return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
 }
 
 /**
- * Coerces various location-like types into a standard URL object.
+ * Helper function to convert various location-like types into a standard URL object by checking the type of the source.
  * @param source The URL, Location, or string to convert.
  * @returns A native URL object.
  */
 function toUrl(source: URL | Location | string): URL {
-  if (source instanceof URL) {
-    return new URL(source.toString());
-  }
-
-  if (typeof source === "string") {
-    return new URL(source);
-  }
-
-  return new URL(source.href);
+  return new URL(typeof source === "string" ? source : source.href);
 }
 
 function encodeBase64Url(value: string): string {

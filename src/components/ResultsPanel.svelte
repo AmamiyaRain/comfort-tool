@@ -26,6 +26,7 @@
     resultSections,
     errorMessage,
     isLoading,
+    toneToClass = {},
     embedded = false,
   }: {
     activeInputId: InputIdType;
@@ -33,6 +34,7 @@
     resultSections: ResultSectionViewModel[];
     errorMessage: string;
     isLoading: boolean;
+    toneToClass?: Record<string, string>;
     embedded?: boolean;
   } = $props();
 </script>
@@ -55,43 +57,18 @@
           </TableBodyCell>
           {#each sections as section}
             {@const cell = section.valuesByInput[inputId]}
-            <!-- Render cell with primary value and optional descriptive subtext -->
-            <!-- todo AI This inline map hard-codes one CSS class per ResultTone value. Every new model that introduces new tones requires editing this component, which should know nothing about specific models. The tone-to-class mapping should live in src/models/ (e.g. as a record exported from the same place ResultTone is defined) so this component stays generic. -->
-            <TableBodyCell
-              class={!cell
-                ? "text-stone-400"
-                : {
-                    success: "text-emerald-700",
-                    danger: "text-red-600",
-                    warning: "text-orange-500",
-                    hiNoticeable: "text-yellow-400",
-                    hiCaution: "text-yellow-500",
-                    hiExtremeCaution: "text-yellow-600",
-                    hiDanger: "text-orange-500",
-                    hiExtremeDanger: "text-red-600",
-                    wcSafe: "text-sky-600",
-                    wc30min: "text-blue-500",
-                    wc10min: "text-indigo-600",
-                    wc2min: "text-purple-700",
-                    pmvCold: "text-violet-600",
-                    pmvCool: "text-blue-600",
-                    pmvSlightlyCool: "text-blue-400",
-                    pmvNeutral: "text-emerald-600",
-                    pmvSlightlyWarm: "text-amber-500",
-                    pmvWarm: "text-orange-500",
-                    pmvHot: "text-red-600",
-                    utciExtremeCold: "text-[#0f172a]",
-                    utciVeryStrongCold: "text-[#1d4ed8]",
-                    utciStrongCold: "text-[#2563eb]",
-                    utciModerateCold: "text-[#3b82f6]",
-                    utciSlightCold: "text-[#7dd3fc]",
-                    utciNoStress: "text-[#34d399]",
-                    utciModerateHeat: "text-[#fbbf24]",
-                    utciStrongHeat: "text-[#fb923c]",
-                    utciVeryStrongHeat: "text-[#f97316]",
-                    utciExtremeHeat: "text-[#dc2626]",
-                  }[cell.tone] || ""}
-            >
+            <!-- Determine the appropriate CSS class based on the cell's tone, and provide fallback defaults -->
+            {@const toneClass = cell?.tone
+              ? toneToClass[cell.tone] ||
+                {
+                  success: "text-emerald-700",
+                  danger: "text-red-600",
+                  warning: "text-orange-500",
+                }[cell.tone] ||
+                ""
+              : ""}
+            <!-- Render the cell, applying the appropriate tone class if a cell is found -->
+            <TableBodyCell class={!cell ? "text-stone-400" : toneClass}>
               {#if cell}
                 <div class="font-medium">{cell.text}</div>
                 {#if cell.subtext}

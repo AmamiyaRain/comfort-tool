@@ -32,6 +32,7 @@ import { createCalculationManager } from "./calculationManager.svelte";
 import {
   applyShareSnapshotToState,
   createShareStateSnapshot,
+  normalizeCompareInputIds,
   type ShareStateSnapshot,
 } from "./shareState";
 import type {
@@ -75,15 +76,6 @@ function createDefaultCompareInputIds(): InputIdType[] {
   return [InputId.Input1, InputId.Input2];
 }
 
-/**
- * Sorts and enforces a data contract for input IDs. 
- * It filters dirty input IDs and sequences them rigidly against the main application layout index.
- * @param inputIds The unsorted or incomplete list of input IDs.
- * @returns A normalized array of input IDs.
- */
-function normalizeCompareInputIds(inputIds: InputIdType[]): InputIdType[] {
-  return inputOrder.filter((inputId) => inputId === InputId.Input1 || inputIds.includes(inputId));
-}
 
 /**
  * Initializes the default chart selection for each comfort model.
@@ -137,24 +129,18 @@ function createEmptyCalculationCache<ResultType>(): {
 }
 
 /**
- * Initializes the calculation cache registry for all available comfort models.
+ * Initializes the calculation cache registry for all available comfort models by looping through comfort model order.
  * @returns A record mapping each model to an empty calculation cache.
  */
 function createCalculationCacheByModel(): ModelCalculationCacheByModelState {
-  return {
-    [ComfortModel.Pmv]: createEmptyCalculationCache(),
-    [ComfortModel.Utci]: createEmptyCalculationCache(),
-    [ComfortModel.AdaptiveAshrae]: createEmptyCalculationCache(),
-    [ComfortModel.AdaptiveEn]: createEmptyCalculationCache(),
-    [ComfortModel.HeatIndex]: createEmptyCalculationCache(),
-    [ComfortModel.Humidex]: createEmptyCalculationCache(),
-    [ComfortModel.WindChill]: createEmptyCalculationCache(),
-  //   todo see my other comments about having to update this manually. I'm quite concerned here because I don't know exactly what the code is doing but in many parts of the codes we need to create an empty cache and then define all the different models. This is going to be very hard to maintain. we should have one central source of truth which tells us which models are included in the tool.
-  } as ModelCalculationCacheByModelState;
+  return comfortModelOrder.reduce((accumulator, modelId) => {
+    accumulator[modelId] = createEmptyCalculationCache();
+    return accumulator;
+  }, {} as ModelCalculationCacheByModelState);
 }
 
 /**
- * Creates and initializes the root state for the comfort-tool.
+ * Creates and initializes the root state for the comfort-tool by initializing all the state variables.
  * @returns A ComfortToolController containing the core state and action methods.
  */
 export function createComfortToolState(): ComfortToolController {
@@ -193,11 +179,10 @@ export function createComfortToolState(): ComfortToolController {
 
     const cache = state.ui.calculationCacheByModel[modelId];
     const nextStatus = cache.chartSource ? "stale" : "empty";
-    // todo AI The "as any" cast here is a symptom of the per-model cache types. If ModelCalculationCache were a single generic type, this assignment would type-check without casting.
     state.ui.calculationCacheByModel[modelId] = {
       ...cache,
       status: nextStatus,
-    } as any;
+    };
   }
 
   /**
@@ -318,15 +303,7 @@ export function createComfortToolState(): ComfortToolController {
     getDynamicAxisOptions: () => getActiveModelConfig().dynamicAxisFields || [],
   };
 
-  const calculationManager = createCalculationManager(state, getVisibleInputIds);
-
-  /**
-   * Schedules a calculation to run after a short debounce period.
-   * @param options Configuration for the calculation (immediate or forced).
-   */
-  function scheduleCalculationInternal(options?: { immediate?: boolean; force?: boolean }) {
-    calculationManager.scheduleCalculation(options);
-  }
+  const { scheduleCalculation: scheduleCalculationInternal } = createCalculationManager(state, getVisibleInputIds);
 
   /**
    * Switches the active comfort model (e.g., PMV, UTCI) and triggers a re-calculation.
