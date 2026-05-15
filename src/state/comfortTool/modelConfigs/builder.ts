@@ -210,6 +210,15 @@ export class ComfortModelBuilder<ResultType, ChartSourceType> {
   }
 
   /**
+   * Defines a custom synchronization hook for the model.
+   * @param synchronizer Function that returns a behavior patch.
+   */
+  setSynchronizer(synchronizer: ComfortModelDefinition<ResultType, ChartSourceType>["synchronize"]): this {
+    this.config.synchronize = synchronizer;
+    return this;
+  }
+
+  /**
    * Seals the configuration and returns a complete, immutable ComfortModelDefinition.
    */
   build(): ComfortModelDefinition<ResultType, ChartSourceType> {

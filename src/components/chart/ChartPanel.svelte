@@ -81,7 +81,8 @@
     selectedModel !== ComfortModel.AdaptiveAshrae &&
       selectedModel !== ComfortModel.AdaptiveEn &&
       selectedChart !== ChartId.PmvDynamic &&
-      selectedChart !== ChartId.UtciDynamic,
+      selectedChart !== ChartId.UtciDynamic &&
+      selectedChart !== ChartId.UtciThreshold,
   );
 </script>
 

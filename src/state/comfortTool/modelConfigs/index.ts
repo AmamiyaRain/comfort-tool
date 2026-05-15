@@ -83,6 +83,8 @@ export interface ComfortModelDefinition<ResultType, ChartSourceType> {
   dynamicAxisFields: FieldKeyType[];
   toneToClass: Record<string, string>;
   zones: ThermalZone[];
+  // Optional hook to synchronize model state (e.g. when changing charts)
+  synchronize?: (context: ControlBehaviorContext) => BehaviorPatch | null;
 }
 
 // Model Registry: Mapping of comfort model ids to their definitions

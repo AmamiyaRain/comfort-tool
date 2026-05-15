@@ -261,6 +261,23 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
+  /**
+   * Triggers the model-specific synchronization hook.
+   * Useful for enforcing constraints like tr=tdb when a specific chart is selected.
+   */
+  function synchronizeActiveModel() {
+    const config = getActiveModelConfig();
+    if (!config.synchronize) {
+      return;
+    }
+
+    const context = getModelContext(state.ui.selectedModel);
+    const patch = config.synchronize(context);
+    if (patch) {
+      applyBehaviorPatch(state.ui.selectedModel, patch);
+    }
+  }
+
   function getDynamicAxisOptions(): FieldKeyType[] {
     return getActiveModelConfig().dynamicAxisFields || [];
   }
@@ -327,6 +344,8 @@ export function createComfortToolState(): ComfortToolController {
     const config = getComfortModelConfig(nextModel);
     // Ensure dynamic axes are valid and unique for the new model.
     ensureUniqueDynamicAxes(config);
+
+    synchronizeActiveModel();
 
     scheduleCalculationInternal({ immediate: true });
   }
@@ -463,6 +482,8 @@ export function createComfortToolState(): ComfortToolController {
       ensureUniqueDynamicAxes(getActiveModelConfig());
     }
 
+    synchronizeActiveModel();
+
     invalidateModel(state.ui.selectedModel);
     scheduleCalculationInternal({ immediate: true });
   }
@@ -597,6 +618,9 @@ export function createComfortToolState(): ComfortToolController {
     }
 
     applyBehaviorPatch(state.ui.selectedModel, patch);
+
+    synchronizeActiveModel();
+
     invalidateAllModels();
     scheduleCalculationInternal();
   }

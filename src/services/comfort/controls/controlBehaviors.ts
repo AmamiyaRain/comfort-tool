@@ -90,6 +90,12 @@ type ControlBehaviorConfig = {
    * @returns Whether the control should be hidden.
    */
   hidden?: (context: ControlBehaviorContext) => boolean;
+    /**
+   * Determines if the control should be disabled (locked).
+   * @param context - The context of the control behavior.
+   * @returns Whether the control should be disabled.
+   */
+  disabled?: (context: ControlBehaviorContext) => boolean;
   /**
    * Gets the advanced option menu for the control.
    * @param context - The context of the control behavior.
@@ -390,6 +396,12 @@ export function createControlBehavior(config: ControlBehaviorConfig): InputContr
         hidden = config.hidden(context);
       }
 
+      // Determine if the control should be disabled.
+      let disabled = false;
+      if (config.disabled) {
+        disabled = config.disabled(context);
+      }
+
       // Determine the editor kind based on whether preset options are available.
       // If preset options are available, the editor kind will be "preset".
       // Otherwise, the editor kind will be "number".
@@ -475,6 +487,8 @@ export function createControlBehavior(config: ControlBehaviorConfig): InputContr
         maxValue: presentation.maxValue,
         // Whether the control should be hidden (e.g. false).
         hidden,
+        // Whether the control should be disabled (e.g. false).
+        disabled,
         // The kind of editor to use for the control (e.g. "number" or "preset").
         editorKind,
         // The step size for the control (e.g. 1).

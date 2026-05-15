@@ -218,6 +218,7 @@
             ariaLabel={`${inputDisplayMetaById[inputId].label} ${control.label}`}
             onActivate={() => toolState.actions.setActiveInputId(inputId)}
             onCommit={(value) => handleApplyPresetValue(inputId, value)}
+            disabled={control.disabled}
           />
         {:else}
           <Input
@@ -229,6 +230,7 @@
             size="sm"
             value={control.displayValuesByInput[inputId] ?? ""}
             aria-label={`${inputDisplayMetaById[inputId].label} ${control.label}`}
+            disabled={control.disabled}
             onfocus={() => toolState.actions.setActiveInputId(inputId)}
             onchange={(event) => commitFieldValue(inputId, event.currentTarget)}
             onblur={(event) => {
