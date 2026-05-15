@@ -21,8 +21,7 @@ import type {
 } from "../../models/comfortDtos";
 import { UnitSystem, type UnitSystem as UnitSystemType } from "../../models/units";
 import { convertFieldValueFromSi } from "../units";
-// todo AI This import goes from a service into the state layer, which breaks the architecture rule that services should only depend on models. ResultTone should either live in src/models/ or each model should define its own tone type locally and ResultTone should be derived from those.
-import type { ResultTone } from "../../state/comfortTool/types";
+import type { ResultTone } from "../../models/resultTones";
 
 // Heat Index thresholds in Celsius
 export const HI_CAUTION = 27;

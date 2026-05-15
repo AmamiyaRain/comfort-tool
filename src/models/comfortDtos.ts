@@ -72,27 +72,6 @@ export interface UtciResponseDto {
   source: CalculationSource;
 }
 
-// todo AI ThermalIndicesRequestDto and ThermalIndicesResponseDto bundle three separate models (Heat Index, Humidex, Wind Chill) into one DTO. This means the Heat Index calculator receives a wind speed field it does not use, and the Humidex calculator receives fields it ignores. Each model should have its own request and response DTO once the calculation files are split.
-// Thermal Indices Request DTO, contains heat index, humidex and wind chill index
-export interface ThermalIndicesRequestDto {
-  tdb: number;
-  rh: number;
-  v?: number;
-  units: UnitSystem;
-}
-
-// Thermal Indices Response DTO, contains heat index, humidex and wind chill index
-export interface ThermalIndicesResponseDto {
-  hi: number;
-  category: string;
-  humidex?: number;
-  humidexDiscomfort?: string;
-  wci?: number;
-  wciTemp?: number;
-  wciZone?: string;
-  source: CalculationSource;
-}
-
 // Adaptive Request DTO, contains dry-bulb temperature, mean radiant temperature, 
 // running mean outdoor temperature, air speed and units
 export interface AdaptiveRequestDto {
@@ -174,18 +153,6 @@ export interface UtciChartSourceDto {
   dynamicXAxis?: FieldKey;
   dynamicYAxis?: FieldKey;
   baselineInputId?: InputIdType;
-}
-
-// Thermal Indices Chart Inputs Request DTO, contains thermal indices requests for each input
-export interface ThermalIndicesChartInputsRequestDto {
-  inputs: CompareInputMap<ThermalIndicesRequestDto>;
-}
-
-// Thermal Indices Chart Source DTO, contains chart requests for each input
-export interface ThermalIndicesChartSourceDto {
-  chartRequest: ThermalIndicesChartInputsRequestDto;
-  dynamicXAxis?: FieldKey;
-  dynamicYAxis?: FieldKey;
 }
 
 // Adaptive Chart Inputs Request DTO, contains adaptive requests for each input
