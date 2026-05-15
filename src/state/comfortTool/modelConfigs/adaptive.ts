@@ -63,10 +63,10 @@ function normalizeAdaptiveOptionsSnapshot(value: unknown) {
  * @param inputId The ID of the input slot.
  * @returns An AdaptiveRequestDto object.
  */
-function toAdaptiveRequest(state: any, inputId: InputIdType): AdaptiveRequestDto {
+function toAdaptiveRequest(state: any, inputId: InputIdType, modelId: ComfortModel): AdaptiveRequestDto {
   const inputs = state.inputsByInput[inputId];
   
-  const options = normalizeAdaptiveOptionsSnapshot(state.ui.modelOptionsByModel[ComfortModel.AdaptiveAshrae]) || defaultAdaptiveOptions;
+  const options = normalizeAdaptiveOptionsSnapshot(state.ui.modelOptionsByModel[modelId]) || defaultAdaptiveOptions;
 
   const tdb = Number(inputs[FieldKey.DryBulbTemperature]);
   const tr = options[OptionKey.TemperatureMode] === TemperatureMode.Operative
@@ -91,12 +91,13 @@ function toAdaptiveRequest(state: any, inputId: InputIdType): AdaptiveRequestDto
 function toAdaptiveChartInputsRequest(
   state: any,
   visibleInputIds: InputIdType[],
+  modelId: ComfortModel,
 ): AdaptiveChartInputsRequestDto {
   // Return the adaptive chart inputs request DTO.
   return {
     // Map each visible input ID to its corresponding adaptive request.
     inputs: visibleInputIds.reduce((accumulator, inputId) => {
-      accumulator[inputId] = toAdaptiveRequest(state, inputId);
+      accumulator[inputId] = toAdaptiveRequest(state, inputId, modelId);
       return accumulator;
     }, {} as AdaptiveChartInputsRequestDto["inputs"]),
   };
@@ -273,14 +274,14 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
   // Set the calculation engine for the model.
   builder.setCalculator((state, visibleInputIds) => {
     // Build the chart request.
-    const chartRequest = toAdaptiveChartInputsRequest(state, visibleInputIds);
+    const chartRequest = toAdaptiveChartInputsRequest(state, visibleInputIds, modelId);
     // Create an empty results record.
     const resultsByInput = createEmptyResults<AdaptiveResponseDto>();
 
     // Calculate the adaptive comfort for each visible input slot.
     visibleInputIds.forEach((inputId) => {
       // Get the adaptive request for the current input slot.
-      const request = toAdaptiveRequest(state, inputId);
+      const request = toAdaptiveRequest(state, inputId, modelId);
       // Perform the calculation.
       resultsByInput[inputId] = calculateAdaptive(request, standardMode);
     });
@@ -455,6 +456,12 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
     }
     
     return buildAdaptiveChart(chartSource.chartRequest, standardMode, unitSystem, chartSource.baselineInputId);
+  });
+
+  builder.setToneToClass({
+    success: "text-emerald-700",
+    danger: "text-red-600",
+    default: "",
   });
 
   return builder.build();

@@ -571,5 +571,17 @@ export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSo
     // Return the calculated chart trace configuration.
     return buildPmvChartResult(chartId, chartSource, unitSystem);
   })
+  // Set the color tone mappings for the PMV results table.
+  .setToneToClass({
+    pmvCold: "text-[#0571b0]",
+    pmvCool: "text-[#4c78a8]",
+    pmvSlightlyCool: "text-[#92c5de]",
+    pmvNeutral: "", // default color
+    pmvSlightlyWarm: "text-[#f4a582]",
+    pmvWarm: "text-[#e15759]",
+    pmvHot: "text-[#cc79a7]",
+    pmvVeryHot: "text-[#cc79a7]",
+    pmvVeryCold: "text-[#0571b0]",
+  })
   // Build the ComfortModel instance.
   .build();

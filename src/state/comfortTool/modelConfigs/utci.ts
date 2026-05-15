@@ -344,5 +344,19 @@ builder.setChartBuilder((chartId, chartSource, resultsByInput, unitSystem) => {
   return buildUtciChartResult(chartId, chartSource, resultsByInput, unitSystem);
 });
 
+// Set the color tone mappings for the UTCI results table.
+builder.setToneToClass({
+  utciExtremeCold: "text-[#0f172a]",
+  utciVeryStrongCold: "text-[#1d4ed8]",
+  utciStrongCold: "text-[#2563eb]",
+  utciModerateCold: "text-[#3b82f6]",
+  utciSlightCold: "text-[#7dd3fc]",
+  utciNoStress: "text-[#34d399]",
+  utciModerateHeat: "text-[#fbbf24]",
+  utciStrongHeat: "text-[#fb923c]",
+  utciVeryStrongHeat: "text-[#f97316]",
+  utciExtremeHeat: "text-[#dc2626]",
+});
+
 // Build and export the final model configuration.
 export const utciModelConfig = builder.build();
