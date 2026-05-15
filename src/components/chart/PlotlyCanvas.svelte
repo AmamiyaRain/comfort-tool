@@ -235,9 +235,8 @@
       // Convert the chart payload to a Plotly figure.
       const figure = toPlotlyFigure(chartPayload);
 
-      // Filter out zone traces if showZones is false
       if (!showZones) {
-        figure.data = figure.data.filter((trace: any) => !trace.isZone);
+        figure.data = figure.data.filter((trace: any) => !trace.isBackgroundZone);
       }
       // Hide the plot title if the showPlotTitle flag is false.
       if (!showPlotTitle) {

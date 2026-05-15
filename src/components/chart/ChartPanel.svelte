@@ -15,7 +15,10 @@
     type ChartId as ChartIdType,
   } from "../../models/chartOptions";
   import type { PlotlyChartResponseDto } from "../../models/comfortDtos";
-  import type { ComfortModel as ComfortModelType } from "../../models/comfortModels";
+  import {
+    ComfortModel,
+    type ComfortModel as ComfortModelType,
+  } from "../../models/comfortModels";
 
   let {
     title,
@@ -73,6 +76,13 @@
 
   // Disable dynamic axis selection based on the currently selected chart's metadata properties (disabled when lockYAxis is true)
   const lockYAxis = $derived(!!chartMetaById[selectedChart]?.lockYAxis);
+  // Disable zones toggle for models that do not use zones (AdaptiveAshrae, AdaptiveEn) and for dynamic charts
+  const showZonesToggle = $derived(
+    selectedModel !== ComfortModel.AdaptiveAshrae &&
+      selectedModel !== ComfortModel.AdaptiveEn &&
+      selectedChart !== ChartId.PmvDynamic &&
+      selectedChart !== ChartId.UtciDynamic,
+  );
 </script>
 
 {#snippet content()}
@@ -114,15 +124,17 @@
           onExport={(type) => exportChart?.(type)}
         />
       </div>
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs font-medium text-stone-500">Zones:</span>
-        <Toggle
-          checked={showZones}
-          onchange={(e) => (showZones = e.currentTarget.checked)}
-          color="teal"
-          size="small"
-        />
-      </div>
+      {#if showZonesToggle}
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-medium text-stone-500">Zones:</span>
+          <Toggle
+            checked={showZones}
+            onchange={(e) => (showZones = e.currentTarget.checked)}
+            color="teal"
+            size="small"
+          />
+        </div>
+      {/if}
     </div>
   </header>
 

@@ -60,7 +60,7 @@ export function buildRelativeHumidityChart(
         polygonX,
         polygonY,
         hovertemplate: `Tdb %{x:.1f} ${temperatureDisplayUnits}<br>RH %{y:.0f}%<extra></extra>`,
-        isZone: true,
+        isComfortZone: true,
       }));
     }
     // Add the input scatter trace.
@@ -186,7 +186,7 @@ export function buildGenericHeatmapRangeChart(
       zmax: config.zMax,
       contours: {
         coloring: "fill",
-        showlines: true,
+        showlines: false,
         type: "levels",
         start: 0.5,
         end: config.zMax - 0.5,
@@ -196,7 +196,29 @@ export function buildGenericHeatmapRangeChart(
       },
       hovertemplate: config.hovertemplateContour,
       showscale: false,
-      isZone: true,
+      isBackgroundZone: true,
+    }),
+    buildContourTrace({
+      name: "Boundaries",
+      x: xValues,
+      y: yValues,
+      z: zValues,
+      colorscale: config.colorscale,
+      zmin: 0,
+      zmax: config.zMax,
+      contours: {
+        coloring: "none" as const,
+        showlines: true,
+        type: "levels",
+        start: 0.5,
+        end: config.zMax - 0.5,
+        size: 1,
+        smoothing: 1.3,
+        line: { width: 1, color: "#333333" },
+      },
+      hovertemplate: "",
+      hoverinfo: "skip",
+      showscale: false,
     })
   ];
 
@@ -324,7 +346,7 @@ export function buildGenericDynamicHeatmapChart(
       zmax: config.zMax,
       contours: {
         coloring: "fill",
-        showlines: true,
+        showlines: false,
         type: "levels",
         start: 0.5,
         end: config.zMax - 0.5,
@@ -334,7 +356,29 @@ export function buildGenericDynamicHeatmapChart(
       },
       hovertemplate: `${xMeta.label}: %{x:.1f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.1f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><extra></extra>`,
       showscale: false,
-      isZone: true,
+      isBackgroundZone: true,
+    }),
+    buildContourTrace({
+      name: "Boundaries",
+      x: xValues,
+      y: yValues,
+      z: zValues,
+      colorscale: config.colorscale,
+      zmin: 0,
+      zmax: config.zMax,
+      contours: {
+        coloring: "none" as const,
+        showlines: true,
+        type: "levels",
+        start: 0.5,
+        end: config.zMax - 0.5,
+        size: 1,
+        smoothing: 1.3,
+        line: { width: 1, color: "#333333" },
+      },
+      hovertemplate: "",
+      hoverinfo: "skip",
+      showscale: false,
     })
   ];
 

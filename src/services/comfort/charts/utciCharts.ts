@@ -81,9 +81,15 @@ const UTCI_CONTOURS = {
   size: 1,
   type: "levels",
   coloring: "fill",
-  showlines: true,
+  showlines: false,
   smoothing: 1.3,
   line: { width: 1, color: "#333333" },
+};
+
+const UTCI_BOUNDARY_CONTOURS = {
+  ...UTCI_CONTOURS,
+  coloring: "none" as const,
+  showlines: true,
 };
 
 const UTCI_COLORBAR = {
@@ -170,8 +176,24 @@ export function buildUtciStressChart(
       zmin: 0,
       zmax: 10,
       opacity: 0.75,
-      isZone: true,
-    })
+      isBackgroundZone: true,
+    }),
+    buildContourTrace({
+      name: "Boundaries",
+      x: UTCI_BOUNDARIES.map((val) =>
+        convertFieldValueFromSi(FieldKey.DryBulbTemperature, val, unitSystem),
+      ),
+      y: Array.from({ length: 50 }, (_, i) => i / 49),
+      z: Array.from({ length: 50 }, () => UTCI_BOUNDARIES.map((_, i) => i)),
+      colorscale: UTCI_COLORSCALE,
+      contours: UTCI_BOUNDARY_CONTOURS,
+      showscale: false,
+      hoverinfo: "skip",
+      hovertemplate: "",
+      zmin: 0,
+      zmax: 10,
+      opacity: 0.8,
+    }),
   ];
 
   inputs.forEach(({ inputId, payload: inputPayload }, index) => {
@@ -311,13 +333,13 @@ export function buildUtciDynamicChart(
 
   const zValues: number[][] = [];
   const textValues: string[][] = [];
-  const customValues: number[][] = [];
+  const hoverMetadata: number[][] = [];
 
   if (activeInputPayload) {
     for (let i = 0; i < yPoints; i++) {
       const row: number[] = [];
       const textRow: string[] = [];
-      const customRow: number[] = [];
+      const hoverMetadataRow: number[] = [];
 
       const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
 
@@ -357,24 +379,24 @@ export function buildUtciDynamicChart(
             // This ensures smooth separator lines align perfectly with the physical model boundaries.
             row.push(mapUtciToZ(result.utci));
             textRow.push(shortLabel);
-            customRow.push(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
+            hoverMetadataRow.push(convertFieldValueFromSi(FieldKey.DryBulbTemperature, result.utci, unitSystem));
           } else {
             // Push NaN and empty string if UTCI doesn't exist.
             row.push(NaN);
             textRow.push("");
-            customRow.push(NaN);
+            hoverMetadataRow.push(NaN);
           }
         // Catch errors.
         } catch (e) {
           row.push(NaN);
           textRow.push("");
-          customRow.push(NaN);
+          hoverMetadataRow.push(NaN);
         }
       }
       // Push row to z values.
       zValues.push(row);
       textValues.push(textRow);
-      customValues.push(customRow);
+      hoverMetadata.push(hoverMetadataRow);
     }
   }
 
@@ -394,11 +416,26 @@ export function buildUtciDynamicChart(
       zmin: 0,
       zmax: 10,
       hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>UTCI: %{customdata:.1f} ${fieldMetaByKey[FieldKey.DryBulbTemperature].displayUnits[unitSystem]}<extra></extra>`,
-      customdata: customValues,
+      hoverMetadata: hoverMetadata,
       opacity: 0.75,
-      isZone: true,
-    }));
-  }
+      isBackgroundZone: true,
+    }),
+    buildContourTrace({
+      name: "Boundaries",
+      x: xValues,
+      y: yValues,
+      z: zValues,
+      colorscale: UTCI_COLORSCALE,
+      contours: UTCI_BOUNDARY_CONTOURS,
+      showscale: false,
+      hoverinfo: "skip",
+      hovertemplate: "",
+      zmin: 0,
+      zmax: 10,
+      opacity: 0.8,
+    }),
+  );
+}
 
   // Add input scatter traces.
   inputs.forEach(({ inputId, payload: inputPayload }) => {

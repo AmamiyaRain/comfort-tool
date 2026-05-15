@@ -36,6 +36,53 @@ import {
 import { pmv_ppd, psy_ta_rh, p_sat, t_o } from "jsthermalcomfort";
 import { buildComfortPolygonTrace, buildInputScatterTrace, buildLineTrace, buildContourTrace } from "./plotlyBuilders";
 
+/**
+ * Builds a standardized hover template for PMV charts to ensure consistency 
+ * across different trace types (contours, polygons, and dots).
+ */
+function getPmvHoverTemplate({
+  xLabel,
+  xUnits,
+  yLabel,
+  yUnits,
+  yDecimals = 1,
+  inputLabel,
+  zoneText = "%{text}",
+  pmvText = "%{z:.2f}",
+  ppdText = "%{customdata[0]:.1f}%",
+  isStaticZone = false,
+}: {
+  xLabel: string;
+  xUnits: string;
+  yLabel: string;
+  yUnits: string;
+  yDecimals?: number;
+  inputLabel?: string;
+  zoneText?: string | null;
+  pmvText?: string | null;
+  ppdText?: string | null;
+  isStaticZone?: boolean;
+}): string {
+  const parts = [];
+  if (inputLabel) parts.push(inputLabel);
+  parts.push(`${xLabel}: %{x:.1f} ${xUnits}`);
+  parts.push(`${yLabel}: %{y:.${yDecimals}f} ${yUnits}`);
+  
+  if (zoneText) {
+    parts.push(`<b>Zone: ${zoneText}</b>`);
+  }
+  
+  if (pmvText && !isStaticZone) {
+    parts.push(`PMV: ${pmvText}`);
+  }
+  
+  if (ppdText && !isStaticZone) {
+    parts.push(`PPD: ${ppdText}`);
+  }
+  
+  return parts.join("<br>") + "<extra></extra>";
+}
+
 const PMV_COLORSCALE = pmvZones.reduce((acc, zone, index, array) => {
   const step = 1 / array.length;
   acc.push([index * step, zone.color]);
@@ -181,9 +228,11 @@ export function buildComparePsychrometricChart(
     // Z values for the contour plot.
     const zValues: number[][] = [];
     const textValues: string[][] = [];
+    const hoverMetadata: any[][][] = [];
     for (let i = 0; i < yPoints; i++) {
       const row: number[] = [];
       const textRow: string[] = [];
+      const hoverMetadataRow: any[][] = [];
       const hr = yValuesSi[i];
       for (let j = 0; j < xPoints; j++) {
         const tdb = xValuesSi[j];
@@ -195,13 +244,16 @@ export function buildComparePsychrometricChart(
           const pmvResult = pmv_ppd(tdb, activeInputPayload.tr, activeInputPayload.vr, rh, activeInputPayload.met, activeInputPayload.clo, activeInputPayload.wme, "ASHRAE", { limit_inputs: false });
           row.push(pmvResult.pmv);
           textRow.push(getPmvZoneMeta(pmvResult.pmv).label);
+          hoverMetadataRow.push([pmvResult.ppd]);
         } catch {
           row.push(NaN);
           textRow.push("");
+          hoverMetadataRow.push([NaN]);
         }
       }
       zValues.push(row);
       textValues.push(textRow);
+      hoverMetadata.push(hoverMetadataRow);
     }
     // Convert the x and y values to the display units.
     const displayXValues = xValuesSi.map(x => convertFieldValueFromSi(FieldKey.DryBulbTemperature, x, unitSystem));
@@ -219,9 +271,16 @@ export function buildComparePsychrometricChart(
       // Only show PMV values between -3.5 and 3.5
       zmin: -3.5,
       zmax: 3.5,
-      hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      hovertemplate: getPmvHoverTemplate({
+        xLabel: fieldMetaByKey[FieldKey.DryBulbTemperature].label,
+        xUnits: temperatureDisplayUnits,
+        yLabel: fieldMetaByKey[FieldKey.HumidityRatio].label,
+        yUnits: humidityRatioMeta.displayUnits,
+        yDecimals: humidityRatioMeta.decimals,
+      }),
+      hoverMetadata: hoverMetadata,
       opacity: 0.80,
-      isZone: true,
+      isBackgroundZone: true,
     }));
   }
 
@@ -231,6 +290,10 @@ export function buildComparePsychrometricChart(
     const xValues: number[] = [];
     // Y-axis values.
     const yValues: number[] = [];
+    // Metadata for tooltips.
+    const hoverMetadata: any[][] = [];
+    const textValues: string[] = [];
+
     // Generate the curve for the current relative humidity.
     temperatures.forEach((temperature) => {
       const humidityRatioSi = psy_ta_rh(temperature, relativeHumidity).hr;
@@ -239,6 +302,18 @@ export function buildComparePsychrometricChart(
       if (humidityRatioSi >= chartRange.humidityRatioMin && humidityRatioSi <= chartRange.humidityRatioMax) {
         xValues.push(roundValue(convertFieldValueFromSi(FieldKey.DryBulbTemperature, temperature, unitSystem)));
         yValues.push(roundValue(humidityRatio));
+
+        // Calculate PMV/PPD for this point based on baseline input.
+        if (activeInputPayload) {
+          try {
+            const res = pmv_ppd(temperature, activeInputPayload.tr, activeInputPayload.vr, relativeHumidity, activeInputPayload.met, activeInputPayload.clo, activeInputPayload.wme, "ASHRAE", { limit_inputs: false });
+            hoverMetadata.push([res.ppd, res.pmv.toFixed(2)]);
+            textValues.push(getPmvZoneMeta(res.pmv).label);
+          } catch {
+            hoverMetadata.push([NaN, "NaN"]);
+            textValues.push("");
+          }
+        }
       }
     });
     // Add the curve to the traces if it has any points.
@@ -256,8 +331,18 @@ export function buildComparePsychrometricChart(
       // Color of the curve.
       color: "#94a3b8",
       // Hover template for the curve.
-      hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
-      `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
+      hovertemplate: getPmvHoverTemplate({
+        xLabel: fieldMetaByKey[FieldKey.DryBulbTemperature].label,
+        xUnits: temperatureDisplayUnits,
+        yLabel: fieldMetaByKey[FieldKey.HumidityRatio].label,
+        yUnits: humidityRatioMeta.displayUnits,
+        yDecimals: humidityRatioMeta.decimals,
+        zoneText: "%{text}",
+        pmvText: "%{customdata[1]}",
+        ppdText: "%{customdata[0]:.1f}%",
+      }),
+      text: textValues,
+      hoverMetadata: hoverMetadata,
     }));
   });
 
@@ -283,17 +368,21 @@ export function buildComparePsychrometricChart(
         polygonX,
         polygonY,
         // Tooltip text for the comfort zone.
-        hovertemplate: `${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
-        `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}<extra></extra>`,
-        isZone: true,
+        hovertemplate: "",
+        hoverinfo: "skip",
+        isComfortZone: true,
       }));
     }
 
     // Calculate PMV and Zone for the scatter dot.
-    let pmvText = "";
+    let pmvValue: number | undefined;
+    let zoneLabel: string | undefined;
+    let ppdValue: number | undefined;
     try {
       const pmvRes = pmv_ppd(inputPayload.tdb, inputPayload.tr, inputPayload.vr, inputPayload.rh, inputPayload.met, inputPayload.clo, inputPayload.wme, "ASHRAE", { limit_inputs: false });
-      pmvText = `<br><b>Zone: ${getPmvZoneMeta(pmvRes.pmv).label}</b><br>PMV: ${roundValue(pmvRes.pmv, 2)}`;
+      pmvValue = pmvRes.pmv;
+      zoneLabel = getPmvZoneMeta(pmvRes.pmv).label;
+      ppdValue = pmvRes.ppd;
     } catch {
       // Ignore errors.
     }
@@ -306,8 +395,17 @@ export function buildComparePsychrometricChart(
       y: roundValue(getHumidityRatioDisplayValue(inputPayload.tdb, inputPayload.rh, unitSystem)),
       showLegend: showInputLegend,
       // Tooltip text for the data point.
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${fieldMetaByKey[FieldKey.DryBulbTemperature].label}: %{x:.1f} ${temperatureDisplayUnits}<br>` +
-      `${fieldMetaByKey[FieldKey.HumidityRatio].label}: %{y:.${humidityRatioMeta.decimals}f} ${humidityRatioMeta.displayUnits}${pmvText}<extra></extra>`,
+      hovertemplate: getPmvHoverTemplate({
+        inputLabel: inputDisplayMetaById[inputId]?.label ?? "Input",
+        xLabel: fieldMetaByKey[FieldKey.DryBulbTemperature].label,
+        xUnits: temperatureDisplayUnits,
+        yLabel: fieldMetaByKey[FieldKey.HumidityRatio].label,
+        yUnits: humidityRatioMeta.displayUnits,
+        yDecimals: humidityRatioMeta.decimals,
+        zoneText: zoneLabel,
+        pmvText: pmvValue !== undefined ? roundValue(pmvValue, 2).toString() : undefined,
+        ppdText: ppdValue !== undefined ? `${roundValue(ppdValue, 1)}%` : undefined,
+      }),
     }));
   });
 
@@ -395,53 +493,56 @@ export function buildPmvDynamicChart(
     yValues.push(yMin + (yMax - yMin) * (i / (yPoints - 1)));
   }
 
-  const zValues: number[][] = [];
-  const textValues: string[][] = [];
+    const zValues: number[][] = [];
+    const textValues: string[][] = [];
+    const hoverMetadata: any[][][] = [];
 
-  // If there is an active input payload, calculate the PMV values for each point on the grid.
-  if (activeInputPayload) {
-    // For each point on the y-axis, calculate the PMV values for each point on the x-axis.
-    for (let i = 0; i < yPoints; i++) {
-      const row: number[] = [];
-      const textRow: string[] = [];
-      const currentYSi = yValues[i];
-      const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
+    // If there is an active input payload, calculate the PMV values for each point on the grid.
+    if (activeInputPayload) {
+      // For each point on the y-axis, calculate the PMV values for each point on the x-axis.
+      for (let i = 0; i < yPoints; i++) {
+        const row: number[] = [];
+        const textRow: string[] = [];
+        const hoverMetadataRow: any[][] = [];
+        const ySi = convertFieldValueToSi(dynamicYAxis, yValues[i], unitSystem);
 
-      // For each point on the x-axis, update the values in the payload with the current x value and calculate the PMV values.
-      for (let j = 0; j < xPoints; j++) {
-        const xSi = convertFieldValueToSi(dynamicXAxis, xValues[j], unitSystem);
+        // For each point on the x-axis, update the values in the payload with the current x value and calculate the PMV values.
+        for (let j = 0; j < xPoints; j++) {
+          const xSi = convertFieldValueToSi(dynamicXAxis, xValues[j], unitSystem);
 
-        // Copy baseline inputs
-        const pointArgs = { ...activeInputPayload };
-        // Update parameters based on the selected dynamic axes
-        const updateParams = (key: string, val: number) => {
-          if (key === FieldKey.DryBulbTemperature) { pointArgs.tdb = val; }
-          else if (key === FieldKey.MeanRadiantTemperature) { pointArgs.tr = val; }
-          else if (key === FieldKey.OperativeTemperature) { pointArgs.tdb = val; pointArgs.tr = val; }
-          else if (key === FieldKey.WindSpeed || key === FieldKey.RelativeAirSpeed) { pointArgs.vr = val; }
-          else if (key === FieldKey.RelativeHumidity) { pointArgs.rh = val; }
-          else if (key === FieldKey.MetabolicRate) { pointArgs.met = val; }
-          else if (key === FieldKey.ClothingInsulation) { pointArgs.clo = val; }
-          else if (key === FieldKey.ExternalWork) { pointArgs.wme = val; }
-        };
+          // Copy baseline inputs
+          const pointArgs = { ...activeInputPayload };
+          // Update parameters based on the selected dynamic axes
+          const updateParams = (key: string, val: number) => {
+            if (key === FieldKey.DryBulbTemperature) { pointArgs.tdb = val; }
+            else if (key === FieldKey.MeanRadiantTemperature) { pointArgs.tr = val; }
+            else if (key === FieldKey.OperativeTemperature) { pointArgs.tdb = val; pointArgs.tr = val; }
+            else if (key === FieldKey.WindSpeed || key === FieldKey.RelativeAirSpeed) { pointArgs.vr = val; }
+            else if (key === FieldKey.RelativeHumidity) { pointArgs.rh = val; }
+            else if (key === FieldKey.MetabolicRate) { pointArgs.met = val; }
+            else if (key === FieldKey.ClothingInsulation) { pointArgs.clo = val; }
+            else if (key === FieldKey.ExternalWork) { pointArgs.wme = val; }
+          };
 
-        updateParams(dynamicXAxis as string, xSi);
-        updateParams(dynamicYAxis as string, ySi);
-
-        // If Tdb is X and Tr is not selected, we don't automatically link them unless Tr was identical to Tdb originally, but let's just use the current logic.
-        try {
-          const pmvResult = pmv_ppd(pointArgs.tdb, pointArgs.tr, pointArgs.vr, pointArgs.rh, pointArgs.met, pointArgs.clo, pointArgs.wme, "ASHRAE", { limit_inputs: false });
-          row.push(pmvResult.pmv);
-          textRow.push(getPmvZoneMeta(pmvResult.pmv).label);
-        } catch (e) {
-          row.push(NaN);
-          textRow.push("");
+          updateParams(dynamicXAxis as string, xSi);
+          updateParams(dynamicYAxis as string, ySi);
+          // Calculate PMV and Zone for the dynamic scatter dot.
+          try {
+            const pmvResult = pmv_ppd(pointArgs.tdb, pointArgs.tr, pointArgs.vr, pointArgs.rh, pointArgs.met, pointArgs.clo, pointArgs.wme, "ASHRAE", { limit_inputs: false });
+            row.push(pmvResult.pmv);
+            textRow.push(getPmvZoneMeta(pmvResult.pmv).label);
+            hoverMetadataRow.push([pmvResult.ppd]);
+          } catch (e) {
+            row.push(NaN);
+            textRow.push("");
+            hoverMetadataRow.push([NaN]);
+          }
         }
+        zValues.push(row);
+        textValues.push(textRow);
+        hoverMetadata.push(hoverMetadataRow);
       }
-      zValues.push(row);
-      textValues.push(textRow);
     }
-  }
 
   const traces: PlotTraceDto[] = [];
 
@@ -459,9 +560,16 @@ export function buildPmvDynamicChart(
       // Only show PMV values between -3.5 and 3.5
       zmin: -3.5,
       zmax: 3.5,
-      hovertemplate: `${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}<br><b>Zone: %{text}</b><br>PMV: %{z:.2f}<extra></extra>`,
+      hovertemplate: getPmvHoverTemplate({
+        xLabel: xMeta.label,
+        xUnits: xMeta.displayUnits[unitSystem],
+        yLabel: yMeta.label,
+        yUnits: yMeta.displayUnits[unitSystem],
+        yDecimals: 2,
+      }),
+      hoverMetadata: hoverMetadata,
       opacity: 0.80,
-      isZone: true,
+      isBackgroundZone: true,
     }));
   }
 
@@ -489,10 +597,14 @@ export function buildPmvDynamicChart(
     inputY = convertFieldValueFromSi(dynamicYAxis, inputY, unitSystem);
 
     // Calculate PMV and Zone for the dynamic scatter dot.
-    let pmvText = "";
+    let pmvValue: number | undefined;
+    let zoneLabel: string | undefined;
+    let ppdValue: number | undefined;
     try {
       const pmvRes = pmv_ppd(inputPayload.tdb, inputPayload.tr, inputPayload.vr, inputPayload.rh, inputPayload.met, inputPayload.clo, inputPayload.wme, "ASHRAE", { limit_inputs: false });
-      pmvText = `<br><b>Zone: ${getPmvZoneMeta(pmvRes.pmv).label}</b><br>PMV: ${roundValue(pmvRes.pmv, 2)}`;
+      pmvValue = pmvRes.pmv;
+      zoneLabel = getPmvZoneMeta(pmvRes.pmv).label;
+      ppdValue = pmvRes.ppd;
     } catch {
       // Ignore errors.
     }
@@ -503,7 +615,17 @@ export function buildPmvDynamicChart(
       x: roundValue(inputX),
       y: roundValue(inputY),
       showLegend: showInputLegend,
-      hovertemplate: `${inputDisplayMetaById[inputId]?.label ?? "Input"}<br>${xMeta.label}: %{x:.2f} ${xMeta.displayUnits[unitSystem]}<br>${yMeta.label}: %{y:.2f} ${yMeta.displayUnits[unitSystem]}${pmvText}<extra></extra>`,
+      hovertemplate: getPmvHoverTemplate({
+        inputLabel: inputDisplayMetaById[inputId]?.label ?? "Input",
+        xLabel: xMeta.label,
+        xUnits: xMeta.displayUnits[unitSystem],
+        yLabel: yMeta.label,
+        yUnits: yMeta.displayUnits[unitSystem],
+        yDecimals: 2,
+        zoneText: zoneLabel,
+        pmvText: pmvValue !== undefined ? roundValue(pmvValue, 2).toString() : undefined,
+        ppdText: ppdValue !== undefined ? `${roundValue(ppdValue, 1)}%` : undefined,
+      }),
     }));
   });
 

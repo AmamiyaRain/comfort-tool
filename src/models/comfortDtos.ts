@@ -196,10 +196,14 @@ export interface PlotTraceDto {
   opacity?: number;
   hoverinfo?: string;
   hovertemplate?: string | null;
-  /** When true, this trace is a background zone overlay that can be hidden via the Zones toggle. */
+  /** When true, this trace represents a background zone overlay. Affected by Zones toggle. */
   isZone?: boolean;
-  /** Custom data associated with each point in the trace, often used in hovertemplates. */
-  customdata?: any[] | any[][];
+  /** When true, this trace represents a colored background region. */
+  isBackgroundZone?: boolean;
+  /** When true, this trace represents a user-specific comfort zone boundary. */
+  isComfortZone?: boolean;
+  /** Metadata for each point in the trace, used for detailed hover templates. */
+  hoverMetadata?: any[] | any[][];
 }
 
 // Plot Annotation DTO, contains plot annotation data, including x, y, text, showarrow and font
