@@ -117,6 +117,9 @@ heatIndexBuilder.addControl({
   behavior: createControlBehavior({
     controlId: InputControlId.Temperature,
     fieldKey: FieldKey.DryBulbTemperature,
+    // The Rothfusz regression for Heat Index is typically valid for temperatures above 26.7 °C (80 °F).
+    minValue: 20,
+    maxValue: 50,
   }),
 });
 

@@ -400,6 +400,8 @@ const humidityBehavior = createHumidityControlBehavior(InputControlId.Humidity);
  * This builder is directly consumed inside the createComfortToolState.svelte to form the application's overall PMV behavior model.
  */
 export const pmvModelConfig = new ComfortModelBuilder<PmvResponseDto, PmvChartSourceDto>(ComfortModel.Pmv)
+  .setLabel("PMV (ASHRAE-55)")
+  .setDescription("ASHRAE 55 PMV/PPD with comfort zone overlays.")
   // Add Temperature input control.
   .addControl({
     id: InputControlId.Temperature,

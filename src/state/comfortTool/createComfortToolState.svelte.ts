@@ -43,6 +43,8 @@ import type {
   ModelOptionsByModelState,
   SelectedChartByModelState,
   ComfortToolStateSlice,
+  ModelSwitchViolation,
+  PendingModelSwitch,
 } from "./types";
 
 /**
@@ -160,6 +162,7 @@ export function createComfortToolState(): ComfortToolController {
     isLoading: false,
     errorMessage: "",
     calculationCacheByModel: createCalculationCacheByModel(),
+    pendingModelSwitch: null,
   });
 
   const state: ComfortToolStateSlice = {
@@ -258,6 +261,14 @@ export function createComfortToolState(): ComfortToolController {
     }
   }
 
+  function getDynamicAxisOptions(): FieldKeyType[] {
+    return getActiveModelConfig().dynamicAxisFields || [];
+  }
+
+  function getPendingModelSwitch(): PendingModelSwitch | null {
+    return state.ui.pendingModelSwitch;
+  }
+
   const selectors = {
     getVisibleInputIds,
     getInputControls: () => {
@@ -300,43 +311,158 @@ export function createComfortToolState(): ComfortToolController {
     getCurrentSelectedChart: () => getCurrentSelectedChartId(),
     getCurrentChartHeightClass: () => chartMetaById[getCurrentSelectedChartId()].heightClass,
     getCurrentCacheStatus: () => getCurrentModelCache().status,
-    getDynamicAxisOptions: () => getActiveModelConfig().dynamicAxisFields || [],
+    getDynamicAxisOptions,
+    getPendingModelSwitch,
   };
 
   const { scheduleCalculation: scheduleCalculationInternal } = createCalculationManager(state, getVisibleInputIds);
 
   /**
-   * Switches the active comfort model (e.g., PMV, UTCI) and triggers a re-calculation.
-   * @param nextModel The ID of the model to select.
+   * Performs the final state updates for a model selection.
    */
-  function setSelectedModel(nextModel: ComfortModelType) {
+  function completeModelSelection(nextModel: ComfortModelType) {
     state.ui.selectedModel = nextModel;
     state.ui.errorMessage = "";
 
-    // Ensure dynamic axes are valid for the new model.
     const config = getComfortModelConfig(nextModel);
-    if (config.dynamicAxisFields && config.dynamicAxisFields.length >= 2) {
-      if (!config.dynamicAxisFields.includes(state.ui.dynamicXAxis as any)) {
-        state.ui.dynamicXAxis = config.dynamicAxisFields[0];
-      }
-      if (!config.dynamicAxisFields.includes(state.ui.dynamicYAxis as any)) {
-        state.ui.dynamicYAxis = config.dynamicAxisFields[config.dynamicAxisFields.length - 1];
-      }
-    }
+    // Ensure dynamic axes are valid and unique for the new model.
+    ensureUniqueDynamicAxes(config);
 
     scheduleCalculationInternal({ immediate: true });
   }
 
   /**
-   * Updates the selected chart for the current model.
-   * @param nextChart The ID of the chart to display.
+   * Validates that the dynamic chart axes are both supported by the current model
+   * and distinct from each other.
    */
+  function ensureUniqueDynamicAxes(config: any) {
+    if (!config.dynamicAxisFields || config.dynamicAxisFields.length < 2) {
+      return;
+    }
+
+    // 1. Ensure current X-axis is valid for this model
+    if (!config.dynamicAxisFields.includes(state.ui.dynamicXAxis as any)) {
+      state.ui.dynamicXAxis = config.dynamicAxisFields[0];
+    }
+
+    // 2. Ensure current Y-axis is valid for this model
+    if (!config.dynamicAxisFields.includes(state.ui.dynamicYAxis as any)) {
+      state.ui.dynamicYAxis = config.dynamicAxisFields[config.dynamicAxisFields.length - 1];
+    }
+
+    // 3. Prevent X and Y from being the same field
+    if (state.ui.dynamicXAxis === state.ui.dynamicYAxis) {
+      const fields = config.dynamicAxisFields;
+      const currentIndex = fields.indexOf(state.ui.dynamicYAxis as any);
+      // Select the next available field, or loop back to the first.
+      const nextIndex = (currentIndex + 1) % fields.length;
+      state.ui.dynamicYAxis = fields[nextIndex];
+    }
+  }
+
+  /**
+   * Switches the active comfort model (e.g., PMV, UTCI) and triggers a re-calculation.
+   * Performs a boundary check and interrupts with a confirmation if violations are found.
+   * @param nextModel The ID of the model to select.
+   */
+  function setSelectedModel(nextModel: ComfortModelType) {
+    if (state.ui.selectedModel === nextModel) {
+      return;
+    }
+
+    const violations: ModelSwitchViolation[] = [];
+    const nextModelConfig = getComfortModelConfig(nextModel);
+    const visibleInputIds = getVisibleInputIds();
+
+    visibleInputIds.forEach((inputId) => {
+      const context: ControlBehaviorContext = {
+        inputsByInput: state.inputsByInput,
+        derivedByInput,
+        options: state.ui.modelOptionsByModel[nextModel],
+        unitSystem: state.ui.unitSystem,
+        visibleInputIds: [inputId],
+        selectedChartId: state.ui.selectedChartByModel[nextModel],
+      };
+
+      nextModelConfig.controls.forEach((control) => {
+        const vm = control.behavior.buildViewModel(context);
+        if (vm.hidden) return;
+
+        const currentValue = vm.numericValuesByInput[inputId];
+        if (currentValue === undefined) return;
+
+        // Use a small epsilon for float comparisons to avoid precision issues.
+        const epsilon = 0.0001;
+        if (currentValue < vm.minValue - epsilon || currentValue > vm.maxValue + epsilon) {
+          violations.push({
+            inputId,
+            controlId: control.id,
+            label: vm.label,
+            currentValue,
+            minAllowed: vm.minValue,
+            maxAllowed: vm.maxValue,
+            displayUnits: vm.displayUnits,
+          });
+        }
+      });
+    });
+
+    if (violations.length > 0) {
+      state.ui.pendingModelSwitch = {
+        targetModel: nextModel,
+        violations,
+      };
+      return;
+    }
+
+    completeModelSelection(nextModel);
+  }
+
+  function confirmModelSwitch() {
+    if (!state.ui.pendingModelSwitch) {
+      return;
+    }
+
+    const { targetModel, violations } = state.ui.pendingModelSwitch;
+
+    // Fix violating values by clamping them to the closest legal boundary.
+    violations.forEach((v) => {
+      const modelConfig = getComfortModelConfig(targetModel);
+      const control = modelConfig.controls.find((c) => c.id === v.controlId);
+      if (!control) return;
+
+      const context = getModelContext(targetModel);
+      const vm = control.behavior.buildViewModel(context);
+
+      const clampedValue = Math.max(vm.minValue, Math.min(vm.maxValue, v.currentValue));
+      
+      const patch = control.behavior.applyInput(context, v.inputId, clampedValue.toString());
+      if (patch) {
+        applyBehaviorPatch(targetModel, patch);
+      }
+    });
+
+    state.ui.pendingModelSwitch = null;
+    completeModelSelection(targetModel);
+    invalidateAllModels();
+  }
+
+  function cancelModelSwitch() {
+    state.ui.pendingModelSwitch = null;
+  }
+
   function setSelectedChart(nextChart: ChartIdType) {
     if (!getActiveModelConfig().chartIds.includes(nextChart)) {
       return;
     }
 
     state.ui.selectedChartByModel[state.ui.selectedModel] = nextChart;
+
+    // If switching to a dynamic chart, ensure the axes are unique.
+    if (chartMetaById[nextChart].isDynamic) {
+      ensureUniqueDynamicAxes(getActiveModelConfig());
+    }
+
     invalidateModel(state.ui.selectedModel);
     scheduleCalculationInternal({ immediate: true });
   }
@@ -494,6 +620,8 @@ export function createComfortToolState(): ComfortToolController {
     },
     updateInput,
     scheduleCalculation: (scheduleOptions) => scheduleCalculationInternal(scheduleOptions),
+    confirmModelSwitch,
+    cancelModelSwitch,
   };
 
   return {

@@ -56,8 +56,8 @@ export const chartMetaById: Record<ChartId, ChartMetadata> = {
     heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.Adaptive]: {
-    name: "Psychrometric",
-    emptyMessage: "No psychrometric chart yet.",
+    name: "Adaptive",
+    emptyMessage: "No adaptive chart yet.",
     heightClass: "h-[480px] xl:h-[480px]",
   },
   [ChartId.AdaptiveDynamic]: {

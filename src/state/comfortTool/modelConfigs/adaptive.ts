@@ -256,6 +256,20 @@ function createAdaptiveModelConfig(modelId: ComfortModel, standardMode: Adaptive
   // Set the default options for the model.
   builder.setDefaultOptions(nextDefaultOptions);
 
+  if (isAshrae) {
+    builder
+      .setLabel("Adaptive (ASHRAE-55)")
+      .setDescription(
+        "ASHRAE 55 Adaptive thermal comfort model for naturally ventilated buildings.",
+      );
+  } else {
+    builder
+      .setLabel("Adaptive (EN 16798-1)")
+      .setDescription(
+        "EN 16798-1 Adaptive thermal comfort model for naturally ventilated buildings.",
+      );
+  }
+
   // Set the default chart and all available charts for the model.
   builder.setDefaultChart(ChartId.Adaptive, adaptiveChartIds);
 

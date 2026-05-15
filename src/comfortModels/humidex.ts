@@ -119,6 +119,9 @@ humidexBuilder.addControl({
   behavior: createControlBehavior({
     controlId: InputControlId.Temperature,
     fieldKey: FieldKey.DryBulbTemperature,
+    // Humidex is specifically used to describe warm/humid conditions (typically above 20 °C).
+    minValue: 20,
+    maxValue: 50,
   }),
 });
 

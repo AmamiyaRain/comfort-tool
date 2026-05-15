@@ -55,6 +55,22 @@ export type ModelCalculationCacheByModelState = Record<
   ComfortModelType,
   ModelCalculationCache<any, any>
 >;
+// Reporting input range violations when switching models.
+export interface ModelSwitchViolation {
+  inputId: InputIdType;
+  controlId: InputControlIdType;
+  label: string;
+  currentValue: number;
+  minAllowed: number;
+  maxAllowed: number;
+  displayUnits: string;
+}
+
+// Temporary state for a model switch that has not yet been confirmed.
+export type PendingModelSwitch = {
+  targetModel: ComfortModelType;
+  violations: ModelSwitchViolation[];
+};
 
 // UI state for the comfort tool.
 export type UiState = {
@@ -71,6 +87,7 @@ export type UiState = {
   isLoading: boolean;
   errorMessage: string;
   calculationCacheByModel: ModelCalculationCacheByModelState;
+  pendingModelSwitch: PendingModelSwitch | null;
 };
 
 // The main state slice for the comfort tool, containing both input data and UI state.
@@ -95,6 +112,8 @@ export type ComfortToolActions = {
   applyShareSnapshot: (snapshot: ShareStateSnapshot) => void;
   updateInput: (inputId: InputIdType, controlId: InputControlIdType, rawValue: string) => void;
   scheduleCalculation: (options?: { immediate?: boolean }) => void;
+  confirmModelSwitch: () => void;
+  cancelModelSwitch: () => void;
 };
 
 // Selectors for retrieving computed values from the state.
@@ -109,6 +128,7 @@ export type ComfortToolSelectors = {
   getCurrentChartHeightClass: () => string;
   getCurrentCacheStatus: () => CalculationCacheStatus;
   getDynamicAxisOptions: () => FieldKeyType[];
+  getPendingModelSwitch: () => PendingModelSwitch | null;
 };
 
 // Controller that combines state, actions, and selectors for the comfort tool.

@@ -14,7 +14,7 @@ import { ThermalZone } from "../models/thermalZone";
 import type { UnitSystem } from "../models/units";
 import type { InputId as InputIdType } from "../models/inputSlots";
 import type { CompareInputMap } from "../models/comfortDtos";
-import { createControlBehavior, buildDefaultPresentation } from "../services/comfort/controls/controlBehaviors";
+import { buildDefaultPresentation, createControlBehavior, createTemperatureControlBehavior } from "../services/comfort/controls/controlBehaviors";
 import { getWindChillZone, windChillZones, WCI_FROSTBITE_30, WCI_FROSTBITE_10, WCI_FROSTBITE_2, roundValue } from "../services/comfort/helpers";
 import { buildGenericHeatmapRangeChart, buildGenericDynamicHeatmapChart } from "../services/comfort/charts/sharedCharts";
 import { convertFieldValueFromSi, formatDisplayValue } from "../services/units/index";
@@ -125,20 +125,10 @@ windChillBuilder
  */
 windChillBuilder.addControl({
   id: InputControlId.Temperature,
-  behavior: createControlBehavior({
-    controlId: InputControlId.Temperature,
-    fieldKey: FieldKey.DryBulbTemperature,
-    getPresentation: (context, meta) => {
-      const presentation = buildDefaultPresentation(context, meta);
-      const minSi = -45;
-      const maxSi = 0;
-      presentation.minValue = convertFieldValueFromSi(FieldKey.DryBulbTemperature, minSi, context.unitSystem);
-      presentation.maxValue = convertFieldValueFromSi(FieldKey.DryBulbTemperature, maxSi, context.unitSystem);
-      const minFmt = formatDisplayValue(presentation.minValue, presentation.decimals);
-      const maxFmt = formatDisplayValue(presentation.maxValue, presentation.decimals);
-      presentation.rangeText = `From ${minFmt} to ${maxFmt}`;
-      return presentation;
-    },
+  behavior: createTemperatureControlBehavior(InputControlId.Temperature, {
+    // Wind Chill is only valid for cold temperatures (typically below 0 °C / 32 °F).
+    minValue: -45,
+    maxValue: 0,
   }),
 });
 
@@ -147,17 +137,16 @@ windChillBuilder.addControl({
   behavior: createControlBehavior({
     controlId: InputControlId.WindSpeed,
     fieldKey: FieldKey.WindSpeed,
+    // Wind Chill calculations are typically valid for wind speeds between 1.3 m/s and 20 m/s.
+    minValue: 1,
+    maxValue: 20,
     getPresentation: (context, meta) => {
-      const presentation = buildDefaultPresentation(context, meta);
-      const minSi = 1;
-      const maxSi = 20;
-      presentation.minValue = convertFieldValueFromSi(FieldKey.WindSpeed, minSi, context.unitSystem);
-      presentation.maxValue = convertFieldValueFromSi(FieldKey.WindSpeed, maxSi, context.unitSystem);
+      const presentation = buildDefaultPresentation(context, meta, {
+        minValue: 1,
+        maxValue: 20,
+      });
       presentation.step = 1;
       presentation.decimals = 0;
-      const minFmt = formatDisplayValue(presentation.minValue, presentation.decimals);
-      const maxFmt = formatDisplayValue(presentation.maxValue, presentation.decimals);
-      presentation.rangeText = `From ${minFmt} to ${maxFmt}`;
       return presentation;
     },
   }),

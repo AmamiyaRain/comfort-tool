@@ -212,8 +212,15 @@ function buildUtciChartResult(
  * This builder is directly injected into the Reactivity model layer (`createComfortToolState.svelte.ts`) to bootstrap the tool's UTCI context.
  */
 const builder = new ComfortModelBuilder<UtciResponseDto, UtciChartSourceDto>(ComfortModel.Utci);
+builder
+  .setLabel("UTCI")
+  .setDescription("Outdoor UTCI with stress category visualization.");
 
-const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temperature);
+// UTCI is officially valid for air temperatures between -50 and 50 °C.
+const temperatureBehavior = createTemperatureControlBehavior(InputControlId.Temperature, {
+  minValue: -50,
+  maxValue: 50,
+});
 
 // Register the temperature control.
 builder.addControl({
@@ -227,6 +234,10 @@ builder.addControl({
   behavior: createControlBehavior({
     controlId: InputControlId.RadiantTemperature,
     fieldKey: FieldKey.MeanRadiantTemperature,
+    // UTCI applicability limits for tr are (tdb - 30) to (tdb + 70).
+    // Given tdb range of -50 to 50, the absolute superset for tr is -80 to 120.
+    minValue: -80,
+    maxValue: 120,
     // MRT is hidden if we are in Operative Temperature mode.
     hidden: (context) => {
       const options = normalizeUtciOptions(context.options) || defaultUtciOptions;
