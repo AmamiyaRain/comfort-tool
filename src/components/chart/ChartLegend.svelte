@@ -22,10 +22,20 @@
     utciStressBands,
   } from "../../services/comfort/helpers";
 
+  type LegendZone = {
+    readonly label: string;
+    readonly color: string;
+  };
+
+  interface Props {
+    selectedChart: ChartIdType;
+    selectedModel: ComfortModelType;
+  }
+
   let {
     selectedChart,
     selectedModel,
-  }: { selectedChart: ChartIdType; selectedModel: ComfortModelType } = $props();
+  }: Props = $props();
 
   const utciZones = utciStressBands.map((band) => ({
     label: band.label,
@@ -42,15 +52,15 @@
   );
 </script>
 
-{#if isPmvChart}
+{#snippet legendSection(title: string, zones: ReadonlyArray<LegendZone>)}
   <div
     class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
   >
     <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >PMV Zones</span
+      >{title}</span
     >
     <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each pmvZones as zone}
+      {#each zones as zone}
         <div class="flex items-center gap-1.5">
           <div
             class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
@@ -63,119 +73,31 @@
       {/each}
     </div>
   </div>
+{/snippet}
+
+{#if isPmvChart}
+  {@render legendSection("PMV Zones", pmvZones)}
 {/if}
 
 {#if isUtciChart}
-  <div
-    class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
-  >
-    <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >UTCI Zones</span
-    >
-    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each utciZones as zone}
-        <div class="flex items-center gap-1.5">
-          <div
-            class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
-            style="background-color: {zone.color}"
-          ></div>
-          <span class="text-[11px] font-medium text-stone-500"
-            >{zone.label}</span
-          >
-        </div>
-      {/each}
-    </div>
-  </div>
+  {@render legendSection("UTCI Zones", utciZones)}
 {/if}
 
 {#if selectedChart === ChartId.HeatIndexRanges || selectedChart === ChartId.HeatIndexDynamic}
-  <div
-    class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
-  >
-    <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >Heat Index</span
-    >
-    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each heatIndexZones as zone}
-        <div class="flex items-center gap-1.5">
-          <div
-            class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
-            style="background-color: {zone.color}"
-          ></div>
-          <span class="text-[11px] font-medium text-stone-500"
-            >{zone.label}</span
-          >
-        </div>
-      {/each}
-    </div>
-  </div>
+  {@render legendSection("Heat Index", heatIndexZones)}
 {/if}
 
 {#if selectedChart === ChartId.Humidex || selectedChart === ChartId.HumidexDynamic}
-  <div
-    class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
-  >
-    <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >Humidex</span
-    >
-    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each humidexZones as zone}
-        <div class="flex items-center gap-1.5">
-          <div
-            class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
-            style="background-color: {zone.color}"
-          ></div>
-          <span class="text-[11px] font-medium text-stone-500"
-            >{zone.label}</span
-          >
-        </div>
-      {/each}
-    </div>
-  </div>
+  {@render legendSection("Humidex", humidexZones)}
 {/if}
 
 {#if selectedChart === ChartId.WindChill || selectedChart === ChartId.WindChillDynamic}
-  <div
-    class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
-  >
-    <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >Wind Chill</span
-    >
-    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each windChillZones as zone}
-        <div class="flex items-center gap-1.5">
-          <div
-            class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
-            style="background-color: {zone.color}"
-          ></div>
-          <span class="text-[11px] font-medium text-stone-500"
-            >{zone.label}</span
-          >
-        </div>
-      {/each}
-    </div>
-  </div>
+  {@render legendSection("Wind Chill", windChillZones)}
 {/if}
 
 {#if selectedChart === ChartId.Adaptive || selectedChart === ChartId.AdaptiveDynamic}
-  <div
-    class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-stone-100 pt-4"
-  >
-    <span class="text-xs font-semibold uppercase tracking-wider text-stone-400"
-      >Adaptive Zones</span
-    >
-    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-      {#each selectedModel === ComfortModel.AdaptiveAshrae ? adaptiveAshraeZones : adaptiveEnZones as zone}
-        <div class="flex items-center gap-1.5">
-          <div
-            class="h-2.5 w-2.5 rounded-full border border-stone-200 shadow-sm"
-            style="background-color: {zone.color}"
-          ></div>
-          <span class="text-[11px] font-medium text-stone-500"
-            >{zone.label}</span
-          >
-        </div>
-      {/each}
-    </div>
-  </div>
+  {@render legendSection(
+    "Adaptive Zones",
+    selectedModel === ComfortModel.AdaptiveAshrae ? adaptiveAshraeZones : adaptiveEnZones,
+  )}
 {/if}

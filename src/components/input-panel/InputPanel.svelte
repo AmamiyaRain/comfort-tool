@@ -14,17 +14,19 @@
   import ToolControls from "./ToolControls.svelte";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
+  interface Props {
+    toolState: ComfortToolController;
+  }
+
   let {
     toolState,
-  }: {
-    toolState: ComfortToolController;
-  } = $props();
+  }: Props = $props();
 
   let clothingBuilderOpen = $state(false);
   let quickClothingEstimateOpen = $state(false);
   const maxClothingValue = fieldMetaByKey[FieldKey.ClothingInsulation].maxValue;
 
-  function handleApplyClothingValue(inputId, value) {
+  function handleApplyClothingValue(inputId: InputIdType, value: number) {
     toolState.actions.setActiveInputId(inputId);
     toolState.actions.updateInput(inputId, InputControlId.ClothingInsulation, value.toFixed(2));
   }

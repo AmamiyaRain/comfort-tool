@@ -3,7 +3,6 @@
  * @description Configuration and calculation service for the Wind Chill comfort model.
  */
 
-import { wc } from "jsthermalcomfort";
 import { CalculationSource } from "../models/calculationMetadata";
 import { ComfortModel } from "../models/comfortModels";
 import { ChartId } from "../models/chartOptions";
@@ -17,6 +16,7 @@ import type { CompareInputMap } from "../models/comfortDtos";
 import { buildDefaultPresentation, createControlBehavior, createTemperatureControlBehavior } from "../services/comfort/controls/controlBehaviors";
 import { getWindChillZone, windChillZones, WCI_FROSTBITE_30, WCI_FROSTBITE_10, WCI_FROSTBITE_2, roundValue } from "../services/comfort/helpers";
 import { buildGenericHeatmapRangeChart, buildGenericDynamicHeatmapChart } from "../services/comfort/charts/sharedCharts";
+import { calculateWindChillIndex, calculateWindChillTemperature } from "../services/comfort/windChill";
 import { convertFieldValueFromSi, formatDisplayValue } from "../services/units/index";
 import { ComfortModelBuilder, isRecord, createEmptyResults, buildResultSection } from "../state/comfortTool/modelConfigs/builder";
 
@@ -54,15 +54,13 @@ export function calculateWindChill(payload: WindChillRequestDto): WindChillRespo
   const tdbSi = payload.tdb;
   const vSi = payload.v;
 
-  // Calculate Wind Chill Index using jsthermalcomfort engine
-  const wcResult = wc(tdbSi, vSi, { round: true });
-  const wci = wcResult.wci;
+  const wci = calculateWindChillIndex(tdbSi, vSi);
 
   // Calculate equivalent Wind Chill Temperature using formula
   // Only applied if wind speed is greater than 1.33 m/s and temperature is less than or equal to 10 Celsius
   let wciTemp: number | undefined = undefined;
   if (vSi > 1.33 && tdbSi <= 10) {
-    wciTemp = 13.12 + 0.6215 * tdbSi - 13.95 * Math.pow(vSi, 0.16) + 0.486 * tdbSi * Math.pow(vSi, 0.16);
+    wciTemp = calculateWindChillTemperature(tdbSi, vSi);
   } else {
     wciTemp = tdbSi;
   }
@@ -246,8 +244,7 @@ windChillBuilder.setChartBuilder((chartId, chartSource, resultsByInput, unitSyst
           if (dynamicXAxis === FieldKey.RelativeAirSpeed || dynamicXAxis === FieldKey.WindSpeed) calcPayload.v = xSi;
           if (dynamicYAxis === FieldKey.RelativeAirSpeed || dynamicYAxis === FieldKey.WindSpeed) calcPayload.v = ySi;
 
-          const res = wc(calcPayload.tdb, calcPayload.v, { round: true });
-          const wci = res.wci;
+          const wci = calculateWindChillIndex(calcPayload.tdb, calcPayload.v);
           let rangeValue = 0;
           if (wci >= WCI_FROSTBITE_2) rangeValue = 3;
           else if (wci >= WCI_FROSTBITE_10) rangeValue = 2;
@@ -278,8 +275,7 @@ windChillBuilder.setChartBuilder((chartId, chartSource, resultsByInput, unitSyst
     getScatterXSi: (p) => p.v || 0,
     getScatterYSi: (p) => p.tdb,
     calculatePoint: (xSi, ySi) => {
-      const result = wc(ySi, xSi, { round: true });
-      const wci = result.wci;
+      const wci = calculateWindChillIndex(ySi, xSi);
       let rangeValue = 0;
       if (wci >= WCI_FROSTBITE_2) rangeValue = 3;
       else if (wci >= WCI_FROSTBITE_10) rangeValue = 2;

@@ -19,6 +19,31 @@
     ComfortModel,
     type ComfortModel as ComfortModelType,
   } from "../../models/comfortModels";
+  import type { FieldKey as FieldKeyType } from "../../models/fieldKeys";
+  import type { InputId as InputIdType } from "../../models/inputSlots";
+
+  interface Props {
+    title: string;
+    description: string;
+    chartResult: PlotlyChartResponseDto | null;
+    isLoading: boolean;
+    emptyMessage: string;
+    heightClass: string;
+    chartOptions: Array<{ name: string; value: ChartIdType }>;
+    selectedChart: ChartIdType;
+    selectedModel: ComfortModelType;
+    onSelectChart: (chartId: ChartIdType) => void;
+    dynamicXAxis?: FieldKeyType;
+    dynamicYAxis?: FieldKeyType;
+    onSelectXAxis?: (fieldKey: FieldKeyType) => void;
+    onSelectYAxis?: (fieldKey: FieldKeyType) => void;
+    dynamicAxisOptions?: FieldKeyType[];
+    baselineInputId?: InputIdType;
+    onSelectBaselineInput?: (inputId: InputIdType) => void;
+    visibleInputIds?: InputIdType[];
+    compareEnabled?: boolean;
+    embedded?: boolean;
+  }
 
   let {
     title,
@@ -41,32 +66,12 @@
     visibleInputIds = [],
     compareEnabled = false,
     embedded = false,
-  }: {
-    title: string;
-    description: string;
-    chartResult: PlotlyChartResponseDto | null;
-    isLoading: boolean;
-    emptyMessage: string;
-    heightClass: string;
-    chartOptions: Array<{ name: string; value: ChartIdType }>;
-    selectedChart: ChartIdType;
-    selectedModel: ComfortModelType;
-    onSelectChart: (chartId: ChartIdType) => void;
-    dynamicXAxis?: string;
-    dynamicYAxis?: string;
-    onSelectXAxis?: (fieldKey: string) => void;
-    onSelectYAxis?: (fieldKey: string) => void;
-    dynamicAxisOptions?: string[];
-    baselineInputId?: string;
-    onSelectBaselineInput?: (inputId: string) => void;
-    visibleInputIds?: string[];
-    compareEnabled?: boolean;
-    embedded?: boolean;
-  } = $props();
+  }: Props = $props();
 
   let exportChart: ((type: "png" | "svg") => void) | undefined =
     $state(undefined);
   let showZones = $state(true);
+  const chartPanelIdPrefix = `chart-panel-${Math.random().toString(36).slice(2, 10)}`;
 
   // Reset zone visibility whenever the active chart changes.
   $effect(() => {
@@ -76,6 +81,15 @@
 
   // Disable dynamic axis selection based on the currently selected chart's metadata properties (disabled when lockYAxis is true)
   const lockYAxis = $derived(!!chartMetaById[selectedChart]?.lockYAxis);
+  const isDynamicChart = $derived(!!chartMetaById[selectedChart]?.isDynamic);
+  const showAxisMenu = $derived(
+    (compareEnabled || isDynamicChart) &&
+      !!baselineInputId &&
+      !!onSelectBaselineInput,
+  );
+  const axisMenuIdPrefix = $derived(
+    `${chartPanelIdPrefix}-${selectedModel}-${selectedChart}`,
+  );
   // Disable zones toggle for models that do not use zones (AdaptiveAshrae, AdaptiveEn) and for dynamic charts
   const showZonesToggle = $derived(
     selectedModel !== ComfortModel.AdaptiveAshrae &&
@@ -100,9 +114,9 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2 pr-[24px]">
-      {#if (compareEnabled || chartMetaById[selectedChart]?.isDynamic) && baselineInputId && onSelectBaselineInput}
-        <!-- Only show the axis menu when the chart is dynamic (determined by metadata), a baseline input is selected, and the user has enabled comparison mode -->
+      {#if showAxisMenu}
         <ChartAxisMenu
+          idPrefix={axisMenuIdPrefix}
           {dynamicXAxis}
           {dynamicYAxis}
           axisOptions={dynamicAxisOptions}

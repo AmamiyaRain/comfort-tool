@@ -160,7 +160,7 @@ describe("comfort services", () => {
     );
 
     expect(psychrometricChart.traces.length).toBeGreaterThan(1);
-    expect(utciChart.traces).toHaveLength(2);
+    expect(utciChart.traces).toHaveLength(3);
     expect(utciChart.annotations.length).toBeGreaterThan(0);
   });
 
@@ -203,7 +203,9 @@ describe("comfort services", () => {
     expect(String(psychrometricChart.layout.yaxis.title)).toContain("gr/lb");
     expect(psychrometricChart.traces[0].hovertemplate).toContain("°F");
     expect(String(utciChart.layout.xaxis.title)).toContain("°F");
-    expect(utciChart.traces[1].hovertemplate).toContain("°F");
+    const utciInputTrace = utciChart.traces.find((trace) => trace.type === "scatter" && trace.name === "Input 1");
+    expect(utciInputTrace).toBeDefined();
+    expect(utciInputTrace?.hovertemplate).toContain("°F");
   });
 
   it("smooths comfort-zone polygon x values while preserving solver output", () => {

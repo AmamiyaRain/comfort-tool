@@ -7,22 +7,16 @@
   import { buildShareUrl } from "../state/comfortTool/shareState";
   import type { ComfortToolController } from "../state/comfortTool/types";
 
+  interface Props {
+    toolState: ComfortToolController;
+  }
+
   let {
     toolState,
-  }: {
-    toolState: ComfortToolController;
-  } = $props();
+  }: Props = $props();
 
   let exportStatus = $state<"idle" | "copied" | "error">("idle");
   let exportStatusTimer: number | null = null;
-
-  function getLinkTarget(external?: boolean) {
-    return external ? "_blank" : undefined;
-  }
-
-  function getLinkRel(external?: boolean) {
-    return external ? "noreferrer" : undefined;
-  }
 
   function getExportLabel() {
     if (exportStatus === "copied") {
@@ -113,8 +107,8 @@
       {#each siteHeaderLinks as link}
         <NavLi
           href={link.href}
-          target={getLinkTarget(link.external)}
-          rel={getLinkRel(link.external)}
+          target={link.external ? "_blank" : undefined}
+          rel={link.external ? "noreferrer" : undefined}
           class="inline-block rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:border-stone-300 hover:text-stone-950 transition-colors shadow-sm"
         >
           {link.label}
@@ -123,5 +117,3 @@
     </NavUl>
   </div>
 </Navbar>
-
-
