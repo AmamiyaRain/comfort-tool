@@ -58,7 +58,7 @@ export function calculateAdaptive(
       payload.units === UnitSystem.SI ? "SI" : "IP",
       // Flag to indicate if the calculation should be performed.
       true,
-      { round_output: false },
+      false,
     );
 
     // Return the results.
@@ -92,7 +92,7 @@ export function calculateAdaptive(
     payload.units === UnitSystem.SI ? "SI" : "IP",
     // Flag to indicate if the calculation should be performed.
     true,
-    { round_output: false },
+    false,
   );
 
   // Return the results.
