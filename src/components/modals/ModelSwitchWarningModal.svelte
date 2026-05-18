@@ -13,11 +13,13 @@
   import type { ComfortToolController } from "../../state/comfortTool/types";
   import { getComfortModelConfig } from "../../state/comfortTool/modelConfigs";
 
+  interface Props {
+    toolState: ComfortToolController;
+  }
+
   let {
     toolState,
-  }: {
-    toolState: ComfortToolController;
-  } = $props();
+  }: Props = $props();
 
   const pending = $derived(toolState.selectors.getPendingModelSwitch());
   const isOpen = $derived(!!pending);

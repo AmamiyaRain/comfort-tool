@@ -20,6 +20,16 @@
   import type { InputId as InputIdType } from "../models/inputSlots";
   import type { ResultSectionViewModel } from "../state/comfortTool/types";
 
+  interface Props {
+    activeInputId: InputIdType;
+    visibleInputIds: InputIdType[];
+    resultSections: ResultSectionViewModel[];
+    errorMessage: string;
+    isLoading: boolean;
+    toneToClass?: Record<string, string>;
+    embedded?: boolean;
+  }
+
   let {
     activeInputId,
     visibleInputIds,
@@ -28,15 +38,7 @@
     isLoading,
     toneToClass = {},
     embedded = false,
-  }: {
-    activeInputId: InputIdType;
-    visibleInputIds: InputIdType[];
-    resultSections: ResultSectionViewModel[];
-    errorMessage: string;
-    isLoading: boolean;
-    toneToClass?: Record<string, string>;
-    embedded?: boolean;
-  } = $props();
+  }: Props = $props();
 </script>
 
 {#snippet table(sections: ResultSectionViewModel[])}

@@ -7,6 +7,7 @@
     Input,
     Label,
   } from "flowbite-svelte";
+  import { ChevronDownOutline } from "flowbite-svelte-icons";
   import PresetNumericInput from "../PresetNumericInput.svelte";
   import { inputDisplayMetaById } from "../../models/inputSlotPresentation";
   import type { InputId as InputIdType } from "../../models/inputSlots";
@@ -14,17 +15,19 @@
   import type { OptionKey } from "../../models/inputModes";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
+  interface Props {
+    toolState: ComfortToolController;
+    control: InputControlViewModel;
+    onOpenClothingBuilder: () => void;
+    onOpenQuickClothingEstimate: () => void;
+  }
+
   let {
     toolState,
     control,
     onOpenClothingBuilder,
     onOpenQuickClothingEstimate,
-  }: {
-    toolState: ComfortToolController;
-    control: InputControlViewModel;
-    onOpenClothingBuilder: () => void;
-    onOpenQuickClothingEstimate: () => void;
-  } = $props();
+  }: Props = $props();
 
   let menu = $derived(control.menu);
 
@@ -110,7 +113,7 @@
           class={subtleButtonClass}
         >
           More
-          <span class="text-[10px]">▼</span>
+          <ChevronDownOutline class="h-3 w-3" strokeWidth="2" />
         </Button>
 
         <Dropdown
@@ -158,7 +161,7 @@
           class={subtleButtonClass}
         >
           Clothing tools
-          <span class="text-[10px]">▼</span>
+          <ChevronDownOutline class="h-3 w-3" strokeWidth="2" />
         </Button>
 
         <Dropdown

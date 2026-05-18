@@ -15,21 +15,13 @@
     siteFooterGithubLink,
     siteFooterSummary,
   } from "../models/siteShellConfig";
-
-  function getLinkTarget(external?: boolean) {
-    return external ? "_blank" : undefined;
-  }
-
-  function getLinkRel(external?: boolean) {
-    return external ? "noreferrer" : undefined;
-  }
 </script>
 
 <Footer footerType="custom" class="border-t border-stone-800 bg-stone-950 text-white rounded-none">
   <div class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
     <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
-        <header class="flex flex-wrap items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <FooterBrand
             href="#overview"
             src={siteBrand.footerLogoSrc}
@@ -37,7 +29,7 @@
             class="h-9 w-auto object-contain"
           />
           <Img src={siteBrand.berkeleyLogoSrc} alt="UC Berkeley logo" class="h-7 w-auto object-contain opacity-85" />
-        </header>
+        </div>
 
         <div class="mt-3">
           <Heading tag="h6" class="text-eyebrow tracking-[0.18em] text-white/40">{siteBrand.eyebrow}</Heading>
@@ -54,16 +46,16 @@
           <FooterLinkGroup class="flex-col space-y-2">
             <FooterLink
               href={siteFooterDocumentationLink.href}
-              target={getLinkTarget(siteFooterDocumentationLink.external)}
-              rel={getLinkRel(siteFooterDocumentationLink.external)}
+              target={siteFooterDocumentationLink.external ? "_blank" : undefined}
+              rel={siteFooterDocumentationLink.external ? "noreferrer" : undefined}
               class="text-sm text-white/80 hover:text-white"
             >
               {siteFooterDocumentationLink.label}
             </FooterLink>
             <FooterLink
               href={siteFooterGithubLink.href}
-              target={getLinkTarget(siteFooterGithubLink.external)}
-              rel={getLinkRel(siteFooterGithubLink.external)}
+              target={siteFooterGithubLink.external ? "_blank" : undefined}
+              rel={siteFooterGithubLink.external ? "noreferrer" : undefined}
               class="text-sm text-white/80 hover:text-white"
             >
               {siteFooterGithubLink.label}
@@ -77,8 +69,8 @@
             {#each siteFooterContactLinks as link}
               <FooterLink
                 href={link.href}
-                target={getLinkTarget(link.external)}
-                rel={getLinkRel(link.external)}
+                target={link.external ? "_blank" : undefined}
+                rel={link.external ? "noreferrer" : undefined}
                 class="text-sm text-sky-300 hover:text-sky-200"
               >
                 {link.label}

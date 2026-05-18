@@ -11,32 +11,16 @@
   import ChartPanel from "../components/chart/ChartPanel.svelte";
   import InputPanel from "../components/input-panel/InputPanel.svelte";
   import ResultsPanel from "../components/ResultsPanel.svelte";
-  import type { ChartId } from "../models/chartOptions";
-  import type { FieldKey } from "../models/fieldKeys";
   import { getComfortModelConfig } from "../state/comfortTool/modelConfigs";
   import type { ComfortToolController } from "../state/comfortTool/types";
 
+  interface Props {
+    toolState: ComfortToolController;
+  }
+
   let {
     toolState,
-  }: {
-    toolState: ComfortToolController;
-  } = $props();
-
-  function handleSelectChart(nextChart: ChartId) {
-    toolState.actions.setSelectedChart(nextChart);
-  }
-
-  function handleSelectXAxis(fieldKey: string) {
-    toolState.actions.setDynamicXAxis(fieldKey as FieldKey);
-  }
-
-  function handleSelectYAxis(fieldKey: string) {
-    toolState.actions.setDynamicYAxis(fieldKey as FieldKey);
-  }
-
-  function handleSelectBaselineInput(inputId: string) {
-    toolState.actions.setChartBaselineInputId(inputId as any);
-  }
+  }: Props = $props();
 </script>
 
 <main id="overview" class="bg-stone-50 px-4 py-4 sm:px-6 lg:px-8">
@@ -71,16 +55,16 @@
           chartOptions={toolState.selectors.getCurrentChartOptions()}
           selectedChart={toolState.selectors.getCurrentSelectedChart()}
           selectedModel={toolState.state.ui.selectedModel}
-          onSelectChart={handleSelectChart}
+          onSelectChart={toolState.actions.setSelectedChart}
           dynamicXAxis={toolState.state.ui.dynamicXAxis}
           dynamicYAxis={toolState.state.ui.dynamicYAxis}
           dynamicAxisOptions={toolState.selectors.getDynamicAxisOptions()}
           baselineInputId={toolState.state.ui.chartBaselineInputId}
-          onSelectBaselineInput={handleSelectBaselineInput}
+          onSelectBaselineInput={toolState.actions.setChartBaselineInputId}
           visibleInputIds={toolState.selectors.getVisibleInputIds()}
           compareEnabled={toolState.state.ui.compareEnabled}
-          onSelectXAxis={handleSelectXAxis}
-          onSelectYAxis={handleSelectYAxis}
+          onSelectXAxis={toolState.actions.setDynamicXAxis}
+          onSelectYAxis={toolState.actions.setDynamicYAxis}
           embedded={true}
         />
       </Card>

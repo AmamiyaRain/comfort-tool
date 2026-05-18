@@ -8,11 +8,13 @@
   import { UnitSystem } from "../../models/units";
   import type { ComfortToolController } from "../../state/comfortTool/types";
 
+  interface Props {
+    toolState: ComfortToolController;
+  }
+
   let {
     toolState,
-  }: {
-    toolState: ComfortToolController;
-  } = $props();
+  }: Props = $props();
 
   const modelOptions = comfortModelOrder.map((modelId) => ({
     name: comfortModelMetaById[modelId].label,
@@ -64,4 +66,3 @@
     </fieldset>
   </div>
 </section>
-
